@@ -1,0 +1,11 @@
+import { Router } from "express";
+import GoogleAuth from "./google";
+import FacebookAuth from "./facebook";
+import AppleAuth from "./apple";
+import LocalAuth from "./local";
+const router = Router();
+router.use("/apple", AppleAuth);
+router.use("/google", GoogleAuth);
+router.use("/facebook", FacebookAuth);
+router.use("/local", LocalAuth);
+export default router;
