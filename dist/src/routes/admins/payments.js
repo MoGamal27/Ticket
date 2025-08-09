@@ -8,6 +8,7 @@ const users_1 = require("../../validators/admins/users");
 const payments_2 = require("../../validators/admins/payments");
 const router = (0, express_1.Router)();
 router.get("/auto-payments", (0, catchAsync_1.catchAsync)(payments_1.getAutoPayments));
+router.get("/all-payment", (0, catchAsync_1.catchAsync)(payments_1.getAllPayments));
 router.get("/pending-payments", (0, catchAsync_1.catchAsync)(payments_1.getPendingPayments));
 router
     .route("/pending-payments/:id")

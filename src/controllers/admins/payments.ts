@@ -67,3 +67,12 @@ export const getAutoPayments = async (req: Request, res: Response) => {
     .where(eq(payments.method, "auto"));
   SuccessResponse(res, { payments: paymentsData }, 200);
 };
+
+export const getAllPayments = async(req: Request, res: Response) => {
+
+  const Payments = await db
+  .select()
+  .from(payments);
+
+  SuccessResponse(res, {payments: Payments}, 200)
+}

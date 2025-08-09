@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAutoPayments = exports.changeStatus = exports.getPaymentById = exports.getPendingPayments = void 0;
+exports.getAllPayments = exports.getAutoPayments = exports.changeStatus = exports.getPaymentById = exports.getPendingPayments = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -67,3 +67,10 @@ const getAutoPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
     (0, response_1.SuccessResponse)(res, { payments: paymentsData }, 200);
 });
 exports.getAutoPayments = getAutoPayments;
+const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const Payments = yield db_1.db
+        .select()
+        .from(schema_1.payments);
+    (0, response_1.SuccessResponse)(res, { payments: Payments }, 200);
+});
+exports.getAllPayments = getAllPayments;
