@@ -46,6 +46,9 @@ function login(req, res) {
                 .from(schema_1.adminPrivileges)
                 .innerJoin(schema_1.privileges, (0, drizzle_orm_1.eq)(schema_1.adminPrivileges.privilegeId, schema_1.privileges.id))
                 .where((0, drizzle_orm_1.eq)(schema_1.adminPrivileges.adminId, admin.id));
+            if (result.length === 0) {
+                throw new Errors_1.UnauthorizedError("You don't have any privileges assigned yet. Please contact super admin.");
+            }
             const privilegeNames = result.map((r) => r.privilegeName + "_" + r.privilegeAction);
             groupedPrivileges = result.reduce((acc, curr) => {
                 if (!acc[curr.privilegeName]) {

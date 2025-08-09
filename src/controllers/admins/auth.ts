@@ -37,6 +37,10 @@ export async function login(req: Request, res: Response) {
       .innerJoin(privileges, eq(adminPrivileges.privilegeId, privileges.id))
       .where(eq(adminPrivileges.adminId, admin.id));
 
+    if (result.length === 0) {
+      throw new UnauthorizedError("You don't have any privileges assigned yet. Please contact super admin.");
+    }
+
     const privilegeNames = result.map(
       (r) => r.privilegeName + "_" + r.privilegeAction
     );
@@ -77,10 +81,10 @@ export async function login(req: Request, res: Response) {
 
   SuccessResponse(
     res,
-    { 
-      message: "login Successful", 
-      token: token, 
-      groupedPrivileges: groupedPrivileges 
+    {
+      message: "login Successful",
+      token: token,
+      groupedPrivileges: groupedPrivileges
     },
     200
   );
