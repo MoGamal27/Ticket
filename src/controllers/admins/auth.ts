@@ -23,25 +23,52 @@ export async function login(req: Request, res: Response) {
   if (!match) {
     throw new UnauthorizedError("Invalid email or password");
   }
-  let privilegeNames;
   let token;
+  let groupedPrivileges = {};
+
   if (!admin.isSuperAdmin) {
     const result = await db
       .select({
         privilegeName: privileges.name,
         privilegeAction: privileges.action,
+        privilegeId: privileges.id
       })
       .from(adminPrivileges)
       .innerJoin(privileges, eq(adminPrivileges.privilegeId, privileges.id))
       .where(eq(adminPrivileges.adminId, admin.id));
-    privilegeNames = result.map(
+
+    const privilegeNames = result.map(
       (r) => r.privilegeName + "_" + r.privilegeAction
     );
+
+    groupedPrivileges = result.reduce((acc, curr) => {
+      if (!acc[curr.privilegeName]) {
+        acc[curr.privilegeName] = [];
+      }
+      acc[curr.privilegeName].push({
+        id: curr.privilegeId,
+        action: curr.privilegeAction,
+      });
+      return acc;
+    }, {} as Record<string, { id: number; action: string }[]>);
+
     token = generateToken({
       id: admin.id,
       roles: privilegeNames,
     });
   } else {
+    const allPrivileges = await db.select().from(privileges);
+    groupedPrivileges = allPrivileges.reduce((acc, curr) => {
+      if (!acc[curr.name]) {
+        acc[curr.name] = [];
+      }
+      acc[curr.name].push({
+        id: curr.id,
+        action: curr.action,
+      });
+      return acc;
+    }, {} as Record<string, { id: number; action: string }[]>);
+
     token = generateToken({
       id: admin.id,
       roles: ["super_admin"],
@@ -50,7 +77,11 @@ export async function login(req: Request, res: Response) {
 
   SuccessResponse(
     res,
-    { message: "login Successful", token: token, privileges: privilegeNames },
+    { 
+      message: "login Successful", 
+      token: token, 
+      groupedPrivileges: groupedPrivileges 
+    },
     200
   );
 }
