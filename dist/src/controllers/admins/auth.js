@@ -34,29 +34,55 @@ function login(req, res) {
         if (!match) {
             throw new Errors_1.UnauthorizedError("Invalid email or password");
         }
-        let privilegeNames;
         let token;
+        let groupedPrivileges = {};
         if (!admin.isSuperAdmin) {
             const result = yield db_1.db
                 .select({
                 privilegeName: schema_1.privileges.name,
                 privilegeAction: schema_1.privileges.action,
+                privilegeId: schema_1.privileges.id
             })
                 .from(schema_1.adminPrivileges)
                 .innerJoin(schema_1.privileges, (0, drizzle_orm_1.eq)(schema_1.adminPrivileges.privilegeId, schema_1.privileges.id))
                 .where((0, drizzle_orm_1.eq)(schema_1.adminPrivileges.adminId, admin.id));
-            privilegeNames = result.map((r) => r.privilegeName + "_" + r.privilegeAction);
+            const privilegeNames = result.map((r) => r.privilegeName + "_" + r.privilegeAction);
+            groupedPrivileges = result.reduce((acc, curr) => {
+                if (!acc[curr.privilegeName]) {
+                    acc[curr.privilegeName] = [];
+                }
+                acc[curr.privilegeName].push({
+                    id: curr.privilegeId,
+                    action: curr.privilegeAction,
+                });
+                return acc;
+            }, {});
             token = (0, auth_1.generateToken)({
                 id: admin.id,
                 roles: privilegeNames,
             });
         }
         else {
+            const allPrivileges = yield db_1.db.select().from(schema_1.privileges);
+            groupedPrivileges = allPrivileges.reduce((acc, curr) => {
+                if (!acc[curr.name]) {
+                    acc[curr.name] = [];
+                }
+                acc[curr.name].push({
+                    id: curr.id,
+                    action: curr.action,
+                });
+                return acc;
+            }, {});
             token = (0, auth_1.generateToken)({
                 id: admin.id,
                 roles: ["super_admin"],
             });
         }
-        (0, response_1.SuccessResponse)(res, { message: "login Successful", token: token, privileges: privilegeNames }, 200);
+        (0, response_1.SuccessResponse)(res, {
+            message: "login Successful",
+            token: token,
+            groupedPrivileges: groupedPrivileges
+        }, 200);
     });
 }
