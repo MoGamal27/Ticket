@@ -9,11 +9,10 @@ export const changeStatusSchema = z.object({
       status: z.enum(["pending", "confirmed", "cancelled"]),
       rejectionReason: z.string().optional(),
     })
-    .refine((data) => {
-      if (data.status === "cancelled" && !data.rejectionReason) {
-        return {
-          message: "Should Provide Rejection Reason",
-        };
+    .refine(
+      (data) => !(data.status === "cancelled" && !data.rejectionReason),
+      {
+        message: "Should Provide Rejection Reason"
       }
-    }),
+    ),
 });
