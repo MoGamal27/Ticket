@@ -100,15 +100,15 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         points: schema_1.tours.points,
         durationDays: schema_1.tours.durationDays,
         durationHours: schema_1.tours.durationHours,
-        country: schema_1.countries.name,
-        city: schema_1.cites.name,
+        country: schema_1.countries.id,
+        city: schema_1.cites.id,
         maxUsers: schema_1.tours.maxUsers,
         category: schema_1.categories.id,
         price: {
             adult: schema_1.tourPrice.adult,
             child: schema_1.tourPrice.child,
             infant: schema_1.tourPrice.infant,
-            currency: schema_1.currencies.name,
+            currency: schema_1.currencies.id,
         },
     })
         .from(schema_1.tours)
