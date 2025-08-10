@@ -6,11 +6,14 @@ import {
   getPaymentById,
   getAutoPayments,
   getAllPayments,
+  //initializePayment,
 } from "../../controllers/admins/payments";
 import { validate } from "../../middlewares/validation";
 import { idParams } from "../../validators/admins/users";
 import { changeStatusSchema } from "../../validators/admins/payments";
 const router = Router();
+
+//router.post("/initialize-payment", catchAsync(intializePayemnt))
 
 router.get("/auto-payments", catchAsync(getAutoPayments));
 

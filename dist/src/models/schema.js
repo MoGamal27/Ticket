@@ -75,6 +75,7 @@ exports.tourDiscounts = (0, mysql_core_1.mysqlTable)("tour_discounts", {
     value: (0, mysql_core_1.decimal)("value", { precision: 5, scale: 2 }).notNull(),
     minPeople: (0, mysql_core_1.int)("min_people").default(0),
     maxPeople: (0, mysql_core_1.int)("max_people"),
+    kindBy: (0, mysql_core_1.mysqlEnum)("kind_by", ["person", "total"]).notNull(),
 });
 exports.tourDaysOfWeek = (0, mysql_core_1.mysqlTable)("tour_days_of_week", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),

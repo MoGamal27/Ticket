@@ -90,6 +90,7 @@ export const tourDiscounts = mysqlTable("tour_discounts", {
   value: decimal("value", { precision: 5, scale: 2 }).notNull(),
   minPeople: int("min_people").default(0),
   maxPeople: int("max_people"),
+  kindBy: mysqlEnum("kind_by", ["person", "total"]).notNull(),
 });
 
 export const tourDaysOfWeek = mysqlTable("tour_days_of_week", {

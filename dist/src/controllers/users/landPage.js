@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = void 0;
+exports.createBookingWithPayment = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -139,6 +139,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 adult: schema_1.tourPrice.adult,
                 child: schema_1.tourPrice.child,
                 infant: schema_1.tourPrice.infant,
+                currency: schema_1.tourPrice.currencyId,
             },
         })
             .from(schema_1.tourExtras)
@@ -157,3 +158,32 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         })), faq: faq.map((f) => ({ question: f.question, answer: f.answer })), discounts, daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek), extras: extrasWithPrices, images: images.map((img) => img.imagePath) }), 200);
 });
 exports.getTourById = getTourById;
+const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { tourId, userId, adult, child, infant, image, discount } = req.body;
+    const [newBooking] = yield db_1.db.insert(schema_1.bookings).values({
+        tourId,
+        userId,
+        status: "pending"
+    }).$returningId();
+    const totalAmount = (adult || 0) + (child || 0) + (infant || 0);
+    const finalAmount = discount ? totalAmount - discount : totalAmount;
+    const [payment] = yield db_1.db.insert(schema_1.payments).values({
+        bookingId: newBooking.id,
+        method: "manual",
+        status: "pending",
+        amount: finalAmount,
+        createdAt: new Date(),
+    }).$returningId();
+    if (image) {
+        yield db_1.db.insert(schema_1.manualPaymentMethod).values({
+            paymentId: payment.id,
+            proofImage: image,
+            uploadedAt: new Date()
+        });
+    }
+    (0, response_1.SuccessResponse)(res, {
+        booking: newBooking,
+        payment: payment
+    }, 201);
+});
+exports.createBookingWithPayment = createBookingWithPayment;

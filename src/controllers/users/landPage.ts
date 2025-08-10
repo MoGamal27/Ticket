@@ -19,6 +19,9 @@ import {
   tourItinerary,
   currencies,
   extras,
+  bookings,
+  payments,
+  manualPaymentMethod,
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -159,6 +162,7 @@ export const getTourById = async (req: Request, res: Response) => {
           adult: tourPrice.adult,
           child: tourPrice.child,
           infant: tourPrice.infant,
+          currency: tourPrice.currencyId,
         },
       })
       .from(tourExtras)
@@ -191,4 +195,50 @@ export const getTourById = async (req: Request, res: Response) => {
     },
     200
   );
+};
+
+
+export const createBookingWithPayment = async (req: Request, res: Response) => {
+  const { 
+    tourId, 
+    userId, 
+    adult,
+    child,
+    infant,
+    image,
+    discount 
+  } = req.body;
+
+
+  const [newBooking] = await db.insert(bookings).values({
+    tourId,
+    userId,
+    status: "pending"
+  }).$returningId();
+
+  const totalAmount = (adult || 0) + (child || 0) + (infant || 0);
+  const finalAmount = discount ? totalAmount - discount : totalAmount;
+
+  
+  const [payment] = await db.insert(payments).values({
+    bookingId: newBooking.id,
+    method: "manual",
+    status: "pending",
+    amount: finalAmount,
+    createdAt: new Date(),
+  }).$returningId();
+
+  
+  if (image) {
+    await db.insert(manualPaymentMethod).values({
+      paymentId: payment.id,
+      proofImage: image,
+      uploadedAt: new Date()
+    });
+  }
+
+  SuccessResponse(res, { 
+    booking: newBooking,
+    payment: payment
+  }, 201);
 };
