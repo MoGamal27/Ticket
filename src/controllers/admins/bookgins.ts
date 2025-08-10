@@ -12,6 +12,21 @@ export const getBookings = async (req: Request, res: Response) => {
       createdAt: bookings.createdAt,
       userName: users.name,
       tourName: tours.title,
+      tourMainImage: tours.mainImage,
+      tourStatus: tours.status,
+      tourFeatured: tours.featured,
+      tourDescription: tours.describtion,
+      tourMeetingPoint: tours.meetingPoint,
+      tourMeetinPointAddress: tours.meetingPointAddress,
+      tourMeetingPointLocation: tours.meetingPointLocation,
+      tourPoints: tours.points,
+      tourEndDate: tours.endDate,
+      tourStartDate: tours.startDate,
+      tourDurationDays: tours.durationDays,
+      tourHours: tours.durationHours,
+      tourCountry: tours.country,
+      tourCity: tours.city,
+      tourMaxUser: tours.maxUsers,
     })
     .from(bookings)
     .leftJoin(users, eq(bookings.userId, users.id))
@@ -55,3 +70,15 @@ export const getBookingsStats = async (req: Request, res: Response) => {
     bookingcompletedCount,
   });
 };
+
+export const createBooking = async (req: Request, res: Response) => {
+  const { tourId, userId, status } = req.body;
+
+  const newBooking = await db.insert(bookings).values({
+    tourId,
+    userId,
+    status,
+  });
+
+  SuccessResponse(res, { booking: newBooking }, 201);
+}

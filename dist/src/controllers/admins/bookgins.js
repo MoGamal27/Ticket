@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBookingsStats = exports.getBookings = void 0;
+exports.createBooking = exports.getBookingsStats = exports.getBookings = void 0;
 const db_1 = require("../../models/db");
 const drizzle_orm_1 = require("drizzle-orm");
 const schema_1 = require("../../models/schema");
@@ -22,6 +22,21 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         createdAt: schema_1.bookings.createdAt,
         userName: schema_1.users.name,
         tourName: schema_1.tours.title,
+        tourMainImage: schema_1.tours.mainImage,
+        tourStatus: schema_1.tours.status,
+        tourFeatured: schema_1.tours.featured,
+        tourDescription: schema_1.tours.describtion,
+        tourMeetingPoint: schema_1.tours.meetingPoint,
+        tourMeetinPointAddress: schema_1.tours.meetingPointAddress,
+        tourMeetingPointLocation: schema_1.tours.meetingPointLocation,
+        tourPoints: schema_1.tours.points,
+        tourEndDate: schema_1.tours.endDate,
+        tourStartDate: schema_1.tours.startDate,
+        tourDurationDays: schema_1.tours.durationDays,
+        tourHours: schema_1.tours.durationHours,
+        tourCountry: schema_1.tours.country,
+        tourCity: schema_1.tours.city,
+        tourMaxUser: schema_1.tours.maxUsers,
     })
         .from(schema_1.bookings)
         .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.bookings.userId, schema_1.users.id))
@@ -62,3 +77,13 @@ const getBookingsStats = (req, res) => __awaiter(void 0, void 0, void 0, functio
     });
 });
 exports.getBookingsStats = getBookingsStats;
+const createBooking = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { tourId, userId, status } = req.body;
+    const newBooking = yield db_1.db.insert(schema_1.bookings).values({
+        tourId,
+        userId,
+        status,
+    });
+    (0, response_1.SuccessResponse)(res, { booking: newBooking }, 201);
+});
+exports.createBooking = createBooking;

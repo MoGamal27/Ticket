@@ -4,6 +4,7 @@ const express_1 = require("express");
 const bookgins_1 = require("../../controllers/admins/bookgins");
 const catchAsync_1 = require("../../utils/catchAsync");
 const router = (0, express_1.Router)();
+router.post("/", (0, catchAsync_1.catchAsync)(bookgins_1.createBooking));
 router.get("/", (0, catchAsync_1.catchAsync)(bookgins_1.getBookings));
 router.get("/header", (0, catchAsync_1.catchAsync)(bookgins_1.getBookingsStats));
 exports.default = router;
