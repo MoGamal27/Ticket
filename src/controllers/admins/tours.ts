@@ -59,8 +59,8 @@ export const getTourById = async (req: Request, res: Response) => {
       endDate: tours.endDate,
       durationDays: tours.durationDays,
       durationHours: tours.durationHours,
-      country: countries.name,
-      city: cites.name,
+      country: countries.id,
+      city: cites.id,
       maxUsers: tours.maxUsers,
       category: categories.id,
       price: {
