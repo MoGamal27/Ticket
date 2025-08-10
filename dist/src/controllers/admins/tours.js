@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = void 0;
+exports.deleteAllTours = exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const response_1 = require("../../utils/response");
@@ -282,3 +282,212 @@ const deleteTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     (0, response_1.SuccessResponse)(res, { message: "Tour Deleted Successfully" }, 200);
 });
 exports.deleteTour = deleteTour;
+const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+    const tourId = Number(req.params.id);
+    const data = req.body;
+    const [existingTour] = yield db_1.db.select().from(schema_1.tours).where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
+    if (!existingTour)
+        throw new Errors_1.NotFound("Tour not found");
+    // Update main tour details
+    yield db_1.db
+        .update(schema_1.tours)
+        .set({
+        title: data.title,
+        mainImage: data.mainImage
+            ? yield (0, handleImages_1.saveBase64Image)(data.mainImage, (0, uuid_1.v4)(), req, "tours")
+            : existingTour.mainImage,
+        categoryId: data.categoryId,
+        describtion: data.description,
+        status: (_a = data.status) !== null && _a !== void 0 ? _a : existingTour.status,
+        featured: (_b = data.featured) !== null && _b !== void 0 ? _b : existingTour.featured,
+        meetingPoint: (_c = data.meetingPoint) !== null && _c !== void 0 ? _c : existingTour.meetingPoint,
+        meetingPointLocation: data.meetingPoint
+            ? data.meetingPointLocation
+            : existingTour.meetingPointLocation,
+        meetingPointAddress: data.meetingPoint
+            ? data.meetingPointAddress
+            : existingTour.meetingPointAddress,
+        points: (_d = data.points) !== null && _d !== void 0 ? _d : existingTour.points,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        durationDays: (_e = data.durationDays) !== null && _e !== void 0 ? _e : existingTour.durationDays,
+        durationHours: (_f = data.durationHours) !== null && _f !== void 0 ? _f : existingTour.durationHours,
+        country: (_g = data.country) !== null && _g !== void 0 ? _g : existingTour.country,
+        city: (_h = data.city) !== null && _h !== void 0 ? _h : existingTour.city,
+        maxUsers: (_j = data.maxUsers) !== null && _j !== void 0 ? _j : existingTour.maxUsers,
+    })
+        .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
+    // Update related content if provided
+    if (data.prices && data.prices.length > 0) {
+        yield db_1.db.delete(schema_1.tourPrice).where((0, drizzle_orm_1.eq)(schema_1.tourPrice.tourId, tourId));
+        yield db_1.db.insert(schema_1.tourPrice).values(data.prices.map((price) => ({
+            adult: price.adult,
+            child: price.child,
+            infant: price.infant,
+            currencyId: price.currencyId,
+            tourId,
+        })));
+    }
+    if (data.discounts && data.discounts.length > 0) {
+        yield db_1.db.delete(schema_1.tourDiscounts).where((0, drizzle_orm_1.eq)(schema_1.tourDiscounts.tourId, tourId));
+        yield db_1.db.insert(schema_1.tourDiscounts).values(data.discounts.map((discount) => {
+            var _a;
+            return ({
+                tourId,
+                targetGroup: discount.targetGroup,
+                type: discount.type,
+                value: discount.value,
+                minPeople: (_a = discount.minPeople) !== null && _a !== void 0 ? _a : 0,
+                maxPeople: discount.maxPeople,
+                kindBy: discount.kindBy,
+            });
+        }));
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourDiscounts).where((0, drizzle_orm_1.eq)(schema_1.tourDiscounts.tourId, tourId));
+    }
+    if (data.images && data.images.length > 0) {
+        const existingImages = yield db_1.db
+            .select()
+            .from(schema_1.tourImages)
+            .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId));
+        // Delete old images from server
+        for (const img of existingImages) {
+            yield (0, deleteImage_1.deletePhotoFromServer)(new URL(img.imagePath).pathname);
+        }
+        // Insert new images
+        const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
+            return ({
+                tourId,
+                imagePath: yield (0, handleImages_1.saveBase64Image)(imagePath, (0, uuid_1.v4)(), req, "tourImages"),
+            });
+        })));
+        yield db_1.db.insert(schema_1.tourImages).values(imageRecords);
+    }
+    if ((_k = data.highlights) === null || _k === void 0 ? void 0 : _k.length) {
+        yield db_1.db.delete(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, tourId));
+        yield db_1.db
+            .insert(schema_1.tourHighlight)
+            .values(data.highlights.map((content) => ({ content, tourId })));
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, tourId));
+    }
+    if ((_l = data.includes) === null || _l === void 0 ? void 0 : _l.length) {
+        yield db_1.db.delete(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, tourId));
+        yield db_1.db
+            .insert(schema_1.tourIncludes)
+            .values(data.includes.map((content) => ({ content, tourId })));
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, tourId));
+    }
+    if ((_m = data.excludes) === null || _m === void 0 ? void 0 : _m.length) {
+        yield db_1.db.delete(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, tourId));
+        yield db_1.db
+            .insert(schema_1.tourExcludes)
+            .values(data.excludes.map((content) => ({ content, tourId })));
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, tourId));
+    }
+    if ((_o = data.schedules) === null || _o === void 0 ? void 0 : _o.length) {
+        yield db_1.db.delete(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId));
+        yield (0, generateSchedules_1.generateTourSchedules)({
+            tourId,
+            startDate: new Date(data.startDate).toISOString(),
+            endDate: new Date(data.endDate).toISOString(),
+            daysOfWeek: data.daysOfWeek,
+            maxUsers: data.maxUsers,
+            durationDays: data.durationDays,
+            durationHours: data.durationHours,
+        });
+    }
+    if ((_p = data.itinerary) === null || _p === void 0 ? void 0 : _p.length) {
+        yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId));
+        // First process all async operations in parallel
+        const itineraryItems = yield Promise.all(data.itinerary.map((item) => __awaiter(void 0, void 0, void 0, function* () {
+            return ({
+                title: item.title,
+                imagePath: yield (0, handleImages_1.saveBase64Image)(item.imagePath, (0, uuid_1.v4)(), req, "itineraryImages"),
+                describtion: item.description,
+                tourId,
+            });
+        })));
+        // Then insert all processed items
+        yield db_1.db.insert(schema_1.tourItinerary).values(itineraryItems);
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId));
+    }
+    if ((_q = data.faq) === null || _q === void 0 ? void 0 : _q.length) {
+        yield db_1.db.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId));
+        yield db_1.db.insert(schema_1.tourFAQ).values(data.faq.map((item) => ({
+            question: item.question,
+            answer: item.answer,
+            tourId,
+        })));
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId));
+    }
+    if ((_r = data.daysOfWeek) === null || _r === void 0 ? void 0 : _r.length) {
+        yield db_1.db.delete(schema_1.tourDaysOfWeek).where((0, drizzle_orm_1.eq)(schema_1.tourDaysOfWeek.tourId, tourId));
+        yield db_1.db
+            .insert(schema_1.tourDaysOfWeek)
+            .values(data.daysOfWeek.map((day) => ({ dayOfWeek: day, tourId })));
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourDaysOfWeek).where((0, drizzle_orm_1.eq)(schema_1.tourDaysOfWeek.tourId, tourId));
+    }
+    if ((_s = data.extras) === null || _s === void 0 ? void 0 : _s.length) {
+        yield db_1.db.delete(schema_1.tourExtras).where((0, drizzle_orm_1.eq)(schema_1.tourExtras.tourId, tourId));
+        for (const extra of data.extras) {
+            const [extraPrice] = yield db_1.db
+                .insert(schema_1.tourPrice)
+                .values({
+                adult: extra.price.adult,
+                child: extra.price.child,
+                infant: extra.price.infant,
+                currencyId: extra.price.currencyId,
+                tourId,
+            })
+                .$returningId();
+            yield db_1.db.insert(schema_1.tourExtras).values({
+                tourId,
+                extraId: extra.extraId,
+                priceId: extraPrice.id,
+            });
+        }
+    }
+    else {
+        yield db_1.db.delete(schema_1.tourExtras).where((0, drizzle_orm_1.eq)(schema_1.tourExtras.tourId, tourId));
+    }
+    (0, response_1.SuccessResponse)(res, { message: "Tour Updated Successfully" }, 200);
+});
+exports.updateTour = updateTour;
+// delete all
+const deleteAllTours = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const toursList = yield db_1.db.select().from(schema_1.tours);
+    for (const tour of toursList) {
+        yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tour.mainImage).pathname);
+        const tourImagesList = yield db_1.db
+            .select()
+            .from(schema_1.tourImages)
+            .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tour.id));
+        tourImagesList.forEach((tourIamge) => __awaiter(void 0, void 0, void 0, function* () {
+            yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tourIamge.imagePath).pathname);
+        }));
+        const tourItineraryImages = yield db_1.db
+            .select()
+            .from(schema_1.tourItinerary)
+            .where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tour.id));
+        tourItineraryImages.forEach((tourIamge) => __awaiter(void 0, void 0, void 0, function* () {
+            yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tourIamge.imagePath).pathname);
+        }));
+    }
+    yield db_1.db.delete(schema_1.tours);
+    (0, response_1.SuccessResponse)(res, { message: "All Tours Deleted Successfully" }, 200);
+});
+exports.deleteAllTours = deleteAllTours;

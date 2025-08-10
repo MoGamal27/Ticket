@@ -343,3 +343,227 @@ export const deleteTour = async (req: Request, res: Response) => {
   await db.delete(tours).where(eq(tours.id, id));
   SuccessResponse(res, { message: "Tour Deleted Successfully" }, 200);
 };
+
+
+export const updateTour = async (req: Request, res: Response) => {
+  const tourId = Number(req.params.id);
+  const data = req.body;
+
+  const [existingTour] = await db.select().from(tours).where(eq(tours.id, tourId));
+  if (!existingTour) throw new NotFound("Tour not found");
+
+  // Update main tour details
+  await db
+    .update(tours)
+    .set({
+      title: data.title,
+      mainImage: data.mainImage
+        ? await saveBase64Image(data.mainImage, uuid(), req, "tours")
+        : existingTour.mainImage,
+      categoryId: data.categoryId,
+      describtion: data.description,
+      status: data.status ?? existingTour.status,
+      featured: data.featured ?? existingTour.featured,
+      meetingPoint: data.meetingPoint ?? existingTour.meetingPoint,
+      meetingPointLocation: data.meetingPoint
+        ? data.meetingPointLocation
+        : existingTour.meetingPointLocation,
+      meetingPointAddress: data.meetingPoint
+        ? data.meetingPointAddress
+        : existingTour.meetingPointAddress,
+      points: data.points ?? existingTour.points,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+      durationDays: data.durationDays ?? existingTour.durationDays,
+      durationHours: data.durationHours ?? existingTour.durationHours,
+      country: data.country ?? existingTour.country,
+      city: data.city ?? existingTour.city,
+      maxUsers: data.maxUsers ?? existingTour.maxUsers,
+    })
+    .where(eq(tours.id, tourId));
+
+  // Update related content if provided
+  if (data.prices && data.prices.length > 0) {
+    await db.delete(tourPrice).where(eq(tourPrice.tourId, tourId));
+    await db.insert(tourPrice).values(
+      data.prices.map((price: any) => ({
+        adult: price.adult,
+        child: price.child,
+        infant: price.infant,
+        currencyId: price.currencyId,
+        tourId,
+      }))
+    );
+  }
+
+  if (data.discounts && data.discounts.length > 0) {
+    await db.delete(tourDiscounts).where(eq(tourDiscounts.tourId, tourId));
+    await db.insert(tourDiscounts).values(
+      data.discounts.map((discount: any) => ({
+        tourId,
+        targetGroup: discount.targetGroup,
+        type: discount.type,
+        value: discount.value,
+        minPeople: discount.minPeople ?? 0,
+        maxPeople: discount.maxPeople,
+        kindBy: discount.kindBy,
+      }))
+    );
+  } else {
+    await db.delete(tourDiscounts).where(eq(tourDiscounts.tourId, tourId));
+  }
+  if (data.images && data.images.length > 0) {
+    const existingImages = await db
+      .select()
+      .from(tourImages)
+      .where(eq(tourImages.tourId, tourId));
+
+    // Delete old images from server
+    for (const img of existingImages) {
+      await deletePhotoFromServer(new URL(img.imagePath!).pathname);
+    }
+
+    // Insert new images
+    const imageRecords = await Promise.all(
+      data.images.map(async (imagePath: any) => ({
+        tourId,
+        imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
+      }))
+    );
+    await db.insert(tourImages).values(imageRecords);
+  }
+  if (data.highlights?.length) {
+    await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
+    await db
+      .insert(tourHighlight)
+      .values(data.highlights.map((content: string) => ({ content, tourId })));
+  } else {
+    await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
+  }
+  if (data.includes?.length) {
+    await db.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
+    await db
+      .insert(tourIncludes)
+      .values(data.includes.map((content: string) => ({ content, tourId })));
+  } else {
+    await db.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
+  }
+  if (data.excludes?.length) {
+    await db.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
+    await db
+      .insert(tourExcludes)
+      .values(data.excludes.map((content: string) => ({ content, tourId })));
+  }
+  else {
+    await db.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
+  }
+  if (data.schedules?.length) {
+    await db.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
+    await generateTourSchedules({
+      tourId,
+      startDate: new Date(data.startDate).toISOString(),
+      endDate: new Date(data.endDate).toISOString(),
+      daysOfWeek: data.daysOfWeek,
+      maxUsers: data.maxUsers,
+      durationDays: data.durationDays,
+      durationHours: data.durationHours,
+    });
+
+  }
+  if (data.itinerary?.length) {
+    await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
+    // First process all async operations in parallel
+    const itineraryItems = await Promise.all(
+      data.itinerary.map(async (item: any) => ({
+        title: item.title,
+        imagePath: await saveBase64Image(
+          item.imagePath,
+          uuid(),
+          req,
+          "itineraryImages"
+        ),
+        describtion: item.description,
+        tourId,
+      }))
+    );
+    
+    // Then insert all processed items
+    await db.insert(tourItinerary).values(itineraryItems);
+  } else {
+    await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
+  }
+
+  if (data.faq?.length) {
+    await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
+    await db.insert(tourFAQ).values(
+      data.faq.map((item: any) => ({
+        question: item.question,
+        answer: item.answer,
+        tourId,
+      }))
+    );
+  } else {
+    await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
+  }
+  if (data.daysOfWeek?.length) {
+    await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
+    await db
+      .insert(tourDaysOfWeek)
+      .values(
+        data.daysOfWeek.map((day: string) => ({ dayOfWeek: day, tourId }))
+      );
+  }
+  else {
+    await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
+  }
+  if (data.extras?.length) {
+    await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
+    for (const extra of data.extras) {
+      const [extraPrice] = await db
+        .insert(tourPrice)
+        .values({
+          adult: extra.price.adult,
+          child: extra.price.child,
+          infant: extra.price.infant,
+          currencyId: extra.price.currencyId,
+          tourId,
+        })
+        .$returningId();
+
+      await db.insert(tourExtras).values({
+        tourId,
+        extraId: extra.extraId,
+        priceId: extraPrice.id,
+      });
+    }
+  }
+  else {
+    await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
+  }
+  SuccessResponse(res, { message: "Tour Updated Successfully" }, 200);
+};
+
+
+// delete all
+export const deleteAllTours = async (req: Request, res: Response) => {
+  const toursList = await db.select().from(tours);
+  for (const tour of toursList) {
+    await deletePhotoFromServer(new URL(tour.mainImage).pathname);
+    const tourImagesList = await db
+      .select()
+      .from(tourImages)
+      .where(eq(tourImages.tourId, tour.id));
+    tourImagesList.forEach(async (tourIamge) => {
+      await deletePhotoFromServer(new URL(tourIamge.imagePath!).pathname);
+    });
+    const tourItineraryImages = await db
+      .select()
+      .from(tourItinerary)
+      .where(eq(tourItinerary.tourId, tour.id));
+    tourItineraryImages.forEach(async (tourIamge) => {
+      await deletePhotoFromServer(new URL(tourIamge.imagePath!).pathname);
+    });
+  }
+  await db.delete(tours);
+  SuccessResponse(res, { message: "All Tours Deleted Successfully" }, 200);
+};

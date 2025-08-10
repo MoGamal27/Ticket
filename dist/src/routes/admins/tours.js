@@ -11,9 +11,12 @@ router
     .route("/")
     .get((0, catchAsync_1.catchAsync)(tours_2.getAllTours))
     .post((0, validation_1.validate)(tours_1.createTourSchema), (0, catchAsync_1.catchAsync)(tours_2.createTour));
+router.delete("/delete-all", (0, catchAsync_1.catchAsync)(tours_2.deleteAllTours));
 router.get("/add-data", (0, catchAsync_1.catchAsync)(tours_2.addData));
 router
     .route("/:id")
+    .put((0, catchAsync_1.catchAsync)(tours_2.updateTour))
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.getTourById))
     .delete((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.deleteTour));
+router.delete("/delete-all", (0, catchAsync_1.catchAsync)(tours_2.deleteAllTours));
 exports.default = router;
