@@ -89,6 +89,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 adult: schema_1.tourPrice.adult,
                 child: schema_1.tourPrice.child,
                 infant: schema_1.tourPrice.infant,
+                currency: schema_1.tourPrice.currencyId,
             },
         })
             .from(schema_1.tourExtras)
@@ -158,6 +159,7 @@ const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 value: discount.value,
                 minPeople: (_a = discount.minPeople) !== null && _a !== void 0 ? _a : 0,
                 maxPeople: discount.maxPeople,
+                kindBy: discount.kindBy,
             });
         }));
     }

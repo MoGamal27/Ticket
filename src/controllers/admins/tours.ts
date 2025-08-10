@@ -97,6 +97,7 @@ export const getTourById = async (req: Request, res: Response) => {
     db.select().from(tourItinerary).where(eq(tourItinerary.tourId, tourId)),
     db.select().from(tourFAQ).where(eq(tourFAQ.tourId, tourId)),
     db.select().from(tourDiscounts).where(eq(tourDiscounts.tourId, tourId)),
+
     db
       .select({ dayOfWeek: tourDaysOfWeek.dayOfWeek })
       .from(tourDaysOfWeek)
@@ -109,6 +110,7 @@ export const getTourById = async (req: Request, res: Response) => {
           adult: tourPrice.adult,
           child: tourPrice.child,
           infant: tourPrice.infant,
+          currency: tourPrice.currencyId,
         },
       })
       .from(tourExtras)
@@ -167,7 +169,7 @@ export const createTour = async (req: Request, res: Response) => {
       durationHours: data.durationHours,
       country: data.country,
       city: data.city,
-      maxUsers: data.maxUsers,
+      maxUsers: data.maxUsers, 
       //highlight: data.highlights,
     })
     .$returningId();
@@ -196,6 +198,7 @@ export const createTour = async (req: Request, res: Response) => {
         value: discount.value,
         minPeople: discount.minPeople ?? 0,
         maxPeople: discount.maxPeople,
+        kindBy: discount.kindBy,
       }))
     );
   }
