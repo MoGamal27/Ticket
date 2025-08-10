@@ -9,7 +9,6 @@ import {
   getAllTours,
   getTourById,
   updateTour,
-  deleteAllTours,
 } from "../../controllers/admins/tours";
 import { idParams } from "../../validators/admins/users";
 
@@ -22,7 +21,7 @@ router.route("/")
 
 // Special admin operations
 router.get("/add-data", catchAsync(addData));
-router.delete("/delete-all", catchAsync(deleteAllTours)); 
+ 
 
 // Individual tour operations
 router.route("/:id")

@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createMethod = exports.deleteMethod = exports.updateMethod = exports.getMethod = exports.getAllPaymentMethods = void 0;
+exports.getActivePaymentMethods = exports.createMethod = exports.deleteMethod = exports.updateMethod = exports.getMethod = exports.getAllPaymentMethods = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const response_1 = require("../../utils/response");
@@ -74,3 +74,12 @@ const createMethod = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     (0, response_1.SuccessResponse)(res, { message: "Method Created Successfully" }, 201);
 });
 exports.createMethod = createMethod;
+// get payment method status true
+const getActivePaymentMethods = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const methods = yield db_1.db
+        .select()
+        .from(schema_1.manualPaymentTypes)
+        .where((0, drizzle_orm_1.eq)(schema_1.manualPaymentTypes.status, true));
+    (0, response_1.SuccessResponse)(res, { methods }, 200);
+});
+exports.getActivePaymentMethods = getActivePaymentMethods;

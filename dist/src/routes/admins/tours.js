@@ -13,7 +13,6 @@ router.route("/")
     .post((0, validation_1.validate)(tours_1.createTourSchema), (0, catchAsync_1.catchAsync)(tours_2.createTour));
 // Special admin operations
 router.get("/add-data", (0, catchAsync_1.catchAsync)(tours_2.addData));
-router.delete("/delete-all", (0, catchAsync_1.catchAsync)(tours_2.deleteAllTours));
 // Individual tour operations
 router.route("/:id")
     .put((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.updateTour))

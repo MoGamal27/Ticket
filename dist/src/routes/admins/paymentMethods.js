@@ -11,6 +11,7 @@ router
     .route("/")
     .get((0, catchAsync_1.catchAsync)(paymentMethods_1.getAllPaymentMethods))
     .post((0, validation_1.validate)(paymentMethods_2.createPaymentMethods), (0, catchAsync_1.catchAsync)(paymentMethods_1.createMethod));
+router.get("/active", (0, catchAsync_1.catchAsync)(paymentMethods_1.getActivePaymentMethods));
 router
     .route("/:id")
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(paymentMethods_1.getMethod))

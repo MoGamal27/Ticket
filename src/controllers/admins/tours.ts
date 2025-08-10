@@ -544,26 +544,3 @@ export const updateTour = async (req: Request, res: Response) => {
 };
 
 
-// delete all
-export const deleteAllTours = async (req: Request, res: Response) => {
-  const toursList = await db.select().from(tours);
-  for (const tour of toursList) {
-    await deletePhotoFromServer(new URL(tour.mainImage).pathname);
-    const tourImagesList = await db
-      .select()
-      .from(tourImages)
-      .where(eq(tourImages.tourId, tour.id));
-    tourImagesList.forEach(async (tourIamge) => {
-      await deletePhotoFromServer(new URL(tourIamge.imagePath!).pathname);
-    });
-    const tourItineraryImages = await db
-      .select()
-      .from(tourItinerary)
-      .where(eq(tourItinerary.tourId, tour.id));
-    tourItineraryImages.forEach(async (tourIamge) => {
-      await deletePhotoFromServer(new URL(tourIamge.imagePath!).pathname);
-    });
-  }
-  await db.delete(tours);
-  SuccessResponse(res, { message: "All Tours Deleted Successfully" }, 200);
-};

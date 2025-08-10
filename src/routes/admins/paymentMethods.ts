@@ -5,6 +5,7 @@ import {
   createMethod,
   updateMethod,
   deleteMethod,
+  getActivePaymentMethods,
 } from "../../controllers/admins/paymentMethods";
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
@@ -18,6 +19,8 @@ router
   .route("/")
   .get(catchAsync(getAllPaymentMethods))
   .post(validate(createPaymentMethods), catchAsync(createMethod));
+
+router.get("/active", catchAsync(getActivePaymentMethods));
 
 router
   .route("/:id")

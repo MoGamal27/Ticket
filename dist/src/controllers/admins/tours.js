@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteAllTours = exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = void 0;
+exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const response_1 = require("../../utils/response");
@@ -467,27 +467,3 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     (0, response_1.SuccessResponse)(res, { message: "Tour Updated Successfully" }, 200);
 });
 exports.updateTour = updateTour;
-// delete all
-const deleteAllTours = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const toursList = yield db_1.db.select().from(schema_1.tours);
-    for (const tour of toursList) {
-        yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tour.mainImage).pathname);
-        const tourImagesList = yield db_1.db
-            .select()
-            .from(schema_1.tourImages)
-            .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tour.id));
-        tourImagesList.forEach((tourIamge) => __awaiter(void 0, void 0, void 0, function* () {
-            yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tourIamge.imagePath).pathname);
-        }));
-        const tourItineraryImages = yield db_1.db
-            .select()
-            .from(schema_1.tourItinerary)
-            .where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tour.id));
-        tourItineraryImages.forEach((tourIamge) => __awaiter(void 0, void 0, void 0, function* () {
-            yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tourIamge.imagePath).pathname);
-        }));
-    }
-    yield db_1.db.delete(schema_1.tours);
-    (0, response_1.SuccessResponse)(res, { message: "All Tours Deleted Successfully" }, 200);
-});
-exports.deleteAllTours = deleteAllTours;
