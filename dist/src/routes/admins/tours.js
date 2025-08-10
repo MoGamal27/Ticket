@@ -7,16 +7,16 @@ const tours_1 = require("../../validators/admins/tours");
 const tours_2 = require("../../controllers/admins/tours");
 const users_1 = require("../../validators/admins/users");
 const router = (0, express_1.Router)();
-router
-    .route("/")
+// Main tours routes
+router.route("/")
     .get((0, catchAsync_1.catchAsync)(tours_2.getAllTours))
     .post((0, validation_1.validate)(tours_1.createTourSchema), (0, catchAsync_1.catchAsync)(tours_2.createTour));
-router.delete("/delete-all", (0, catchAsync_1.catchAsync)(tours_2.deleteAllTours));
+// Special admin operations
 router.get("/add-data", (0, catchAsync_1.catchAsync)(tours_2.addData));
-router
-    .route("/:id")
-    .put((0, catchAsync_1.catchAsync)(tours_2.updateTour))
+router.delete("/delete-all", (0, catchAsync_1.catchAsync)(tours_2.deleteAllTours));
+// Individual tour operations
+router.route("/:id")
+    .put((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.updateTour))
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.getTourById))
     .delete((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.deleteTour));
-router.delete("/delete-all", (0, catchAsync_1.catchAsync)(tours_2.deleteAllTours));
 exports.default = router;

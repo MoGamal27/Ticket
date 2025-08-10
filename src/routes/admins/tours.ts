@@ -14,20 +14,20 @@ import {
 import { idParams } from "../../validators/admins/users";
 
 const router = Router();
-router
-  .route("/")
+
+// Main tours routes
+router.route("/")
   .get(catchAsync(getAllTours))
   .post(validate(createTourSchema), catchAsync(createTour));
 
-  router.delete("/delete-all", catchAsync(deleteAllTours));
-
+// Special admin operations
 router.get("/add-data", catchAsync(addData));
-router
-  .route("/:id")
-  .put(catchAsync(updateTour))
+router.delete("/delete-all", catchAsync(deleteAllTours)); 
+
+// Individual tour operations
+router.route("/:id")
+  .put(validate(idParams), catchAsync(updateTour)) 
   .get(validate(idParams), catchAsync(getTourById))
   .delete(validate(idParams), catchAsync(deleteTour));
-
-router.delete("/delete-all", catchAsync(deleteAllTours));
 
 export default router;
