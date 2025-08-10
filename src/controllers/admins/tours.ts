@@ -62,12 +62,12 @@ export const getTourById = async (req: Request, res: Response) => {
       country: countries.name,
       city: cites.name,
       maxUsers: tours.maxUsers,
-      category: categories.name,
+      category: categories.id,
       price: {
         adult: tourPrice.adult,
         child: tourPrice.child,
         infant: tourPrice.infant,
-        currency: currencies.name,
+        currency: currencies.id,
       },
     })
     .from(tours)
