@@ -183,7 +183,7 @@ exports.bookings = (0, mysql_core_1.mysqlTable)("bookings", {
     userId: (0, mysql_core_1.int)("user_id").references(() => exports.users.id),
     tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tourSchedules.id),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "confirmed", "cancelled"]),
-    createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
+    createdAt: (0, mysql_core_1.timestamp)("created_at")
 });
 exports.bookingDetails = (0, mysql_core_1.mysqlTable)("booking_details", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
@@ -196,7 +196,7 @@ exports.bookingDetails = (0, mysql_core_1.mysqlTable)("booking_details", {
     childrenCount: (0, mysql_core_1.int)("children_count").default(0),
     infantsCount: (0, mysql_core_1.int)("infants_count").default(0),
     totalAmount: (0, mysql_core_1.decimal)("total_amount", { precision: 10, scale: 2 }),
-    createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
+    createdAt: (0, mysql_core_1.timestamp)("created_at")
 });
 exports.bookingExtras = (0, mysql_core_1.mysqlTable)("booking_extras", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),

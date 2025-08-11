@@ -215,7 +215,7 @@ export const bookings = mysqlTable("bookings", {
   userId: int("user_id").references(() => users.id),
   tourId: int("tour_id").references(() => tourSchedules.id),
   status: mysqlEnum("status", ["pending", "confirmed", "cancelled"]),
-  createdAt: timestamp("created_at").default(getCurrentEgyptTime()),
+  createdAt: timestamp("created_at")
 });
 
 export const bookingDetails = mysqlTable("booking_details", {
@@ -229,7 +229,7 @@ export const bookingDetails = mysqlTable("booking_details", {
   childrenCount: int("children_count").default(0),
   infantsCount: int("infants_count").default(0),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
-  createdAt: timestamp("created_at").default(getCurrentEgyptTime()),
+  createdAt: timestamp("created_at")
 });
 
 
