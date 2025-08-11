@@ -5,6 +5,7 @@ const landPage_1 = require("../../controllers/users/landPage");
 const catchAsync_1 = require("../../utils/catchAsync");
 const router = (0, express_1.Router)();
 router.post("/book-tour", (0, catchAsync_1.catchAsync)(landPage_1.createBookingWithPayment));
+router.get("/active", (0, catchAsync_1.catchAsync)(landPage_1.getActivePaymentMethods));
 router.get("/images", (0, catchAsync_1.catchAsync)(landPage_1.getImages));
 router.get("/featured-tours", (0, catchAsync_1.catchAsync)(landPage_1.getFeaturedTours));
 router.get("/category-tours/:category", (0, catchAsync_1.catchAsync)(landPage_1.getToursByCategory));

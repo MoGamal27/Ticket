@@ -283,41 +283,50 @@ const deleteTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
 });
 exports.deleteTour = deleteTour;
 const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const tourId = Number(req.params.id);
     const data = req.body;
     const [existingTour] = yield db_1.db.select().from(schema_1.tours).where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
     if (!existingTour)
         throw new Errors_1.NotFound("Tour not found");
     // Update main tour details
-    yield db_1.db
-        .update(schema_1.tours)
-        .set({
-        title: data.title,
-        mainImage: data.mainImage
-            ? yield (0, handleImages_1.saveBase64Image)(data.mainImage, (0, uuid_1.v4)(), req, "tours")
-            : existingTour.mainImage,
-        categoryId: data.categoryId,
-        describtion: data.description,
-        status: (_a = data.status) !== null && _a !== void 0 ? _a : existingTour.status,
-        featured: (_b = data.featured) !== null && _b !== void 0 ? _b : existingTour.featured,
-        meetingPoint: (_c = data.meetingPoint) !== null && _c !== void 0 ? _c : existingTour.meetingPoint,
-        meetingPointLocation: data.meetingPoint
-            ? data.meetingPointLocation
-            : existingTour.meetingPointLocation,
-        meetingPointAddress: data.meetingPoint
-            ? data.meetingPointAddress
-            : existingTour.meetingPointAddress,
-        points: (_d = data.points) !== null && _d !== void 0 ? _d : existingTour.points,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
-        durationDays: (_e = data.durationDays) !== null && _e !== void 0 ? _e : existingTour.durationDays,
-        durationHours: (_f = data.durationHours) !== null && _f !== void 0 ? _f : existingTour.durationHours,
-        country: (_g = data.country) !== null && _g !== void 0 ? _g : existingTour.country,
-        city: (_h = data.city) !== null && _h !== void 0 ? _h : existingTour.city,
-        maxUsers: (_j = data.maxUsers) !== null && _j !== void 0 ? _j : existingTour.maxUsers,
-    })
-        .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
+    const updateData = {};
+    if (data.title)
+        updateData.title = data.title;
+    if (data.mainImage) {
+        updateData.mainImage = yield (0, handleImages_1.saveBase64Image)(data.mainImage, (0, uuid_1.v4)(), req, "tours");
+    }
+    if (data.categoryId)
+        updateData.categoryId = data.categoryId;
+    if (data.description)
+        updateData.describtion = data.description;
+    if (data.status !== undefined)
+        updateData.status = data.status;
+    if (data.featured !== undefined)
+        updateData.featured = data.featured;
+    if (data.meetingPoint !== undefined)
+        updateData.meetingPoint = data.meetingPoint;
+    if (data.meetingPointLocation)
+        updateData.meetingPointLocation = data.meetingPointLocation;
+    if (data.meetingPointAddress)
+        updateData.meetingPointAddress = data.meetingPointAddress;
+    if (data.points !== undefined)
+        updateData.points = data.points;
+    if (data.startDate)
+        updateData.startDate = new Date(data.startDate);
+    if (data.endDate)
+        updateData.endDate = new Date(data.endDate);
+    if (data.durationDays)
+        updateData.durationDays = data.durationDays;
+    if (data.durationHours)
+        updateData.durationHours = data.durationHours;
+    if (data.country)
+        updateData.country = data.country;
+    if (data.city)
+        updateData.city = data.city;
+    if (data.maxUsers)
+        updateData.maxUsers = data.maxUsers;
+    yield db_1.db.update(schema_1.tours).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
     // Update related content if provided
     if (data.prices && data.prices.length > 0) {
         yield db_1.db.delete(schema_1.tourPrice).where((0, drizzle_orm_1.eq)(schema_1.tourPrice.tourId, tourId));
@@ -356,6 +365,8 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         for (const img of existingImages) {
             yield (0, deleteImage_1.deletePhotoFromServer)(new URL(img.imagePath).pathname);
         }
+        // Delete old image records from database
+        yield db_1.db.delete(schema_1.tourImages).where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId));
         // Insert new images
         const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
             return ({
@@ -365,7 +376,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         })));
         yield db_1.db.insert(schema_1.tourImages).values(imageRecords);
     }
-    if ((_k = data.highlights) === null || _k === void 0 ? void 0 : _k.length) {
+    if ((_a = data.highlights) === null || _a === void 0 ? void 0 : _a.length) {
         yield db_1.db.delete(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, tourId));
         yield db_1.db
             .insert(schema_1.tourHighlight)
@@ -374,7 +385,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     else {
         yield db_1.db.delete(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, tourId));
     }
-    if ((_l = data.includes) === null || _l === void 0 ? void 0 : _l.length) {
+    if ((_b = data.includes) === null || _b === void 0 ? void 0 : _b.length) {
         yield db_1.db.delete(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, tourId));
         yield db_1.db
             .insert(schema_1.tourIncludes)
@@ -383,7 +394,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     else {
         yield db_1.db.delete(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, tourId));
     }
-    if ((_m = data.excludes) === null || _m === void 0 ? void 0 : _m.length) {
+    if ((_c = data.excludes) === null || _c === void 0 ? void 0 : _c.length) {
         yield db_1.db.delete(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, tourId));
         yield db_1.db
             .insert(schema_1.tourExcludes)
@@ -392,7 +403,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     else {
         yield db_1.db.delete(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, tourId));
     }
-    if ((_o = data.schedules) === null || _o === void 0 ? void 0 : _o.length) {
+    if ((_d = data.schedules) === null || _d === void 0 ? void 0 : _d.length) {
         yield db_1.db.delete(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId));
         yield (0, generateSchedules_1.generateTourSchedules)({
             tourId,
@@ -404,14 +415,14 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             durationHours: data.durationHours,
         });
     }
-    if ((_p = data.itinerary) === null || _p === void 0 ? void 0 : _p.length) {
+    if ((_e = data.itinerary) === null || _e === void 0 ? void 0 : _e.length) {
         yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId));
         // First process all async operations in parallel
         const itineraryItems = yield Promise.all(data.itinerary.map((item) => __awaiter(void 0, void 0, void 0, function* () {
             return ({
                 title: item.title,
                 imagePath: yield (0, handleImages_1.saveBase64Image)(item.imagePath, (0, uuid_1.v4)(), req, "itineraryImages"),
-                describtion: item.description,
+                describtion: item.description, // Keep as 'describtion' to match DB schema
                 tourId,
             });
         })));
@@ -421,7 +432,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     else {
         yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId));
     }
-    if ((_q = data.faq) === null || _q === void 0 ? void 0 : _q.length) {
+    if ((_f = data.faq) === null || _f === void 0 ? void 0 : _f.length) {
         yield db_1.db.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId));
         yield db_1.db.insert(schema_1.tourFAQ).values(data.faq.map((item) => ({
             question: item.question,
@@ -432,7 +443,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     else {
         yield db_1.db.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId));
     }
-    if ((_r = data.daysOfWeek) === null || _r === void 0 ? void 0 : _r.length) {
+    if ((_g = data.daysOfWeek) === null || _g === void 0 ? void 0 : _g.length) {
         yield db_1.db.delete(schema_1.tourDaysOfWeek).where((0, drizzle_orm_1.eq)(schema_1.tourDaysOfWeek.tourId, tourId));
         yield db_1.db
             .insert(schema_1.tourDaysOfWeek)
@@ -441,7 +452,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     else {
         yield db_1.db.delete(schema_1.tourDaysOfWeek).where((0, drizzle_orm_1.eq)(schema_1.tourDaysOfWeek.tourId, tourId));
     }
-    if ((_s = data.extras) === null || _s === void 0 ? void 0 : _s.length) {
+    if ((_h = data.extras) === null || _h === void 0 ? void 0 : _h.length) {
         yield db_1.db.delete(schema_1.tourExtras).where((0, drizzle_orm_1.eq)(schema_1.tourExtras.tourId, tourId));
         for (const extra of data.extras) {
             const [extraPrice] = yield db_1.db

@@ -353,34 +353,29 @@ export const updateTour = async (req: Request, res: Response) => {
   if (!existingTour) throw new NotFound("Tour not found");
 
   // Update main tour details
-  await db
-    .update(tours)
-    .set({
-      title: data.title,
-      mainImage: data.mainImage
-        ? await saveBase64Image(data.mainImage, uuid(), req, "tours")
-        : existingTour.mainImage,
-      categoryId: data.categoryId,
-      describtion: data.description,
-      status: data.status ?? existingTour.status,
-      featured: data.featured ?? existingTour.featured,
-      meetingPoint: data.meetingPoint ?? existingTour.meetingPoint,
-      meetingPointLocation: data.meetingPoint
-        ? data.meetingPointLocation
-        : existingTour.meetingPointLocation,
-      meetingPointAddress: data.meetingPoint
-        ? data.meetingPointAddress
-        : existingTour.meetingPointAddress,
-      points: data.points ?? existingTour.points,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
-      durationDays: data.durationDays ?? existingTour.durationDays,
-      durationHours: data.durationHours ?? existingTour.durationHours,
-      country: data.country ?? existingTour.country,
-      city: data.city ?? existingTour.city,
-      maxUsers: data.maxUsers ?? existingTour.maxUsers,
-    })
-    .where(eq(tours.id, tourId));
+  const updateData: any = {};
+  
+  if (data.title) updateData.title = data.title;
+  if (data.mainImage) {
+    updateData.mainImage = await saveBase64Image(data.mainImage, uuid(), req, "tours");
+  }
+  if (data.categoryId) updateData.categoryId = data.categoryId;
+  if (data.description) updateData.describtion = data.description;
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.featured !== undefined) updateData.featured = data.featured;
+  if (data.meetingPoint !== undefined) updateData.meetingPoint = data.meetingPoint;
+  if (data.meetingPointLocation) updateData.meetingPointLocation = data.meetingPointLocation;
+  if (data.meetingPointAddress) updateData.meetingPointAddress = data.meetingPointAddress;
+  if (data.points !== undefined) updateData.points = data.points;
+  if (data.startDate) updateData.startDate = new Date(data.startDate);
+  if (data.endDate) updateData.endDate = new Date(data.endDate);
+  if (data.durationDays) updateData.durationDays = data.durationDays;
+  if (data.durationHours) updateData.durationHours = data.durationHours;
+  if (data.country) updateData.country = data.country;
+  if (data.city) updateData.city = data.city;
+  if (data.maxUsers) updateData.maxUsers = data.maxUsers;
+
+  await db.update(tours).set(updateData).where(eq(tours.id, tourId));
 
   // Update related content if provided
   if (data.prices && data.prices.length > 0) {
@@ -412,6 +407,7 @@ export const updateTour = async (req: Request, res: Response) => {
   } else {
     await db.delete(tourDiscounts).where(eq(tourDiscounts.tourId, tourId));
   }
+
   if (data.images && data.images.length > 0) {
     const existingImages = await db
       .select()
@@ -423,6 +419,9 @@ export const updateTour = async (req: Request, res: Response) => {
       await deletePhotoFromServer(new URL(img.imagePath!).pathname);
     }
 
+    // Delete old image records from database
+    await db.delete(tourImages).where(eq(tourImages.tourId, tourId));
+
     // Insert new images
     const imageRecords = await Promise.all(
       data.images.map(async (imagePath: any) => ({
@@ -432,6 +431,7 @@ export const updateTour = async (req: Request, res: Response) => {
     );
     await db.insert(tourImages).values(imageRecords);
   }
+
   if (data.highlights?.length) {
     await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
     await db
@@ -440,6 +440,7 @@ export const updateTour = async (req: Request, res: Response) => {
   } else {
     await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
   }
+
   if (data.includes?.length) {
     await db.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
     await db
@@ -448,15 +449,16 @@ export const updateTour = async (req: Request, res: Response) => {
   } else {
     await db.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
   }
+
   if (data.excludes?.length) {
     await db.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
     await db
       .insert(tourExcludes)
       .values(data.excludes.map((content: string) => ({ content, tourId })));
-  }
-  else {
+  } else {
     await db.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
   }
+
   if (data.schedules?.length) {
     await db.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
     await generateTourSchedules({
@@ -468,8 +470,8 @@ export const updateTour = async (req: Request, res: Response) => {
       durationDays: data.durationDays,
       durationHours: data.durationHours,
     });
-
   }
+
   if (data.itinerary?.length) {
     await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
     // First process all async operations in parallel
@@ -482,7 +484,7 @@ export const updateTour = async (req: Request, res: Response) => {
           req,
           "itineraryImages"
         ),
-        describtion: item.description,
+        describtion: item.description, // Keep as 'describtion' to match DB schema
         tourId,
       }))
     );
@@ -505,6 +507,7 @@ export const updateTour = async (req: Request, res: Response) => {
   } else {
     await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
   }
+
   if (data.daysOfWeek?.length) {
     await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
     await db
@@ -512,10 +515,10 @@ export const updateTour = async (req: Request, res: Response) => {
       .values(
         data.daysOfWeek.map((day: string) => ({ dayOfWeek: day, tourId }))
       );
-  }
-  else {
+  } else {
     await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
   }
+
   if (data.extras?.length) {
     await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
     for (const extra of data.extras) {
@@ -536,10 +539,10 @@ export const updateTour = async (req: Request, res: Response) => {
         priceId: extraPrice.id,
       });
     }
-  }
-  else {
+  } else {
     await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
   }
+
   SuccessResponse(res, { message: "Tour Updated Successfully" }, 200);
 };
 

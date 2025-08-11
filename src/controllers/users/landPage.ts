@@ -22,6 +22,10 @@ import {
   bookings,
   payments,
   manualPaymentMethod,
+  users,
+  manualPaymentTypes,
+  bookingDetails,
+  bookingExtras,
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -162,7 +166,8 @@ export const getTourById = async (req: Request, res: Response) => {
           adult: tourPrice.adult,
           child: tourPrice.child,
           infant: tourPrice.infant,
-          currency: tourPrice.currencyId,
+          currencyId: tourPrice.currencyId,
+          currencyName: currencies.name,
         },
       })
       .from(tourExtras)
@@ -198,27 +203,48 @@ export const getTourById = async (req: Request, res: Response) => {
 };
 
 
-export const createBookingWithPayment = async (req: Request, res: Response) => {
+/*export const createBookingWithPayment = async (req: Request, res: Response) => {
   const { 
     tourId, 
-    userId, 
     adult,
     child,
     infant,
     image,
-    discount 
+    price,
+    discount,
+    email,
+    phoneNumber,
   } = req.body;
 
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+  let userId;
+  if (user) {
+    userId = user.id;
+  } else {
+    res.status(404).json({ message: "User not found" });
+    return;
+  }
 
+  // Check if the tour exists
+  const [tour] = await db
+    .select()
+    .from(tours)
+    .where(eq(tours.id, tourId));
+  if (!tour) {
+    res.status(404).json({ message: "Tour not found" });
+    return;
+  }
+  
+
+ 
   const [newBooking] = await db.insert(bookings).values({
     tourId,
     userId,
     status: "pending"
   }).$returningId();
-
-  const totalAmount = (adult || 0) + (child || 0) + (infant || 0);
-  const finalAmount = discount ? totalAmount - discount : totalAmount;
-
   
   const [payment] = await db.insert(payments).values({
     bookingId: newBooking.id,
@@ -241,4 +267,210 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     booking: newBooking,
     payment: payment
   }, 201);
+};*/
+
+
+// get payment method status true
+export const getActivePaymentMethods = async (req: Request, res: Response) => {
+  const methods = await db
+    .select()
+    .from(manualPaymentTypes)
+    .where(eq(manualPaymentTypes.status, true));
+  SuccessResponse(res, { methods }, 200);
+};
+
+
+
+export const createBookingWithPayment = async (req: Request, res: Response) => {
+  const { 
+    tourId,
+    // User information
+    fullName,
+    email,
+    phone,
+    notes,
+    // Passenger counts
+    adultsCount,
+    childrenCount,
+    infantsCount,
+    // Only total amount - frontend calculates everything
+    totalAmount,
+    // Payment method as ID
+    paymentMethodId,
+    proofImage,
+    // Extras array
+    extras
+  } = req.body;
+
+
+  try {
+    // Check if user exists by email and get userId
+    const existingUser = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (!existingUser.length) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found with this email"
+      });
+    }
+
+    const userId = existingUser[0].id;
+    // Start transaction
+    await db.transaction(async (trx) => {
+      // Create main booking record
+      const [newBooking] = await trx.insert(bookings).values({
+        tourId,
+        userId,
+        status: "pending"
+      }).$returningId();
+
+      // Create booking details - only store total amount
+      await trx.insert(bookingDetails).values({
+        bookingId: newBooking.id,
+        fullName,
+        email,
+        phone,
+        notes: notes || null,
+        adultsCount: adultsCount || 0,
+        childrenCount: childrenCount || 0,
+        infantsCount: infantsCount || 0,
+        totalAmount: totalAmount
+      });
+
+      // Handle booking extras if provided
+      if (extras) {
+        const extrasToInsert = extras.map((e: any) => ({
+          bookingId: newBooking.id,
+          extraId: e.id,
+          adultCount: parseInt(e.count.adult) || 0,
+          childCount: parseInt(e.count.child) || 0,
+          infantCount: parseInt(e.count.infant) || 0
+        }));
+
+        await trx.insert(bookingExtras).values(extrasToInsert);
+      }
+
+      // Create payment record
+      const [payment] = await trx.insert(payments).values({
+        bookingId: newBooking.id,
+        method: "manual",
+        status: "pending",
+        amount: totalAmount,
+        transactionId: null,
+        createdAt: new Date()
+      }).$returningId();
+
+      // Handle proof image if provided
+      if (proofImage && paymentMethodId) {
+        await trx.insert(manualPaymentMethod).values({
+          paymentId: payment.id,
+          proofImage: proofImage,
+          manualPaymentTypeId: paymentMethodId, // Fawry, Visa, Vodafone Cash, InstaPay
+          prooftext: null, 
+          uploadedAt: new Date()
+        });
+      }
+
+      // Return success response
+      SuccessResponse(res, { 
+        booking: {
+          id: newBooking.id,
+          tourId,
+          userId,
+          status: "pending"
+        },
+        payment: {
+          id: payment.id,
+          bookingId: newBooking.id,
+          method: "manual",
+          status: "pending",
+          amount: totalAmount
+        },
+        details: {
+          fullName,
+          email,
+          phone,
+          notes,
+          adultsCount,
+          childrenCount,
+          infantsCount,
+          totalAmount
+        },
+        extras: extras || [],
+        userId: userId
+      }, 201);
+    });
+
+  } catch (error: any) {
+    console.error("Booking creation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create booking",
+      error: error.message
+    });
+  }
+};
+
+// function to get booking with details
+export const getBookingWithDetails = async (req: Request, res: Response) => {
+  const { bookingId } = req.params;
+
+  try {
+    const bookingData = await db
+      .select({
+        // Booking info
+        bookingId: bookings.id,
+        tourId: bookings.tourId,
+        userId: bookings.userId,
+        status: bookings.status,
+        createdAt: bookings.createdAt,
+        
+        // User details
+        fullName: bookingDetails.fullName,
+        email: bookingDetails.email,
+        phone: bookingDetails.phone,
+        notes: bookingDetails.notes,
+        adultsCount: bookingDetails.adultsCount,
+        childrenCount: bookingDetails.childrenCount,
+        infantsCount: bookingDetails.infantsCount,
+        totalAmount: bookingDetails.totalAmount,
+        
+        // Payment
+        paymentId: payments.id,
+        paymentMethod: payments.method,
+        paymentStatus: payments.status,
+        paymentAmount: payments.amount,
+        transactionId: payments.transactionId,
+        
+        // Manual payment proof
+        proofImage: manualPaymentMethod.proofImage,
+        proofText: manualPaymentMethod.prooftext,
+      })
+      .from(bookings)
+      .leftJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
+      .leftJoin(payments, eq(bookings.id, payments.bookingId))
+      .leftJoin(manualPaymentMethod, eq(payments.id, manualPaymentMethod.paymentId))
+      .where(eq(bookings.id, parseInt(bookingId)));
+
+    if (!bookingData.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found"
+      });
+    }
+
+    SuccessResponse(res, bookingData[0]);
+
+  } catch (error: any) {
+    console.error("Get booking error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch booking",
+      error: error.message
+    });
+  }
 };

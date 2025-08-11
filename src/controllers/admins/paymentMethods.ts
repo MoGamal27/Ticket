@@ -71,11 +71,4 @@ export const createMethod = async (req: Request, res: Response) => {
   SuccessResponse(res, { message: "Method Created Successfully" }, 201);
 };
 
-// get payment method status true
-export const getActivePaymentMethods = async (req: Request, res: Response) => {
-  const methods = await db
-    .select()
-    .from(manualPaymentTypes)
-    .where(eq(manualPaymentTypes.status, true));
-  SuccessResponse(res, { methods }, 200);
-};
+

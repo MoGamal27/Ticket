@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
+exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookingExtras = exports.bookingDetails = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 const timeZone_1 = require("../utils/timeZone");
 exports.admins = (0, mysql_core_1.mysqlTable)("admins", {
@@ -183,6 +183,28 @@ exports.bookings = (0, mysql_core_1.mysqlTable)("bookings", {
     userId: (0, mysql_core_1.int)("user_id").references(() => exports.users.id),
     tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tourSchedules.id),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "confirmed", "cancelled"]),
+    createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
+});
+exports.bookingDetails = (0, mysql_core_1.mysqlTable)("booking_details", {
+    id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
+    bookingId: (0, mysql_core_1.int)("booking_id").references(() => exports.bookings.id),
+    fullName: (0, mysql_core_1.varchar)("full_name", { length: 255 }),
+    email: (0, mysql_core_1.varchar)("email", { length: 255 }),
+    phone: (0, mysql_core_1.varchar)("phone", { length: 20 }),
+    notes: (0, mysql_core_1.text)("notes"),
+    adultsCount: (0, mysql_core_1.int)("adults_count").default(0),
+    childrenCount: (0, mysql_core_1.int)("children_count").default(0),
+    infantsCount: (0, mysql_core_1.int)("infants_count").default(0),
+    totalAmount: (0, mysql_core_1.decimal)("total_amount", { precision: 10, scale: 2 }),
+    createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
+});
+exports.bookingExtras = (0, mysql_core_1.mysqlTable)("booking_extras", {
+    id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
+    bookingId: (0, mysql_core_1.int)("booking_id").references(() => exports.bookings.id),
+    extraId: (0, mysql_core_1.int)("extra_id"),
+    adultCount: (0, mysql_core_1.int)("adult_count").default(0),
+    childCount: (0, mysql_core_1.int)("child_count").default(0),
+    infantCount: (0, mysql_core_1.int)("infant_count").default(0),
     createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
 });
 exports.payments = (0, mysql_core_1.mysqlTable)("payments", {

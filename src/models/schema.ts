@@ -218,6 +218,32 @@ export const bookings = mysqlTable("bookings", {
   createdAt: timestamp("created_at").default(getCurrentEgyptTime()),
 });
 
+export const bookingDetails = mysqlTable("booking_details", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("booking_id").references(() => bookings.id),
+  fullName: varchar("full_name", { length: 255 }),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 20 }),
+  notes: text("notes"),
+  adultsCount: int("adults_count").default(0),
+  childrenCount: int("children_count").default(0),
+  infantsCount: int("infants_count").default(0),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").default(getCurrentEgyptTime()),
+});
+
+
+export const bookingExtras = mysqlTable("booking_extras", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("booking_id").references(() => bookings.id),
+  extraId: int("extra_id"), 
+  adultCount: int("adult_count").default(0),
+  childCount: int("child_count").default(0),
+  infantCount: int("infant_count").default(0),
+  createdAt: timestamp("created_at").default(getCurrentEgyptTime()),
+});
+
+
 export const payments = mysqlTable("payments", {
   id: int("id").autoincrement().primaryKey(),
   bookingId: int("booking_id").references(() => bookings.id),
