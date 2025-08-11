@@ -215,7 +215,7 @@ export const bookings = mysqlTable("bookings", {
   userId: int("user_id").references(() => users.id),
   tourId: int("tour_id").references(() => tourSchedules.id),
   status: mysqlEnum("status", ["pending", "confirmed", "cancelled"]),
-  createdAt: timestamp("created_at")
+  createdAt: timestamp("created_at").defaultNow()
 });
 
 export const bookingDetails = mysqlTable("booking_details", {

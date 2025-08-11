@@ -183,7 +183,7 @@ exports.bookings = (0, mysql_core_1.mysqlTable)("bookings", {
     userId: (0, mysql_core_1.int)("user_id").references(() => exports.users.id),
     tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tourSchedules.id),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "confirmed", "cancelled"]),
-    createdAt: (0, mysql_core_1.timestamp)("created_at")
+    createdAt: (0, mysql_core_1.timestamp)("created_at").defaultNow()
 });
 exports.bookingDetails = (0, mysql_core_1.mysqlTable)("booking_details", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
