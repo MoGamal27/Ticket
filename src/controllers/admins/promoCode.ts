@@ -7,7 +7,14 @@ import { NotFound } from "../../Errors";
 
 export const getAllPromoCodes = async (req: Request, res: Response) => {
   const codes = await db.select().from(promoCode);
-  SuccessResponse(res, { codes }, 200);
+  
+const formattedCodes = codes.map(code => ({
+    ...code,
+    startDate: code.startDate.toISOString().split('T')[0], // "2025-07-24"
+    endDate: code.endDate.toISOString().split('T')[0]     // "2025-07-26"
+  }));
+  
+  SuccessResponse(res, { codes: formattedCodes });
 };
 
 export const getCode = async (req: Request, res: Response) => {

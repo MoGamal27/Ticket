@@ -26,6 +26,7 @@ import {
   manualPaymentTypes,
   bookingDetails,
   bookingExtras,
+  tourSchedules,
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -120,6 +121,7 @@ export const getTourById = async (req: Request, res: Response) => {
       city: cites.id,
       maxUsers: tours.maxUsers,
       category: categories.id,
+      tourScheduleId: tourSchedules.id,
       price: {
         adult: tourPrice.adult,
         child: tourPrice.child,
@@ -133,6 +135,7 @@ export const getTourById = async (req: Request, res: Response) => {
     .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
     .leftJoin(cites, eq(cites.id, tours.city))
     .leftJoin(countries, eq(countries.id, tours.country))
+    .leftJoin(tourSchedules, eq(tourSchedules.tourId, tours.id))
     .where(eq(tours.id, tourId));
 
   if (!mainTour) throw new NotFound("tour not found");

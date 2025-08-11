@@ -17,7 +17,9 @@ const drizzle_orm_1 = require("drizzle-orm");
 const Errors_1 = require("../../Errors");
 const getAllPromoCodes = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const codes = yield db_1.db.select().from(schema_1.promoCode);
-    (0, response_1.SuccessResponse)(res, { codes }, 200);
+    const formattedCodes = codes.map(code => (Object.assign(Object.assign({}, code), { startDate: code.startDate.toISOString().split('T')[0], endDate: code.endDate.toISOString().split('T')[0] // "2025-07-26"
+     })));
+    (0, response_1.SuccessResponse)(res, { codes: formattedCodes });
 });
 exports.getAllPromoCodes = getAllPromoCodes;
 const getCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {

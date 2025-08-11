@@ -104,6 +104,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         city: schema_1.cites.id,
         maxUsers: schema_1.tours.maxUsers,
         category: schema_1.categories.id,
+        tourScheduleId: schema_1.tourSchedules.id,
         price: {
             adult: schema_1.tourPrice.adult,
             child: schema_1.tourPrice.child,
@@ -117,6 +118,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .leftJoin(schema_1.currencies, (0, drizzle_orm_1.eq)(schema_1.tourPrice.currencyId, schema_1.currencies.id))
         .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.cites.id, schema_1.tours.city))
         .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.countries.id, schema_1.tours.country))
+        .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
         .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
     if (!mainTour)
         throw new Errors_1.NotFound("tour not found");
