@@ -267,18 +267,6 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             });
         }
         const userId = existingUser[0].id;
-        // Check if tour exists
-        const existingTour = yield db_1.db
-            .select({ id: schema_1.tours.id })
-            .from(schema_1.tours)
-            .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourIdNum))
-            .limit(1);
-        if (!existingTour.length) {
-            return res.status(404).json({
-                success: false,
-                message: "Tour not found"
-            });
-        }
         // Start transaction
         yield db_1.db.transaction((trx) => __awaiter(void 0, void 0, void 0, function* () {
             // Create main booking record

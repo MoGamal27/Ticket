@@ -292,7 +292,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     adultsCount,
     childrenCount,
     infantsCount,
-    // Only total amount - frontend calculates everything
+    //
     totalAmount,
     // Payment method as ID
     paymentMethodId,
@@ -327,19 +327,6 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     const userId = existingUser[0].id;
 
-    // Check if tour exists
-    const existingTour = await db
-      .select({ id: tours.id })
-      .from(tours)
-      .where(eq(tours.id, tourIdNum))
-      .limit(1);
-
-    if (!existingTour.length) {
-      return res.status(404).json({
-        success: false,
-        message: "Tour not found"
-      });
-    }
 
     // Start transaction
     await db.transaction(async (trx) => {
