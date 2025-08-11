@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import axios from "axios";
 import { db } from "../../models/db";
 import {
   manualPaymentMethod,
