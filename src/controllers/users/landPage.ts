@@ -280,7 +280,6 @@ export const getActivePaymentMethods = async (req: Request, res: Response) => {
 };
 
 
-
 export const createBookingWithPayment = async (req: Request, res: Response) => {
   const { 
     tourId,
@@ -302,6 +301,14 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     extras
   } = req.body;
 
+  // Parse tourId to ensure it's a number
+  const tourIdNum = parseInt(tourId, 10);
+  if (isNaN(tourIdNum)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid tourId provided"
+    });
+  }
 
   try {
     // Check if user exists by email and get userId
@@ -319,13 +326,27 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     }
 
     const userId = existingUser[0].id;
+
+    // Check if tour exists
+    const existingTour = await db
+      .select({ id: tours.id })
+      .from(tours)
+      .where(eq(tours.id, tourIdNum))
+      .limit(1);
+
+    if (!existingTour.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Tour not found"
+      });
+    }
+
     // Start transaction
     await db.transaction(async (trx) => {
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
-        tourId,
+        tourId: tourIdNum,
         userId,
-       // createdAt: new Date(),
         status: "pending"
       }).$returningId();
 
@@ -380,7 +401,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
       SuccessResponse(res, { 
         booking: {
           id: newBooking.id,
-          tourId,
+          tourId: tourIdNum,
           userId,
           status: "pending"
         },
@@ -415,6 +436,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 };
+
 
 // function to get booking with details
 export const getBookingWithDetails = async (req: Request, res: Response) => {

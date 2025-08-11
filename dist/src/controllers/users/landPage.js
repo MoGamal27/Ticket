@@ -245,6 +245,14 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
     paymentMethodId, proofImage, 
     // Extras array
     extras } = req.body;
+    // Parse tourId to ensure it's a number
+    const tourIdNum = parseInt(tourId, 10);
+    if (isNaN(tourIdNum)) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid tourId provided"
+        });
+    }
     try {
         // Check if user exists by email and get userId
         const existingUser = yield db_1.db
@@ -259,13 +267,24 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             });
         }
         const userId = existingUser[0].id;
+        // Check if tour exists
+        const existingTour = yield db_1.db
+            .select({ id: schema_1.tours.id })
+            .from(schema_1.tours)
+            .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourIdNum))
+            .limit(1);
+        if (!existingTour.length) {
+            return res.status(404).json({
+                success: false,
+                message: "Tour not found"
+            });
+        }
         // Start transaction
         yield db_1.db.transaction((trx) => __awaiter(void 0, void 0, void 0, function* () {
             // Create main booking record
             const [newBooking] = yield trx.insert(schema_1.bookings).values({
-                tourId,
+                tourId: tourIdNum,
                 userId,
-                // createdAt: new Date(),
                 status: "pending"
             }).$returningId();
             // Create booking details - only store total amount
@@ -314,7 +333,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             (0, response_1.SuccessResponse)(res, {
                 booking: {
                     id: newBooking.id,
-                    tourId,
+                    tourId: tourIdNum,
                     userId,
                     status: "pending"
                 },
