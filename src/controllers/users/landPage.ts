@@ -158,8 +158,7 @@ export const getTourById = async (req: Request, res: Response) => {
       .select({ dayOfWeek: tourDaysOfWeek.dayOfWeek })
       .from(tourDaysOfWeek)
       .where(eq(tourDaysOfWeek.tourId, tourId)),
-    db
-      .select({
+    db.select({
         id: extras.id,
         name: extras.name,
         price: {
@@ -167,12 +166,14 @@ export const getTourById = async (req: Request, res: Response) => {
           child: tourPrice.child,
           infant: tourPrice.infant,
           currencyId: tourPrice.currencyId,
+          // currency name
           currencyName: currencies.name,
         },
       })
       .from(tourExtras)
       .leftJoin(extras, eq(tourExtras.extraId, extras.id))
       .leftJoin(tourPrice, eq(tourExtras.priceId, tourPrice.id))
+      .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
       .where(eq(tourExtras.tourId, tourId)),
     db
       .select({ imagePath: tourImages.imagePath })

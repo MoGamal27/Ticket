@@ -111,11 +111,13 @@ export const getTourById = async (req: Request, res: Response) => {
           child: tourPrice.child,
           infant: tourPrice.infant,
           currency: tourPrice.currencyId,
+           currencyName: currencies.name,
         },
       })
       .from(tourExtras)
       .leftJoin(extras, eq(tourExtras.extraId, extras.id))
       .leftJoin(tourPrice, eq(tourExtras.priceId, tourPrice.id))
+      .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
       .where(eq(tourExtras.tourId, tourId)),
     db
       .select({ imagePath: tourImages.imagePath })
@@ -377,38 +379,40 @@ export const updateTour = async (req: Request, res: Response) => {
 
   await db.update(tours).set(updateData).where(eq(tours.id, tourId));
 
-  // Update related content if provided
-  if (data.prices && data.prices.length > 0) {
+  // Update related content if provided (check for existence, not just length)
+  if (data.prices !== undefined) {
     await db.delete(tourPrice).where(eq(tourPrice.tourId, tourId));
-    await db.insert(tourPrice).values(
-      data.prices.map((price: any) => ({
-        adult: price.adult,
-        child: price.child,
-        infant: price.infant,
-        currencyId: price.currencyId,
-        tourId,
-      }))
-    );
+    if (data.prices.length > 0) {
+      await db.insert(tourPrice).values(
+        data.prices.map((price: any) => ({
+          adult: price.adult,
+          child: price.child,
+          infant: price.infant,
+          currencyId: price.currencyId,
+          tourId,
+        }))
+      );
+    }
   }
 
-  if (data.discounts && data.discounts.length > 0) {
+  if (data.discounts !== undefined) {
     await db.delete(tourDiscounts).where(eq(tourDiscounts.tourId, tourId));
-    await db.insert(tourDiscounts).values(
-      data.discounts.map((discount: any) => ({
-        tourId,
-        targetGroup: discount.targetGroup,
-        type: discount.type,
-        value: discount.value,
-        minPeople: discount.minPeople ?? 0,
-        maxPeople: discount.maxPeople,
-        kindBy: discount.kindBy,
-      }))
-    );
-  } else {
-    await db.delete(tourDiscounts).where(eq(tourDiscounts.tourId, tourId));
+    if (data.discounts.length > 0) {
+      await db.insert(tourDiscounts).values(
+        data.discounts.map((discount: any) => ({
+          tourId,
+          targetGroup: discount.targetGroup,
+          type: discount.type,
+          value: discount.value,
+          minPeople: discount.minPeople ?? 0,
+          maxPeople: discount.maxPeople,
+          kindBy: discount.kindBy,
+        }))
+      );
+    }
   }
 
-  if (data.images && data.images.length > 0) {
+  if (data.images !== undefined) {
     const existingImages = await db
       .select()
       .from(tourImages)
@@ -422,125 +426,128 @@ export const updateTour = async (req: Request, res: Response) => {
     // Delete old image records from database
     await db.delete(tourImages).where(eq(tourImages.tourId, tourId));
 
-    // Insert new images
-    const imageRecords = await Promise.all(
-      data.images.map(async (imagePath: any) => ({
-        tourId,
-        imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
-      }))
-    );
-    await db.insert(tourImages).values(imageRecords);
+    // Insert new images if any
+    if (data.images.length > 0) {
+      const imageRecords = await Promise.all(
+        data.images.map(async (imagePath: any) => ({
+          tourId,
+          imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
+        }))
+      );
+      await db.insert(tourImages).values(imageRecords);
+    }
   }
 
-  if (data.highlights?.length) {
+  if (data.highlights !== undefined) {
     await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
-    await db
-      .insert(tourHighlight)
-      .values(data.highlights.map((content: string) => ({ content, tourId })));
-  } else {
-    await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
+    if (data.highlights.length > 0) {
+      await db
+        .insert(tourHighlight)
+        .values(data.highlights.map((content: string) => ({ content, tourId })));
+    }
   }
 
-  if (data.includes?.length) {
+  if (data.includes !== undefined) {
     await db.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
-    await db
-      .insert(tourIncludes)
-      .values(data.includes.map((content: string) => ({ content, tourId })));
-  } else {
-    await db.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
+    if (data.includes.length > 0) {
+      await db
+        .insert(tourIncludes)
+        .values(data.includes.map((content: string) => ({ content, tourId })));
+    }
   }
 
-  if (data.excludes?.length) {
+  if (data.excludes !== undefined) {
     await db.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
-    await db
-      .insert(tourExcludes)
-      .values(data.excludes.map((content: string) => ({ content, tourId })));
-  } else {
-    await db.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
+    if (data.excludes.length > 0) {
+      await db
+        .insert(tourExcludes)
+        .values(data.excludes.map((content: string) => ({ content, tourId })));
+    }
   }
 
-  if (data.schedules?.length) {
+  if (data.itinerary !== undefined) {
+    await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
+    if (data.itinerary.length > 0) {
+      // First process all async operations in parallel
+      const itineraryItems = await Promise.all(
+        data.itinerary.map(async (item: any) => ({
+          title: item.title,
+          imagePath: await saveBase64Image(
+            item.imagePath,
+            uuid(),
+            req,
+            "itineraryImages"
+          ),
+          describtion: item.description, // Keep as 'describtion' to match DB schema
+          tourId,
+        }))
+      );
+      
+      // Then insert all processed items
+      await db.insert(tourItinerary).values(itineraryItems);
+    }
+  }
+
+  if (data.faq !== undefined) {
+    await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
+    if (data.faq.length > 0) {
+      await db.insert(tourFAQ).values(
+        data.faq.map((item: any) => ({
+          question: item.question,
+          answer: item.answer,
+          tourId,
+        }))
+      );
+    }
+  }
+
+  if (data.daysOfWeek !== undefined) {
+    await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
+    if (data.daysOfWeek.length > 0) {
+      await db
+        .insert(tourDaysOfWeek)
+        .values(
+          data.daysOfWeek.map((day: string) => ({ dayOfWeek: day, tourId }))
+        );
+    }
+  }
+
+  if (data.extras !== undefined) {
+    await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
+    if (data.extras.length > 0) {
+      for (const extra of data.extras) {
+        const [extraPrice] = await db
+          .insert(tourPrice)
+          .values({
+            adult: extra.price.adult,
+            child: extra.price.child,
+            infant: extra.price.infant,
+            currencyId: extra.price.currencyId,
+            tourId,
+          })
+          .$returningId();
+
+        await db.insert(tourExtras).values({
+          tourId,
+          extraId: extra.extraId,
+          priceId: extraPrice.id,
+        });
+      }
+    }
+  }
+
+  // Generate schedules if needed (similar to create)
+  if (data.startDate || data.endDate || data.daysOfWeek) {
     await db.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
     await generateTourSchedules({
       tourId,
-      startDate: new Date(data.startDate).toISOString(),
-      endDate: new Date(data.endDate).toISOString(),
-      daysOfWeek: data.daysOfWeek,
-      maxUsers: data.maxUsers,
-      durationDays: data.durationDays,
-      durationHours: data.durationHours,
+      startDate: (data.startDate ? new Date(data.startDate) : existingTour.startDate).toISOString(),
+      endDate: (data.endDate ? new Date(data.endDate) : existingTour.endDate).toISOString(),
+      daysOfWeek: data.daysOfWeek || [], // You might need to fetch existing daysOfWeek if not provided
+      maxUsers: data.maxUsers || existingTour.maxUsers,
+      durationDays: data.durationDays || existingTour.durationDays,
+      durationHours: data.durationHours || existingTour.durationHours,
     });
-  }
-
-  if (data.itinerary?.length) {
-    await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
-    // First process all async operations in parallel
-    const itineraryItems = await Promise.all(
-      data.itinerary.map(async (item: any) => ({
-        title: item.title,
-        imagePath: await saveBase64Image(
-          item.imagePath,
-          uuid(),
-          req,
-          "itineraryImages"
-        ),
-        describtion: item.description, // Keep as 'describtion' to match DB schema
-        tourId,
-      }))
-    );
-    
-    // Then insert all processed items
-    await db.insert(tourItinerary).values(itineraryItems);
-  } else {
-    await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
-  }
-
-  if (data.faq?.length) {
-    await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
-    await db.insert(tourFAQ).values(
-      data.faq.map((item: any) => ({
-        question: item.question,
-        answer: item.answer,
-        tourId,
-      }))
-    );
-  } else {
-    await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
-  }
-
-  if (data.daysOfWeek?.length) {
-    await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
-    await db
-      .insert(tourDaysOfWeek)
-      .values(
-        data.daysOfWeek.map((day: string) => ({ dayOfWeek: day, tourId }))
-      );
-  } else {
-    await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
-  }
-
-  if (data.extras?.length) {
-    await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
-    for (const extra of data.extras) {
-      const [extraPrice] = await db
-        .insert(tourPrice)
-        .values({
-          adult: extra.price.adult,
-          child: extra.price.child,
-          infant: extra.price.infant,
-          currencyId: extra.price.currencyId,
-          tourId,
-        })
-        .$returningId();
-
-      await db.insert(tourExtras).values({
-        tourId,
-        extraId: extra.extraId,
-        priceId: extraPrice.id,
-      });
-    }
-  } else {
-    await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
   }
 
   SuccessResponse(res, { message: "Tour Updated Successfully" }, 200);
