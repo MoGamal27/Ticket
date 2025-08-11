@@ -325,7 +325,8 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
       const [newBooking] = await trx.insert(bookings).values({
         tourId,
         userId,
-        status: "pending"
+        status: "pending",
+        createdAt: new Date()
       }).$returningId();
 
       // Create booking details - only store total amount
