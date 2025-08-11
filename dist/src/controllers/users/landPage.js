@@ -265,7 +265,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             const [newBooking] = yield trx.insert(schema_1.bookings).values({
                 tourId,
                 userId,
-                createdAt: new Date(),
+                // createdAt: new Date(),
                 status: "pending"
             }).$returningId();
             // Create booking details - only store total amount

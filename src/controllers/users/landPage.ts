@@ -325,7 +325,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
       const [newBooking] = await trx.insert(bookings).values({
         tourId,
         userId,
-        createdAt: new Date(),
+       // createdAt: new Date(),
         status: "pending"
       }).$returningId();
 
