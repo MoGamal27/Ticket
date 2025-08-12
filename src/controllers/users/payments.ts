@@ -1,0 +1,142 @@
+import { Request, Response } from "express";
+import { db } from "../../models/db";
+import {
+payments,users, tours, bookings, 
+} from "../../models/schema";
+import { eq , and , lt , gte} from "drizzle-orm";
+import { SuccessResponse } from "../../utils/response";
+import { NotFound,UnauthorizedError } from "../../Errors";
+import { AuthenticatedRequest } from "../../types/custom";
+import { BadRequest } from "../../Errors/BadRequest";
+
+// export const createPayment = async (req: Request, res: Response) => {
+//   const {  bookingId, method,transaction_id, } = req.body;
+//     const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+//     if (!booking) throw new NotFound("Booking not found");
+//     const newPayment = await db.insert(payments).values({
+//     bookingId,
+//     method,
+//     status: "pending",
+//     transactionId: transaction_id,
+//   });
+//     SuccessResponse(res, { payment: newPayment }, 201);
+// }
+
+export const getUserPayments = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+
+  // هات كل المدفوعات الخاصة باليوزر (عن طريق bookingId)
+  const userPaymentsRaw = await db
+    .select()
+    .from(payments)
+    .innerJoin(bookings, eq(payments.bookingId, bookings.id))
+    .where(eq(bookings.userId, userId))
+    .execute();
+
+  // قسمهم حسب الحالة
+  const groupedPayments = {
+    pending: userPaymentsRaw.filter(item => item.payments.status === "pending"),
+    confirmed: userPaymentsRaw.filter(item => item.payments.status === "confirmed"),
+    cancelled: userPaymentsRaw.filter(item => item.payments.status === "cancelled"),
+  };
+
+  SuccessResponse(res, groupedPayments, 200);
+};
+
+
+export const getPaymentById = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+  const paymentId = Number(req.params.id);
+
+  // 1️⃣ هات الـ payment مع الحجز المرتبط بيها
+  const paymentData = await db
+    .select()
+    .from(payments)
+    .innerJoin(bookings, eq(payments.bookingId, bookings.id))
+    .where(
+      and(
+        eq(payments.id, paymentId),
+        eq(bookings.userId, userId) // للتأكد أن اليوزر صاحب الـ payment
+      )
+    )
+    .execute();
+
+  // 2️⃣ لو مش لاقي
+  if (paymentData.length === 0) {
+    throw new NotFound("Payment not found or you don't have access to it");
+  }
+
+  // 3️⃣ رجع النتيجة
+  SuccessResponse(res, paymentData[0], 200);
+};
+
+
+export const updatePayment = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+  const paymentId = Number(req.params.id);
+  const { method } = req.body; // المستخدم بس يقدر يعدل الميثود
+
+  // تحقق إن الـ payment بتخص اليوزر
+  const paymentCheck = await db
+    .select()
+    .from(payments)
+    .innerJoin(bookings, eq(payments.bookingId, bookings.id))
+    .where(and(eq(payments.id, paymentId), eq(bookings.userId, userId)))
+    .execute();
+
+  if (paymentCheck.length === 0) {
+    throw new NotFound("Payment not found or you don't have access to it");
+  }
+
+  // تحديث الحقول المسموح بيها فقط
+  await db
+    .update(payments)
+    .set({
+      ...(method && { method }),
+    })
+    .where(eq(payments.id, paymentId))
+    .execute();
+
+  SuccessResponse(res, { message: "Payment updated successfully" }, 200);
+};
+
+export const deletePayment = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+  const paymentId = Number(req.params.id);
+
+  // تحقق إن الـ payment بتخص اليوزر
+  const paymentCheck = await db
+    .select()
+    .from(payments)
+    .innerJoin(bookings, eq(payments.bookingId, bookings.id))
+    .where(and(eq(payments.id, paymentId), eq(bookings.userId, userId)))
+    .execute();
+
+  if (paymentCheck.length === 0) {
+    throw new NotFound("Payment not found or you don't have access to it");
+  }
+
+  // حذف الدفعية بالكامل
+  await db
+    .delete(payments)
+    .where(eq(payments.id, paymentId))
+    .execute();
+
+  SuccessResponse(res, { message: "Payment deleted successfully" }, 200);
+};
