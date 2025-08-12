@@ -33,15 +33,47 @@ const getUserBookings = (req, res) => __awaiter(void 0, void 0, void 0, function
     const userId = Number(req.user.id); // حول ال id إلى رقم
     const now = new Date();
     const pastBookings = yield db_1.db
-        .select()
+        .select({
+        bookings: schema_1.bookings,
+        bookingDetails: schema_1.bookingDetails,
+        bookingExtras: {
+            id: schema_1.bookingExtras.id,
+            bookingId: schema_1.bookingExtras.bookingId,
+            extraId: schema_1.bookingExtras.extraId,
+            extraName: schema_1.extras.name,
+            adultCount: schema_1.bookingExtras.adultCount,
+            childCount: schema_1.bookingExtras.childCount,
+            infantCount: schema_1.bookingExtras.infantCount,
+            createdAt: schema_1.bookingExtras.createdAt,
+        },
+    })
         .from(schema_1.bookings)
+        .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
+        .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id))
         .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId), (0, drizzle_orm_1.lt)(schema_1.tourSchedules.endDate, now)))
         .execute();
     const currentBookingsRaw = yield db_1.db
-        .select()
+        .select({
+        bookings: schema_1.bookings,
+        bookingDetails: schema_1.bookingDetails,
+        bookingExtras: {
+            id: schema_1.bookingExtras.id,
+            bookingId: schema_1.bookingExtras.bookingId,
+            extraId: schema_1.bookingExtras.extraId,
+            extraName: schema_1.extras.name,
+            adultCount: schema_1.bookingExtras.adultCount,
+            childCount: schema_1.bookingExtras.childCount,
+            infantCount: schema_1.bookingExtras.infantCount,
+            createdAt: schema_1.bookingExtras.createdAt,
+        },
+    })
         .from(schema_1.bookings)
+        .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
+        .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id))
         .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId), (0, drizzle_orm_1.gte)(schema_1.tourSchedules.endDate, now)))
@@ -111,8 +143,24 @@ const getBookingDetails = (req, res) => __awaiter(void 0, void 0, void 0, functi
     const bookingId = Number(req.params.id);
     // نجيب بيانات الحجز مع الانضمام للجداول المرتبطة (جدول الرحلات وجدول مواعيد الرحلات)
     const booking = yield db_1.db
-        .select()
+        .select({
+        bookings: schema_1.bookings,
+        bookingDetails: schema_1.bookingDetails,
+        bookingExtras: {
+            id: schema_1.bookingExtras.id,
+            bookingId: schema_1.bookingExtras.bookingId,
+            extraId: schema_1.bookingExtras.extraId,
+            extraName: schema_1.extras.name,
+            adultCount: schema_1.bookingExtras.adultCount,
+            childCount: schema_1.bookingExtras.childCount,
+            infantCount: schema_1.bookingExtras.infantCount,
+            createdAt: schema_1.bookingExtras.createdAt,
+        },
+    })
         .from(schema_1.bookings)
+        .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
+        .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id)) // صححت الربط هنا
         .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.bookings.id, bookingId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId)))

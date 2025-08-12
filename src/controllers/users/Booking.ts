@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../models/db";
 import {
-  bookings,users, tours, tourSchedules
+  bookings,users, tours, tourSchedules, bookingDetails, bookingExtras, extras
 } from "../../models/schema";
 import { eq , and , lt , gte} from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -17,8 +17,25 @@ export const getUserBookings = async (req: AuthenticatedRequest, res: Response) 
 const userId = Number(req.user.id); // حول ال id إلى رقم
   const now = new Date();
   const pastBookings = await db
-    .select()
+    .select( {
+      bookings: bookings,
+      bookingDetails: bookingDetails,
+      bookingExtras: {
+        id: bookingExtras.id,
+        bookingId: bookingExtras.bookingId,
+        extraId: bookingExtras.extraId,
+        extraName: extras.name,
+        adultCount: bookingExtras.adultCount,
+        childCount: bookingExtras.childCount,
+        infantCount: bookingExtras.infantCount,
+        createdAt: bookingExtras.createdAt,
+        
+     },
+    })
     .from(bookings)
+    .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
+    .innerJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .innerJoin(extras, eq(bookingExtras.extraId, extras.id))
     .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))
     .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
     .where(
@@ -30,8 +47,25 @@ const userId = Number(req.user.id); // حول ال id إلى رقم
     .execute();
 
   const currentBookingsRaw = await db
-    .select()
+    .select({
+      bookings: bookings,
+      bookingDetails: bookingDetails,
+     bookingExtras: {
+        id: bookingExtras.id,
+        bookingId: bookingExtras.bookingId,
+        extraId: bookingExtras.extraId,
+        extraName: extras.name,
+        adultCount: bookingExtras.adultCount,
+        childCount: bookingExtras.childCount,
+        infantCount: bookingExtras.infantCount,
+        createdAt: bookingExtras.createdAt,
+        
+     },
+    })
     .from(bookings)
+     .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
+    .innerJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .innerJoin(extras, eq(bookingExtras.extraId, extras.id))
     .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))
     .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
     .where(
@@ -121,8 +155,25 @@ export const getBookingDetails = async (req: AuthenticatedRequest, res: Response
 
   // نجيب بيانات الحجز مع الانضمام للجداول المرتبطة (جدول الرحلات وجدول مواعيد الرحلات)
       const booking = await db
-    .select()
+    .select( {
+      bookings: bookings,
+      bookingDetails: bookingDetails,
+      bookingExtras: {
+        id: bookingExtras.id,
+        bookingId: bookingExtras.bookingId,
+        extraId: bookingExtras.extraId,
+        extraName: extras.name,
+        adultCount: bookingExtras.adultCount,
+        childCount: bookingExtras.childCount,
+        infantCount: bookingExtras.infantCount,
+        createdAt: bookingExtras.createdAt,
+        
+     },
+    })
     .from(bookings)
+    .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
+    .innerJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .innerJoin(extras, eq(bookingExtras.extraId, extras.id))
     .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))  // صححت الربط هنا
     .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
     .where(

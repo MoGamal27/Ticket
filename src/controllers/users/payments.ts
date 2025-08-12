@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../models/db";
 import {
-payments,users, tours, bookings, 
+payments,users, tours, bookings, bookingDetails, bookingExtras, extras 
 } from "../../models/schema";
 import { eq , and , lt , gte} from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -29,15 +29,32 @@ export const getUserPayments = async (req: AuthenticatedRequest, res: Response) 
 
   const userId = Number(req.user.id);
 
-  // هات كل المدفوعات الخاصة باليوزر (عن طريق bookingId)
+  
   const userPaymentsRaw = await db
-    .select()
+     .select({
+          payments: payments,
+          bookingDetails: bookingDetails,
+         bookingExtras: {
+            id: bookingExtras.id,
+            bookingId: bookingExtras.bookingId,
+            extraId: bookingExtras.extraId,
+            extraName: extras.name,
+            adultCount: bookingExtras.adultCount,
+            childCount: bookingExtras.childCount,
+            infantCount: bookingExtras.infantCount,
+            createdAt: bookingExtras.createdAt,
+            
+         },
+        })
     .from(payments)
     .innerJoin(bookings, eq(payments.bookingId, bookings.id))
+    .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
+    .innerJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .innerJoin(extras, eq(bookingExtras.extraId, extras.id))
     .where(eq(bookings.userId, userId))
     .execute();
 
-  // قسمهم حسب الحالة
+ 
   const groupedPayments = {
     pending: userPaymentsRaw.filter(item => item.payments.status === "pending"),
     confirmed: userPaymentsRaw.filter(item => item.payments.status === "confirmed"),
@@ -58,9 +75,26 @@ export const getPaymentById = async (req: AuthenticatedRequest, res: Response) =
 
   // 1️⃣ هات الـ payment مع الحجز المرتبط بيها
   const paymentData = await db
-    .select()
+    .select({
+          payments: payments,
+          bookingDetails: bookingDetails,
+         bookingExtras: {
+            id: bookingExtras.id,
+            bookingId: bookingExtras.bookingId,
+            extraId: bookingExtras.extraId,
+            extraName: extras.name,
+            adultCount: bookingExtras.adultCount,
+            childCount: bookingExtras.childCount,
+            infantCount: bookingExtras.infantCount,
+            createdAt: bookingExtras.createdAt,
+            
+         },
+        })
     .from(payments)
     .innerJoin(bookings, eq(payments.bookingId, bookings.id))
+    .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
+    .innerJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .innerJoin(extras, eq(bookingExtras.extraId, extras.id))
     .where(
       and(
         eq(payments.id, paymentId),
