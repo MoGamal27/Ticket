@@ -113,7 +113,7 @@ const getBookingDetails = (req, res) => __awaiter(void 0, void 0, void 0, functi
     const booking = yield db_1.db
         .select()
         .from(schema_1.bookings)
-        .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.userId, schema_1.tourSchedules.id))
+        .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id)) // صححت الربط هنا
         .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.bookings.id, bookingId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId)))
         .execute();

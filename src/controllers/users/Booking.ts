@@ -121,17 +121,17 @@ export const getBookingDetails = async (req: AuthenticatedRequest, res: Response
 
   // نجيب بيانات الحجز مع الانضمام للجداول المرتبطة (جدول الرحلات وجدول مواعيد الرحلات)
       const booking = await db
-          .select()
-          .from(bookings)
-          .innerJoin(tourSchedules, eq(bookings.userId, tourSchedules.id))
-          .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
-          .where(
-                 and(
-                     eq(bookings.id, bookingId),
-                     eq(bookings.userId, userId)
-                    )
-                     )
-                       .execute();
+    .select()
+    .from(bookings)
+    .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))  // صححت الربط هنا
+    .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
+    .where(
+     and(
+       eq(bookings.id, bookingId),
+       eq(bookings.userId, userId)
+     )
+  )
+  .execute();
 
 
   if (!booking || booking.length === 0) {
