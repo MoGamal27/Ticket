@@ -17,7 +17,7 @@ export const getBookings = async (req: Request, res: Response) => {
       tourFeatured: tours.featured,
       tourDescription: tours.describtion,
       tourMeetingPoint: tours.meetingPoint,
-      tourMeetinPointAddress: tours.meetingPointAddress,
+      tourMeetingPointAddress: tours.meetingPointAddress,
       tourMeetingPointLocation: tours.meetingPointLocation,
       tourPoints: tours.points,
       tourEndDate: tours.endDate,
@@ -32,7 +32,26 @@ export const getBookings = async (req: Request, res: Response) => {
     .leftJoin(users, eq(bookings.userId, users.id))
     .leftJoin(tours, eq(bookings.tourId, tours.id));
 
-  SuccessResponse(res, { bookings: books }, 200);
+  const today = new Date();
+
+ const upcoming = books.filter(
+  (b) => b.tourStartDate && new Date(b.tourStartDate) > today
+);
+
+const current = books.filter(
+  (b) =>
+    b.tourStartDate &&
+    b.tourEndDate &&
+    new Date(b.tourStartDate) <= today &&
+    new Date(b.tourEndDate) >= today
+);
+
+const history = books.filter(
+  (b) => b.tourEndDate && new Date(b.tourEndDate) < today
+);
+
+
+  SuccessResponse(res, { upcoming, current, history }, 200);
 };
 
 export const getBookingsStats = async (req: Request, res: Response) => {

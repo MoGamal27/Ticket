@@ -27,7 +27,7 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         tourFeatured: schema_1.tours.featured,
         tourDescription: schema_1.tours.describtion,
         tourMeetingPoint: schema_1.tours.meetingPoint,
-        tourMeetinPointAddress: schema_1.tours.meetingPointAddress,
+        tourMeetingPointAddress: schema_1.tours.meetingPointAddress,
         tourMeetingPointLocation: schema_1.tours.meetingPointLocation,
         tourPoints: schema_1.tours.points,
         tourEndDate: schema_1.tours.endDate,
@@ -41,7 +41,14 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .from(schema_1.bookings)
         .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.bookings.userId, schema_1.users.id))
         .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tours.id));
-    (0, response_1.SuccessResponse)(res, { bookings: books }, 200);
+    const today = new Date();
+    const upcoming = books.filter((b) => b.tourStartDate && new Date(b.tourStartDate) > today);
+    const current = books.filter((b) => b.tourStartDate &&
+        b.tourEndDate &&
+        new Date(b.tourStartDate) <= today &&
+        new Date(b.tourEndDate) >= today);
+    const history = books.filter((b) => b.tourEndDate && new Date(b.tourEndDate) < today);
+    (0, response_1.SuccessResponse)(res, { upcoming, current, history }, 200);
 });
 exports.getBookings = getBookings;
 const getBookingsStats = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
