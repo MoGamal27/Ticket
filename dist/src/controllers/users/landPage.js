@@ -9,12 +9,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = void 0;
+exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
 const response_1 = require("../../utils/response");
 const Errors_1 = require("../../Errors");
+// format start date to YYYY-MM-DD
+const formatDate = (date) => {
+    return date.toISOString().split('T')[0];
+};
+exports.formatDate = formatDate;
 const getImages = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     let img;
     const [cover] = yield db_1.db
@@ -155,7 +160,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             .from(schema_1.tourImages)
             .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId)),
     ]);
-    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
+    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
             title: i.title,
             imagePath: i.imagePath,
             description: i.describtion,
@@ -247,7 +252,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
     // Payment method as ID
     paymentMethodId, proofImage, 
     // Extras array
-    extras } = req.body;
+    extras, discount, location, address } = req.body;
     // Parse tourId to ensure it's a number
     const tourIdNum = parseInt(tourId, 10);
     if (isNaN(tourIdNum)) {
@@ -277,6 +282,9 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 tourId: tourIdNum,
                 userId,
                 status: "pending",
+                discountNumber: discount || 0,
+                location: location || null,
+                address: address || null,
             }).$returningId();
             // Create booking details - only store total amount
             yield trx.insert(schema_1.bookingDetails).values({
@@ -326,7 +334,10 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                     id: newBooking.id,
                     tourId: tourIdNum,
                     userId,
-                    status: "pending"
+                    status: "pending",
+                    discountNumber: discount || 0,
+                    location: location || null,
+                    address: address || null,
                 },
                 payment: {
                     id: payment.id,
@@ -351,11 +362,10 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
         }));
     }
     catch (error) {
-        console.error("Booking creation error:", error);
+        console.error("Error creating booking:", error);
         return res.status(500).json({
             success: false,
-            message: "Failed to create booking",
-            error: error.message
+            message: "Failed to create booking"
         });
     }
 });

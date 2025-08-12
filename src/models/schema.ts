@@ -215,6 +215,10 @@ export const bookings = mysqlTable("bookings", {
   userId: int("user_id").references(() => users.id),
   tourId: int("tour_id").references(() => tourSchedules.id),
   status: mysqlEnum("status", ["pending", "confirmed", "cancelled"]),
+  //discount
+  discountNumber: decimal("discount_number", { precision: 5, scale: 2 }),
+  location: varchar("location", { length: 255 }),
+  address: varchar("address", { length: 255 }),
  createdAt: timestamp("created_at").default(getCurrentEgyptTime()), 
 });
 
@@ -253,6 +257,8 @@ export const payments = mysqlTable("payments", {
   transactionId: varchar("transaction_id", { length: 255 }),
   createdAt: date("created_at").default(getCurrentEgyptTime()),
   rejectionReason: varchar("rejection_reason", { length: 255 }),
+
+
 });
 
 export const manualPaymentMethod = mysqlTable("manual_payment_method", {
@@ -299,3 +305,4 @@ export const cites = mysqlTable("cities", {
   name: varchar("name", { length: 255 }).notNull(),
   countryId: int("country_id").references(() => countries.id),
 });
+

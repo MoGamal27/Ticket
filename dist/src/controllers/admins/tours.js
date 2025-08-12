@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = void 0;
+exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const response_1 = require("../../utils/response");
@@ -19,17 +19,25 @@ const generateSchedules_1 = require("../../utils/generateSchedules");
 const handleImages_1 = require("../../utils/handleImages");
 const uuid_1 = require("uuid");
 const deleteImage_1 = require("../../utils/deleteImage");
+const formatDate = (date) => {
+    return date.toISOString().split('T')[0];
+};
+exports.formatDate = formatDate;
 const getAllTours = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const toursData = yield db_1.db
         .select({
         tours: schema_1.tours,
-        countryName: schema_1.countries.name, // Just the name from countries
-        cityName: schema_1.cites.name, // Just the name from cities
+        startDate: schema_1.tours.startDate,
+        endDate: schema_1.tours.endDate,
+        countryName: schema_1.countries.name,
+        cityName: schema_1.cites.name,
     })
         .from(schema_1.tours)
         .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.tours.country, schema_1.countries.id))
         .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.tours.city, schema_1.cites.id));
-    (0, response_1.SuccessResponse)(res, { tours: toursData }, 200);
+    (0, response_1.SuccessResponse)(res, {
+        tours: toursData.map(tour => (Object.assign(Object.assign({}, tour.tours), { startDate: (0, exports.formatDate)(tour.tours.startDate), endDate: (0, exports.formatDate)(tour.tours.endDate) }))),
+    }, 200);
 });
 exports.getAllTours = getAllTours;
 const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -103,7 +111,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             .from(schema_1.tourImages)
             .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId)),
     ]);
-    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
+    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
             title: i.title,
             imagePath: i.imagePath,
             description: i.describtion,

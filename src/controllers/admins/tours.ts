@@ -27,19 +27,31 @@ import { saveBase64Image } from "../../utils/handleImages";
 import { v4 as uuid } from "uuid";
 import { deletePhotoFromServer } from "../../utils/deleteImage";
 
+export const formatDate = (date: Date) => {
+  return date.toISOString().split('T')[0]; 
+};
+
 export const getAllTours = async (req: Request, res: Response) => {
   const toursData = await db
     .select({
       tours,
-      countryName: countries.name, // Just the name from countries
-      cityName: cites.name, // Just the name from cities
+      startDate: tours.startDate,
+      endDate: tours.endDate,
+      countryName: countries.name, 
+      cityName: cites.name, 
     })
     .from(tours)
     .leftJoin(countries, eq(tours.country, countries.id))
     .leftJoin(cites, eq(tours.city, cites.id));
 
-  SuccessResponse(res, { tours: toursData }, 200);
-};
+  SuccessResponse(res, { 
+   tours: toursData.map(tour => ({
+    ...tour.tours,
+    startDate: formatDate(tour.tours.startDate),
+    endDate: formatDate(tour.tours.endDate),
+   })),
+  }, 200);
+}
 
 export const getTourById = async (req: Request, res: Response) => {
   const tourId = Number(req.params.id);
@@ -129,6 +141,8 @@ export const getTourById = async (req: Request, res: Response) => {
     res,
     {
       ...mainTour,
+      startDate: mainTour.startDate.toISOString().split('T')[0],
+      endDate:  mainTour.endDate.toISOString().split('T')[0],
       highlights: highlights.map((h) => h.content),
       includes: includes.map((i) => i.content),
       excludes: excludes.map((e) => e.content),
