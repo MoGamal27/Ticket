@@ -55,10 +55,12 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .set({ status, rejectionReason })
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
     }
-    yield db_1.db
-        .update(schema_1.payments)
-        .set({ status, rejectionReason: null })
-        .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+    else {
+        yield db_1.db
+            .update(schema_1.payments)
+            .set({ status })
+            .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+    }
     (0, response_1.SuccessResponse)(res, { message: "Status Changed Succussfully" }, 200);
 });
 exports.changeStatus = changeStatus;

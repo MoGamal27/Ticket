@@ -181,7 +181,7 @@ exports.tourExtras = (0, mysql_core_1.mysqlTable)("tour_extras", {
 exports.bookings = (0, mysql_core_1.mysqlTable)("bookings", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
     userId: (0, mysql_core_1.int)("user_id").references(() => exports.users.id),
-    tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tours.id),
+    tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tourSchedules.id),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "confirmed", "cancelled"]),
     //discount
     discountNumber: (0, mysql_core_1.decimal)("discount_number", { precision: 5, scale: 2 }),
