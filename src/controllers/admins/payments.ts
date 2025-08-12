@@ -54,16 +54,17 @@ export const changeStatus = async (req: Request, res: Response) => {
   const [payment] = await db.select().from(payments).where(eq(payments.id, id));
   if (!payment) throw new NotFound("Payment Not Found");
   const { status, rejectionReason } = req.body;
-  if (status === "cancelled") {
-    await db
-      .update(payments)
-      .set({ status, rejectionReason })
-      .where(eq(payments.id, id));
-  }
+if (status === "cancelled") {
   await db
     .update(payments)
-    .set({ status, rejectionReason: null })
+    .set({ status, rejectionReason })
     .where(eq(payments.id, id));
+} else {
+  await db
+    .update(payments)
+    .set({ status })
+    .where(eq(payments.id, id));
+}
   SuccessResponse(res, { message: "Status Changed Succussfully" }, 200);
 };
 
@@ -100,13 +101,13 @@ export const getAllPayments = async(req: Request, res: Response) => {
      },
     })
     .from(payments)
-    .leftJoin(
+    .innerJoin(
       bookingDetails,
       eq(bookingDetails.bookingId, payments.bookingId))
-    .leftJoin(
+    .innerJoin(
       bookingExtras,
       eq(bookingExtras.bookingId, payments.bookingId))
-    .leftJoin(
+    .innerJoin(
       extras,
       eq(extras.id, bookingExtras.extraId))
 

@@ -181,8 +181,12 @@ exports.tourExtras = (0, mysql_core_1.mysqlTable)("tour_extras", {
 exports.bookings = (0, mysql_core_1.mysqlTable)("bookings", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
     userId: (0, mysql_core_1.int)("user_id").references(() => exports.users.id),
-    tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tourSchedules.id),
+    tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tours.id),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "confirmed", "cancelled"]),
+    //discount
+    discountNumber: (0, mysql_core_1.decimal)("discount_number", { precision: 5, scale: 2 }),
+    location: (0, mysql_core_1.varchar)("location", { length: 255 }),
+    address: (0, mysql_core_1.varchar)("address", { length: 255 }),
     createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
 });
 exports.bookingDetails = (0, mysql_core_1.mysqlTable)("booking_details", {

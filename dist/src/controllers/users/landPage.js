@@ -261,6 +261,17 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             message: "Invalid tourId provided"
         });
     }
+    // check if tourId exists
+    const [tour] = yield db_1.db
+        .select()
+        .from(schema_1.tours)
+        .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourIdNum));
+    if (!tour) {
+        return res.status(404).json({
+            success: false,
+            message: "Tour not found"
+        });
+    }
     try {
         // Check if user exists by email and get userId
         const existingUser = yield db_1.db
