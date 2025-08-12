@@ -34,21 +34,21 @@ export const getBookings = async (req: Request, res: Response) => {
 
   const today = new Date();
 
- const upcoming = books.filter(
-  (b) => b.tourStartDate && new Date(b.tourStartDate) > today
-);
+  const upcoming = books.filter(
+   (b) => b.tourStartDate && new Date(b.tourStartDate) > today
+    );
 
-const current = books.filter(
-  (b) =>
-    b.tourStartDate &&
-    b.tourEndDate &&
-    new Date(b.tourStartDate) <= today &&
-    new Date(b.tourEndDate) >= today
-);
+   const current = books.filter(
+    (b) =>
+     b.tourStartDate &&
+     b.tourEndDate &&
+     new Date(b.tourStartDate) <= today &&
+     new Date(b.tourEndDate) >= today
+   );
 
-const history = books.filter(
-  (b) => b.tourEndDate && new Date(b.tourEndDate) < today
-);
+   const history = books.filter(
+    (b) => b.tourEndDate && new Date(b.tourEndDate) < today
+  );
 
 
   SuccessResponse(res, { upcoming, current, history }, 200);
