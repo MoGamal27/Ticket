@@ -71,9 +71,30 @@ const getAutoPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
 });
 exports.getAutoPayments = getAutoPayments;
 const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // get all payemnt with related bookingDetails & bookingextras
+    /*const [bookingsId] = await db
+      .select({ id: payments.bookingId })
+      .from(payments)
+      */
     const Payments = yield db_1.db
-        .select()
-        .from(schema_1.payments);
+        .select({
+        payment: schema_1.payments,
+        bookingDetails: schema_1.bookingDetails,
+        bookingExtras: {
+            id: schema_1.bookingExtras.id,
+            bookingId: schema_1.bookingExtras.bookingId,
+            extraId: schema_1.bookingExtras.extraId,
+            extraName: schema_1.extras.name,
+            adultCount: schema_1.bookingExtras.adultCount,
+            childCount: schema_1.bookingExtras.childCount,
+            infantCount: schema_1.bookingExtras.infantCount,
+            createdAt: schema_1.bookingExtras.createdAt,
+        },
+    })
+        .from(schema_1.payments)
+        .leftJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.payments.bookingId))
+        .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.bookingId))
+        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId));
     (0, response_1.SuccessResponse)(res, { payments: Payments }, 200);
 });
 exports.getAllPayments = getAllPayments;

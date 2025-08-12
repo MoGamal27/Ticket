@@ -4,6 +4,9 @@ import {
   manualPaymentMethod,
   manualPaymentTypes,
   payments,
+  bookingDetails,
+  bookingExtras,
+  extras,
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -74,9 +77,39 @@ export const getAutoPayments = async (req: Request, res: Response) => {
 
 export const getAllPayments = async(req: Request, res: Response) => {
 
-  const Payments = await db
-  .select()
-  .from(payments);
+  // get all payemnt with related bookingDetails & bookingextras
+  /*const [bookingsId] = await db
+    .select({ id: payments.bookingId })
+    .from(payments)
+    */
+    
+   const Payments = await db
+    .select({
+      payment: payments,
+      bookingDetails: bookingDetails,
+     bookingExtras: {
+        id: bookingExtras.id,
+        bookingId: bookingExtras.bookingId,
+        extraId: bookingExtras.extraId,
+        extraName: extras.name,
+        adultCount: bookingExtras.adultCount,
+        childCount: bookingExtras.childCount,
+        infantCount: bookingExtras.infantCount,
+        createdAt: bookingExtras.createdAt,
+        
+     },
+    })
+    .from(payments)
+    .leftJoin(
+      bookingDetails,
+      eq(bookingDetails.bookingId, payments.bookingId))
+    .leftJoin(
+      bookingExtras,
+      eq(bookingExtras.bookingId, payments.bookingId))
+    .leftJoin(
+      extras,
+      eq(extras.id, bookingExtras.extraId))
+
 
   SuccessResponse(res, {payments: Payments}, 200)
 }

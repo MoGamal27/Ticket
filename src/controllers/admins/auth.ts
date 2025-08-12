@@ -27,6 +27,7 @@ export async function login(req: Request, res: Response) {
   let groupedPrivileges = {};
 
   if (!admin.isSuperAdmin) {
+    // Only get privileges assigned to this admin through admin_privileges table
     const result = await db
       .select({
         privilegeName: privileges.name,
@@ -37,14 +38,11 @@ export async function login(req: Request, res: Response) {
       .innerJoin(privileges, eq(adminPrivileges.privilegeId, privileges.id))
       .where(eq(adminPrivileges.adminId, admin.id));
 
-    if (result.length === 0) {
-      throw new UnauthorizedError("You don't have any privileges assigned yet. Please contact super admin.");
-    }
-
     const privilegeNames = result.map(
       (r) => r.privilegeName + "_" + r.privilegeAction
     );
 
+    // Group only the assigned privileges
     groupedPrivileges = result.reduce((acc, curr) => {
       if (!acc[curr.privilegeName]) {
         acc[curr.privilegeName] = [];
@@ -61,6 +59,7 @@ export async function login(req: Request, res: Response) {
       roles: privilegeNames,
     });
   } else {
+    // Super admin gets all privileges
     const allPrivileges = await db.select().from(privileges);
     groupedPrivileges = allPrivileges.reduce((acc, curr) => {
       if (!acc[curr.name]) {
