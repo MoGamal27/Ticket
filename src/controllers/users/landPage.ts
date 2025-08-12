@@ -350,9 +350,9 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
         tourId: tourIdNum,
         userId,
         status: "pending",
-        discountNumber: discount || 0,
-        location: location || null,
-        address: address || null, 
+        discountNumber: discount,
+        location: location ,
+        address: address , 
       }).$returningId();
 
       // Create booking details - only store total amount
@@ -409,9 +409,9 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
           tourId: tourIdNum,
           userId,
           status: "pending",
-          discountNumber: discount || 0,
-          location: location || null,
-          address: address || null,
+          discountNumber: discount ,
+          location: location ,
+          address: address ,
         },
         payment: {
           id: payment.id,
