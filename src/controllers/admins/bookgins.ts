@@ -32,23 +32,22 @@ export const getBookings = async (req: Request, res: Response) => {
     .leftJoin(users, eq(bookings.userId, users.id))
     .leftJoin(tours, eq(bookings.tourId, tours.id));
 
-  const today = new Date();
+const today = new Date();
 
-  const upcoming = books.filter(
-   (b) => b.tourStartDate && new Date(b.tourStartDate) > today
-    );
+ const upcoming = books.filter(
+  (b) => b.tourStartDate && new Date(b.tourStartDate as Date) > today);
 
-   const current = books.filter(
-    (b) =>
+ const current = books.filter(
+  (b) =>
      b.tourStartDate &&
-     b.tourEndDate &&
-     new Date(b.tourStartDate) <= today &&
-     new Date(b.tourEndDate) >= today
-   );
+    b.tourEndDate &&
+    new Date(b.tourStartDate as Date) <= today &&
+    new Date(b.tourEndDate as Date) >= today
+  );
 
    const history = books.filter(
-    (b) => b.tourEndDate && new Date(b.tourEndDate) < today
-  );
+    (b) => b.tourEndDate && new Date(b.tourEndDate as Date) < today
+   );
 
 
   SuccessResponse(res, { upcoming, current, history }, 200);
