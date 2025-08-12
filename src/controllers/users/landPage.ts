@@ -345,12 +345,14 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     // Start transaction
     await db.transaction(async (trx) => {
+
+      const discountNumber = parseFloat(discount).toFixed(2);
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
         tourId: tourIdNum,
         userId,
         status: "pending",
-        discountNumber: discount,
+        discountNumber: discountNumber,
         location: location ,
         address: address , 
       }).$returningId();

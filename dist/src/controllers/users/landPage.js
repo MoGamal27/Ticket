@@ -277,12 +277,13 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
         const userId = existingUser[0].id;
         // Start transaction
         yield db_1.db.transaction((trx) => __awaiter(void 0, void 0, void 0, function* () {
+            const discountNumber = parseFloat(discount).toFixed(2);
             // Create main booking record
             const [newBooking] = yield trx.insert(schema_1.bookings).values({
                 tourId: tourIdNum,
                 userId,
                 status: "pending",
-                discountNumber: discount,
+                discountNumber: discountNumber,
                 location: location,
                 address: address,
             }).$returningId();
