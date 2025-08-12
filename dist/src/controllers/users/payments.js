@@ -32,18 +32,46 @@ const getUserPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
         throw new Errors_1.UnauthorizedError("User not authenticated");
     }
     const userId = Number(req.user.id);
-    // هات كل المدفوعات الخاصة باليوزر (عن طريق bookingId)
     const userPaymentsRaw = yield db_1.db
-        .select()
+        .select({
+        payments: schema_1.payments,
+        bookingDetails: schema_1.bookingDetails,
+        bookingExtras: {
+            id: schema_1.bookingExtras.id,
+            bookingId: schema_1.bookingExtras.bookingId,
+            extraId: schema_1.bookingExtras.extraId,
+            extraName: schema_1.extras.name,
+            adultCount: schema_1.bookingExtras.adultCount,
+            childCount: schema_1.bookingExtras.childCount,
+            infantCount: schema_1.bookingExtras.infantCount,
+            createdAt: schema_1.bookingExtras.createdAt,
+        },
+    })
         .from(schema_1.payments)
         .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.payments.bookingId, schema_1.bookings.id))
+        .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
+        .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .where((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId))
         .execute();
-    // قسمهم حسب الحالة
+    // إعادة تجميع الـ Extras لكل Payment
+    const groupedByPayment = userPaymentsRaw.reduce((acc, row) => {
+        const paymentId = row.payments.id;
+        if (!acc[paymentId]) {
+            acc[paymentId] = {
+                payments: row.payments,
+                bookingDetails: row.bookingDetails,
+                bookingExtras: [],
+            };
+        }
+        acc[paymentId].bookingExtras.push(row.bookingExtras);
+        return acc;
+    }, {});
+    // تقسيم حسب الحالة
     const groupedPayments = {
-        pending: userPaymentsRaw.filter(item => item.payments.status === "pending"),
-        confirmed: userPaymentsRaw.filter(item => item.payments.status === "confirmed"),
-        cancelled: userPaymentsRaw.filter(item => item.payments.status === "cancelled"),
+        pending: Object.values(groupedByPayment).filter(item => item.payments.status === "pending"),
+        confirmed: Object.values(groupedByPayment).filter(item => item.payments.status === "confirmed"),
+        cancelled: Object.values(groupedByPayment).filter(item => item.payments.status === "cancelled"),
     };
     (0, response_1.SuccessResponse)(res, groupedPayments, 200);
 });
@@ -54,20 +82,38 @@ const getPaymentById = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
     const userId = Number(req.user.id);
     const paymentId = Number(req.params.id);
-    // 1️⃣ هات الـ payment مع الحجز المرتبط بيها
-    const paymentData = yield db_1.db
-        .select()
+    const paymentRows = yield db_1.db
+        .select({
+        payments: schema_1.payments,
+        bookingDetails: schema_1.bookingDetails,
+        bookingExtras: {
+            id: schema_1.bookingExtras.id,
+            bookingId: schema_1.bookingExtras.bookingId,
+            extraId: schema_1.bookingExtras.extraId,
+            extraName: schema_1.extras.name,
+            adultCount: schema_1.bookingExtras.adultCount,
+            childCount: schema_1.bookingExtras.childCount,
+            infantCount: schema_1.bookingExtras.infantCount,
+            createdAt: schema_1.bookingExtras.createdAt,
+        },
+    })
         .from(schema_1.payments)
         .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.payments.bookingId, schema_1.bookings.id))
-        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.payments.id, paymentId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId) // للتأكد أن اليوزر صاحب الـ payment
-    ))
+        .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
+        .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.payments.id, paymentId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId)))
         .execute();
-    // 2️⃣ لو مش لاقي
-    if (paymentData.length === 0) {
+    if (paymentRows.length === 0) {
         throw new Errors_1.NotFound("Payment not found or you don't have access to it");
     }
-    // 3️⃣ رجع النتيجة
-    (0, response_1.SuccessResponse)(res, paymentData[0], 200);
+    // دمج كل الـ extras في Array واحدة
+    const paymentData = {
+        payments: paymentRows[0].payments,
+        bookingDetails: paymentRows[0].bookingDetails,
+        bookingExtras: paymentRows.map(row => row.bookingExtras),
+    };
+    (0, response_1.SuccessResponse)(res, paymentData, 200);
 });
 exports.getPaymentById = getPaymentById;
 const updatePayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
