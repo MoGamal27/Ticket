@@ -277,24 +277,12 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
         const userId = existingUser[0].id;
         // Start transaction
         yield db_1.db.transaction((trx) => __awaiter(void 0, void 0, void 0, function* () {
-            let discountNumber = null;
-            if (discount) {
-                discountNumber = parseFloat(discount);
-                if (isNaN(discountNumber)) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Invalid discount value"
-                    });
-                }
-                // Ensure it fits the decimal(5,2) format
-                discountNumber = parseFloat(discountNumber.toFixed(2));
-            }
             // Create main booking record
             const [newBooking] = yield trx.insert(schema_1.bookings).values({
                 tourId: tourIdNum,
                 userId,
                 status: "pending",
-                discountNumber: discountNumber,
+                discountNumber: discount,
                 location: location,
                 address: address,
             }).$returningId();

@@ -345,25 +345,14 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     // Start transaction
     await db.transaction(async (trx) => {
-
-       let discountNumber: number | null = null;
-    if (discount) {
-      discountNumber = parseFloat(discount);
-      if (isNaN(discountNumber)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid discount value"
-        });
-      }
-      // Ensure it fits the decimal(5,2) format
-      discountNumber = parseFloat(discountNumber.toFixed(2));
-    }
+   
+ 
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
         tourId: tourIdNum,
         userId,
         status: "pending",
-        discountNumber: discountNumber,
+        discountNumber: discount,
         location: location ,
         address: address , 
       }).$returningId();
