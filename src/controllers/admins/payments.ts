@@ -7,10 +7,14 @@ import {
   bookingDetails,
   bookingExtras,
   extras,
+  bookings,
+  users
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound } from "../../Errors";
+import { sendEmail } from "../../utils/sendEmails";
+
 //import { AxiosResponse } from 'axios';
 
 //const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY!;
@@ -82,19 +86,34 @@ export const changeStatus = async (req: Request, res: Response) => {
   const [payment] = await db.select().from(payments).where(eq(payments.id, id));
   if (!payment) throw new NotFound("Payment Not Found");
   const { status, rejectionReason } = req.body;
-  if (status === "cancelled") {
-    await db
-      .update(payments)
-      .set({ status, rejectionReason })
-      .where(eq(payments.id, id));
-  }
+     if (status === "cancelled") {
   await db
     .update(payments)
-    .set({ status, rejectionReason: null })
+    .set({ status, rejectionReason })
     .where(eq(payments.id, id));
+    // send email user reject reason
+     
+    const userEmail = await db
+      .select({ email: users.email })
+      .from(users)
+      .innerJoin(bookings, eq(users.id, bookings.userId))
+      .innerJoin(payments, eq(bookings.id, payments.bookingId))
+      .where(eq(payments.id, id));
+    // send email user reject reason
+    await sendEmail(
+      userEmail[0].email,
+      "Payment Cancelled",
+      `${rejectionReason}`
+    );
+
+} else {
+  await db
+    .update(payments)
+    .set({ status })
+    .where(eq(payments.id, id));
+}
   SuccessResponse(res, { message: "Status Changed Succussfully" }, 200);
 };
-
 export const getAutoPayments = async (req: Request, res: Response) => {
   const paymentsData = await db
     .select()

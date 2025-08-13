@@ -15,6 +15,7 @@ const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
 const response_1 = require("../../utils/response");
 const Errors_1 = require("../../Errors");
+const sendEmails_1 = require("../../utils/sendEmails");
 //import { AxiosResponse } from 'axios';
 //const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY!;
 //const PAYMOB_IFRAME_ID = process.env.PAYMOB_IFRAME_ID!;
@@ -84,11 +85,22 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .update(schema_1.payments)
             .set({ status, rejectionReason })
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+        // send email user reject reason
+        const userEmail = yield db_1.db
+            .select({ email: schema_1.users.email })
+            .from(schema_1.users)
+            .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.bookings.userId))
+            .innerJoin(schema_1.payments, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
+            .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+        // send email user reject reason
+        yield (0, sendEmails_1.sendEmail)(userEmail[0].email, "Payment Cancelled", `${rejectionReason}`);
     }
-    yield db_1.db
-        .update(schema_1.payments)
-        .set({ status, rejectionReason: null })
-        .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+    else {
+        yield db_1.db
+            .update(schema_1.payments)
+            .set({ status })
+            .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+    }
     (0, response_1.SuccessResponse)(res, { message: "Status Changed Succussfully" }, 200);
 });
 exports.changeStatus = changeStatus;

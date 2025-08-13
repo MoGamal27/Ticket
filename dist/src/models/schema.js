@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookingExtras = exports.bookingDetails = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
+exports.categoryMedical = exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookingExtras = exports.bookingDetails = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 const timeZone_1 = require("../utils/timeZone");
 exports.admins = (0, mysql_core_1.mysqlTable)("admins", {
@@ -257,4 +257,8 @@ exports.cites = (0, mysql_core_1.mysqlTable)("cities", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
     name: (0, mysql_core_1.varchar)("name", { length: 255 }).notNull(),
     countryId: (0, mysql_core_1.int)("country_id").references(() => exports.countries.id),
+});
+exports.categoryMedical = (0, mysql_core_1.mysqlTable)("category_medical", {
+    id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
+    title: (0, mysql_core_1.varchar)("title", { length: 255 }).notNull(),
 });

@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/mysql-core";
 import { getCurrentEgyptTime } from "../utils/timeZone";
 
+
 export const admins = mysqlTable("admins", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -304,3 +305,7 @@ export const cites = mysqlTable("cities", {
   countryId: int("country_id").references(() => countries.id),
 });
 
+export const categoryMedical = mysqlTable("category_medical", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+});
