@@ -8,9 +8,12 @@ import {
   createBookingWithPayment,
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
+
+import { validate } from "../../middlewares/validation";
+import { createBookingWithPaymentSchema } from "..//..//validators/users/landPage";
 const router = Router();
 
-router.post("/book-tour", catchAsync(createBookingWithPayment));
+router.post("/book-tour",validate(createBookingWithPaymentSchema) ,catchAsync(createBookingWithPayment));
 
 
 
