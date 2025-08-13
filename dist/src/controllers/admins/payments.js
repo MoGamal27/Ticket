@@ -76,7 +76,7 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
       .select({ id: payments.bookingId })
       .from(payments)
       */
-    const Payments = yield db_1.db
+    const rows = yield db_1.db
         .select({
         payment: schema_1.payments,
         bookingDetails: schema_1.bookingDetails,
@@ -95,7 +95,22 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
         .leftJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.payments.bookingId))
         .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.bookingId))
         .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId));
-    (0, response_1.SuccessResponse)(res, { payments: Payments }, 200);
+    // Group by payment.id
+    const grouped = Object.values(rows.reduce((acc, row) => {
+        const paymentId = row.payment.id;
+        if (!acc[paymentId]) {
+            acc[paymentId] = {
+                payment: row.payment,
+                bookingDetails: row.bookingDetails,
+                bookingExtras: [],
+            };
+        }
+        if (row.bookingExtras && row.bookingExtras.id) {
+            acc[paymentId].bookingExtras.push(row.bookingExtras);
+        }
+        return acc;
+    }, {}));
+    (0, response_1.SuccessResponse)(res, { payments: grouped }, 200);
 });
 exports.getAllPayments = getAllPayments;
 // Initialize Payment
