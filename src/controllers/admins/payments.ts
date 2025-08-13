@@ -7,14 +7,18 @@ import {
   bookingDetails,
   bookingExtras,
   extras,
+  bookings,
+  users,
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound } from "../../Errors";
+import { sendEmail } from "../../utils/sendEmails";
 //import { AxiosResponse } from 'axios';
 
 //const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY!;
 //const PAYMOB_IFRAME_ID = process.env.PAYMOB_IFRAME_ID!;
+
 
 export const getPendingPayments = async (req: Request, res: Response) => {
   const paymentsData = await db
@@ -59,6 +63,22 @@ if (status === "cancelled") {
     .update(payments)
     .set({ status, rejectionReason })
     .where(eq(payments.id, id));
+    // send email user reject reason
+     
+     // get user email
+    const userEmail = await db
+      .select({ email: users.email })
+      .from(users)
+      .innerJoin(bookings, eq(users.id, bookings.userId))
+      .innerJoin(payments, eq(bookings.id, payments.bookingId))
+      .where(eq(payments.id, id));
+    // send email user reject reason
+    await sendEmail(
+      userEmail[0].email,
+      "Payment Cancelled",
+      `${rejectionReason}`
+    );
+
 } else {
   await db
     .update(payments)
