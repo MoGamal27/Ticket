@@ -30,7 +30,7 @@ const getUserBookings = (req, res) => __awaiter(void 0, void 0, void 0, function
     if (!req.user || !req.user.id) {
         throw new Errors_1.UnauthorizedError("User not authenticated");
     }
-    const userId = Number(req.user.id); // حول ال id إلى رقم
+    const userId = Number(req.user.id);
     const now = new Date();
     const pastBookings = yield db_1.db
         .select({
@@ -78,11 +78,29 @@ const getUserBookings = (req, res) => __awaiter(void 0, void 0, void 0, function
         .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId), (0, drizzle_orm_1.gte)(schema_1.tourSchedules.endDate, now)))
         .execute();
+    // تجميع البيانات بحيث bookingExtras تبقى array لكل booking
+    const groupedBookings = Object.values(userBookingsRaw.reduce((acc, row) => {
+        const bookingId = row.bookings.id;
+        if (!acc[bookingId]) {
+            acc[bookingId] = {
+                bookings: row.bookings,
+                bookingDetails: row.bookingDetails,
+                bookingExtras: [],
+            };
+        }
+        if (row.bookingExtras && row.bookingExtras.id) {
+            acc[bookingId].bookingExtras.push(row.bookingExtras);
+        }
+        return acc;
+    }, {}));
+    // تقسيم حسب الحالة
     const currentBookings = {
-        pending: currentBookingsRaw.filter(item => item.bookings.status === "pending"),
-        confirmed: currentBookingsRaw.filter(item => item.bookings.status === "confirmed"),
-        cancelled: currentBookingsRaw.filter(item => item.bookings.status === "cancelled"),
+        pending: groupedBookings.filter(item => item.bookings.status === "pending"),
+        confirmed: groupedBookings.filter(item => item.bookings.status === "confirmed"),
+        cancelled: groupedBookings.filter(item => item.bookings.status === "cancelled"),
     };
+    // حجزات ماضية (انتهت)
+    const pastBookings = groupedBookings.filter(item => new Date(item.bookings.createdAt) < now);
     (0, response_1.SuccessResponse)(res, { history: pastBookings, current: currentBookings }, 200);
 });
 exports.getUserBookings = getUserBookings;
@@ -163,12 +181,26 @@ const getBookingDetails = (req, res) => __awaiter(void 0, void 0, void 0, functi
         .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id)) // صححت الربط هنا
         .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
-        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.bookings.id, bookingId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId)))
+        .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
+        .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId), (0, drizzle_orm_1.eq)(schema_1.bookings.id, bookingId)))
         .execute();
-    if (!booking || booking.length === 0) {
+    if (!bookingRaw || bookingRaw.length === 0) {
         throw new Errors_1.NotFound("Booking not found or you don't have permission to access it");
     }
-    (0, response_1.SuccessResponse)(res, booking[0], 200);
+    // تجميع بيانات bookingExtras في مصفوفة
+    const bookingData = bookingRaw.reduce((acc, row) => {
+        if (!acc.bookings)
+            acc.bookings = row.bookings;
+        if (!acc.bookingDetails)
+            acc.bookingDetails = row.bookingDetails;
+        if (row.bookingExtras && row.bookingExtras.id) {
+            acc.bookingExtras.push(row.bookingExtras);
+        }
+        return acc;
+    }, { bookings: null, bookingDetails: null, bookingExtras: [] });
+    (0, response_1.SuccessResponse)(res, bookingData, 200);
 });
 exports.getBookingDetails = getBookingDetails;
 const updateBooking = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
