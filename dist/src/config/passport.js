@@ -20,8 +20,8 @@ const drizzle_orm_1 = require("drizzle-orm");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 passport_1.default.use(new passport_google_oauth20_1.Strategy({
-    clientID: "13659139511-ufbmiruhec9ihmctnd1e041mpfjvbhal.apps.googleusercontent.com",
-    clientSecret: "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",
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "https://tickethub-tours.com/api/user/auth/google/callback",
 }, (_accessToken, _refreshToken, profile, done) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d, _e, _f, _g;
