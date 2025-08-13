@@ -7,10 +7,13 @@ import {
   bookingDetails,
   bookingExtras,
   extras,
+  bookings,
+  users,
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound } from "../../Errors";
+import { sendEmail } from "../../utils/sendEmails";
 //import { AxiosResponse } from 'axios';
 
 //const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY!;
@@ -79,21 +82,52 @@ export const getPaymentById = async (req: Request, res: Response) => {
 
 export const changeStatus = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  
   const [payment] = await db.select().from(payments).where(eq(payments.id, id));
   if (!payment) throw new NotFound("Payment Not Found");
+
   const { status, rejectionReason } = req.body;
+
   if (status === "cancelled") {
     await db
       .update(payments)
       .set({ status, rejectionReason })
       .where(eq(payments.id, id));
+
+    const userEmail = await db
+      .select({ email: users.email })
+      .from(users)
+      .innerJoin(bookings, eq(users.id, bookings.userId))
+      .innerJoin(payments, eq(bookings.id, payments.bookingId))
+      .where(eq(payments.id, id));
+
+    await sendEmail(
+      userEmail[0].email,
+      "Payment Cancelled",
+      `${rejectionReason}`
+    );
+
+  } else if (status === "confirmed") {
+    await db
+      .update(payments)
+      .set({ status, rejectionReason: null })
+      .where(eq(payments.id, id));
+
+    if (payment.bookingId) {
+      await db
+        .update(bookings)
+        .set({ status: "confirmed" })
+        .where(eq(bookings.id, payment.bookingId));
+    }
   }
-  await db
-    .update(payments)
-    .set({ status, rejectionReason: null })
-    .where(eq(payments.id, id));
-  SuccessResponse(res, { message: "Status Changed Succussfully" }, 200);
+
+  SuccessResponse(res, { message: "Status Changed Successfully" }, 200);
 };
+
+
+
+
+
 
 export const getAutoPayments = async (req: Request, res: Response) => {
   const paymentsData = await db
