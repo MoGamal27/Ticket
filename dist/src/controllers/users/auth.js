@@ -48,7 +48,11 @@ function login(req, res) {
             id: user.id,
             roles: ["user"],
         });
-        (0, response_1.SuccessResponse)(res, { message: "login Successful", token: token }, 200);
+        (0, response_1.SuccessResponse)(res, { message: "login Successful", token: token, user: {
+                name: user.name,
+                email: user.email,
+                id: user.id,
+            } }, 200);
     });
 }
 const forgetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {

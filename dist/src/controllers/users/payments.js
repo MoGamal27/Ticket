@@ -55,9 +55,9 @@ const getUserPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
         .where((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId))
         .execute();
     const groupedPayments = {
-        pending: userPaymentsRaw.filter(item => item.payments.status === "pending"),
-        confirmed: userPaymentsRaw.filter(item => item.payments.status === "confirmed"),
-        cancelled: userPaymentsRaw.filter(item => item.payments.status === "cancelled"),
+        pending: Object.values(groupedByPayment).filter(item => item.payments.status === "pending"),
+        confirmed: Object.values(groupedByPayment).filter(item => item.payments.status === "confirmed"),
+        cancelled: Object.values(groupedByPayment).filter(item => item.payments.status === "cancelled"),
     };
     (0, response_1.SuccessResponse)(res, groupedPayments, 200);
 });
@@ -92,12 +92,16 @@ const getPaymentById = (req, res) => __awaiter(void 0, void 0, void 0, function*
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.payments.id, paymentId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId) // للتأكد أن اليوزر صاحب الـ payment
     ))
         .execute();
-    // 2️⃣ لو مش لاقي
-    if (paymentData.length === 0) {
+    if (paymentRows.length === 0) {
         throw new Errors_1.NotFound("Payment not found or you don't have access to it");
     }
-    // 3️⃣ رجع النتيجة
-    (0, response_1.SuccessResponse)(res, paymentData[0], 200);
+    // دمج كل الـ extras في Array واحدة
+    const paymentData = {
+        payments: paymentRows[0].payments,
+        bookingDetails: paymentRows[0].bookingDetails,
+        bookingExtras: paymentRows.map(row => row.bookingExtras),
+    };
+    (0, response_1.SuccessResponse)(res, paymentData, 200);
 });
 exports.getPaymentById = getPaymentById;
 const updatePayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {

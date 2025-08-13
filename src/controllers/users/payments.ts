@@ -56,9 +56,9 @@ export const getUserPayments = async (req: AuthenticatedRequest, res: Response) 
 
  
   const groupedPayments = {
-    pending: userPaymentsRaw.filter(item => item.payments.status === "pending"),
-    confirmed: userPaymentsRaw.filter(item => item.payments.status === "confirmed"),
-    cancelled: userPaymentsRaw.filter(item => item.payments.status === "cancelled"),
+    pending: Object.values(groupedByPayment).filter(item => item.payments.status === "pending"),
+    confirmed: Object.values(groupedByPayment).filter(item => item.payments.status === "confirmed"),
+    cancelled: Object.values(groupedByPayment).filter(item => item.payments.status === "cancelled"),
   };
 
   SuccessResponse(res, groupedPayments, 200);
@@ -98,18 +98,23 @@ export const getPaymentById = async (req: AuthenticatedRequest, res: Response) =
     .where(
       and(
         eq(payments.id, paymentId),
-        eq(bookings.userId, userId) // للتأكد أن اليوزر صاحب الـ payment
+        eq(bookings.userId, userId)
       )
     )
     .execute();
 
-  // 2️⃣ لو مش لاقي
-  if (paymentData.length === 0) {
+  if (paymentRows.length === 0) {
     throw new NotFound("Payment not found or you don't have access to it");
   }
 
-  // 3️⃣ رجع النتيجة
-  SuccessResponse(res, paymentData[0], 200);
+  // دمج كل الـ extras في Array واحدة
+  const paymentData = {
+    payments: paymentRows[0].payments,
+    bookingDetails: paymentRows[0].bookingDetails,
+    bookingExtras: paymentRows.map(row => row.bookingExtras),
+  };
+
+  SuccessResponse(res, paymentData, 200);
 };
 
 

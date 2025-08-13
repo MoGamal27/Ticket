@@ -37,7 +37,11 @@ export async function login(req: Request, res: Response) {
     roles: ["user"],
   });
 
-  SuccessResponse(res, { message: "login Successful", token: token }, 200);
+  SuccessResponse(res, { message: "login Successful", token: token ,user:{
+    name: user.name,
+    email: user.email,
+    id: user.id,
+  }}, 200);
 }
 
 export const forgetPassword = async (req: Request, res: Response) => {
