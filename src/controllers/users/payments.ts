@@ -4,7 +4,8 @@ import {
 payments,users, tours, bookings,
 bookingDetails,
 bookingExtras,
-extras, 
+extras,
+manualPaymentMethod, 
 } from "../../models/schema";
 import { eq , and , lt , gte} from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -46,12 +47,19 @@ export const getUserPayments = async (req: AuthenticatedRequest, res: Response) 
         infantCount: bookingExtras.infantCount,
         createdAt: bookingExtras.createdAt,
       },
+      manualPayment: {
+        id: manualPaymentMethod.id,
+        proofImage: manualPaymentMethod.proofImage,
+        manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
+        uploadedAt: manualPaymentMethod.uploadedAt
+      }
     })
     .from(payments)
     .innerJoin(bookings, eq(payments.bookingId, bookings.id))
     .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
     .leftJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
     .leftJoin(extras, eq(bookingExtras.extraId, extras.id))
+    .leftJoin(manualPaymentMethod, eq(payments.id, manualPaymentMethod.paymentId))
     .where(eq(bookings.userId, userId))
     .execute();
 
@@ -65,6 +73,13 @@ export const getUserPayments = async (req: AuthenticatedRequest, res: Response) 
           payments: row.payments,
           bookingDetails: row.bookingDetails,
           bookingExtras: [],
+          manualPayment: row.manualPayment?.proofImage
+            ? {
+                proofImage: row.manualPayment.proofImage,
+                manualPaymentTypeId: row.manualPayment.manualPaymentTypeId,
+                uploadedAt: row.manualPayment.uploadedAt
+              }
+            : null
         };
       }
 
@@ -73,7 +88,7 @@ export const getUserPayments = async (req: AuthenticatedRequest, res: Response) 
       }
 
       return acc;
-    }, {} as Record<number, { payments: any; bookingDetails: any; bookingExtras: any[] }>)
+    }, {} as Record<number, { payments: any; bookingDetails: any; bookingExtras: any[]; manualPayment: any }>)
   );
 
   // تقسيم حسب الحالة
@@ -109,12 +124,19 @@ export const getPaymentById = async (req: AuthenticatedRequest, res: Response) =
         infantCount: bookingExtras.infantCount,
         createdAt: bookingExtras.createdAt,
       },
+      manualPayment: {
+        id: manualPaymentMethod.id,
+        proofImage: manualPaymentMethod.proofImage,
+        manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
+        uploadedAt: manualPaymentMethod.uploadedAt,
+      },
     })
     .from(payments)
     .innerJoin(bookings, eq(payments.bookingId, bookings.id))
     .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
-    .innerJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
-    .innerJoin(extras, eq(bookingExtras.extraId, extras.id))
+    .leftJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .leftJoin(extras, eq(bookingExtras.extraId, extras.id))
+    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id))
     .where(
       and(
         eq(payments.id, paymentId),
@@ -127,15 +149,25 @@ export const getPaymentById = async (req: AuthenticatedRequest, res: Response) =
     throw new NotFound("Payment not found or you don't have access to it");
   }
 
-  // دمج كل الـ extras في Array واحدة
   const paymentData = {
     payments: paymentRows[0].payments,
     bookingDetails: paymentRows[0].bookingDetails,
-    bookingExtras: paymentRows.map(row => row.bookingExtras),
+    bookingExtras: [] as any[],
+    manualPayment: paymentRows[0].manualPayment?.proofImage
+      ? { ...paymentRows[0].manualPayment }
+      : null,
   };
+
+  // إضافة كل الـ bookingExtras بدون تكرار وبشكل آمن
+  paymentRows.forEach(row => {
+    if (row.bookingExtras?.id != null) {
+      paymentData.bookingExtras.push(row.bookingExtras);
+    }
+  });
 
   SuccessResponse(res, paymentData, 200);
 };
+
 
 
 export const updatePayment = async (req: AuthenticatedRequest, res: Response) => {
