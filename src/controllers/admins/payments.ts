@@ -84,11 +84,11 @@ export const getAllPayments = async(req: Request, res: Response) => {
     .from(payments)
     */
     
-   const Payments = await db
+   const rows = await db
     .select({
       payment: payments,
       bookingDetails: bookingDetails,
-     bookingExtras: {
+      bookingExtras: {
         id: bookingExtras.id,
         bookingId: bookingExtras.bookingId,
         extraId: bookingExtras.extraId,
@@ -97,8 +97,7 @@ export const getAllPayments = async(req: Request, res: Response) => {
         childCount: bookingExtras.childCount,
         infantCount: bookingExtras.infantCount,
         createdAt: bookingExtras.createdAt,
-        
-     },
+      },
     })
     .from(payments)
     .innerJoin(
@@ -111,8 +110,28 @@ export const getAllPayments = async(req: Request, res: Response) => {
       extras,
       eq(extras.id, bookingExtras.extraId))
 
+  // Group by payment.id
+  const grouped = Object.values(
+    rows.reduce((acc: any, row) => {
+      const paymentId = row.payment.id;
 
-  SuccessResponse(res, {payments: Payments}, 200)
+      if (!acc[paymentId]) {
+        acc[paymentId] = {
+          payment: row.payment,
+          bookingDetails: row.bookingDetails,
+          bookingExtras: [],
+        };
+      }
+
+      if (row.bookingExtras && row.bookingExtras.id) {
+        acc[paymentId].bookingExtras.push(row.bookingExtras);
+      }
+
+      return acc;
+    }, {})
+  );
+
+  SuccessResponse(res, { payments: grouped }, 200);
 }
 
 // Initialize Payment

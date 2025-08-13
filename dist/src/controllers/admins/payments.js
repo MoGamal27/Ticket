@@ -78,7 +78,7 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
       .select({ id: payments.bookingId })
       .from(payments)
       */
-    const Payments = yield db_1.db
+    const rows = yield db_1.db
         .select({
         payment: schema_1.payments,
         bookingDetails: schema_1.bookingDetails,
