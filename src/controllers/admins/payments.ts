@@ -7,14 +7,18 @@ import {
   bookingDetails,
   bookingExtras,
   extras,
+  bookings,
+  users,
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound } from "../../Errors";
+import { sendEmail } from "../../utils/sendEmails";
 //import { AxiosResponse } from 'axios';
 
 //const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY!;
 //const PAYMOB_IFRAME_ID = process.env.PAYMOB_IFRAME_ID!;
+
 
 export const getPendingPayments = async (req: Request, res: Response) => {
   const paymentsData = await db
@@ -27,71 +31,60 @@ export const getPendingPayments = async (req: Request, res: Response) => {
 export const getPaymentById = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
 
-  const rows = await db
+  const [payment] = await db
     .select({
       payment: payments,
-      bookingDetails: bookingDetails,
-      bookingExtras: {
-        id: bookingExtras.id,
-        bookingId: bookingExtras.bookingId,
-        extraId: bookingExtras.extraId,
-        extraName: extras.name,
-        adultCount: bookingExtras.adultCount,
-        childCount: bookingExtras.childCount,
-        infantCount: bookingExtras.infantCount,
-        createdAt: bookingExtras.createdAt,
-      },
-      manualPayment: {
-        id: manualPaymentMethod.id,
-        proofImage: manualPaymentMethod.proofImage,
-        manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
-        uploadedAt: manualPaymentMethod.uploadedAt,
-      }
+      manualMethod: manualPaymentMethod,
+      manualType: manualPaymentTypes,
     })
     .from(payments)
     .where(eq(payments.id, id))
-    .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.id))
-    .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.id))
-    .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
-    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id));
+    .leftJoin(
+      manualPaymentMethod,
+      eq(manualPaymentMethod.paymentId, payments.id)
+    )
+    .leftJoin(
+      manualPaymentTypes,
+      eq(manualPaymentTypes.id, manualPaymentMethod.manualPaymentTypeId)
+    );
 
-  if (!rows || rows.length === 0) throw new NotFound("Payment Not Found");
+  if (!payment) throw new NotFound("Payment Not Found");
 
-  // تجميع bookingExtras لو فيه أكتر من واحدة
-  const grouped = rows.reduce((acc: any, row) => {
-    if (!acc.payment) {
-      acc.payment = row.payment;
-      acc.bookingDetails = row.bookingDetails;
-      acc.bookingExtras = [];
-      acc.manualPayment = row.manualPayment || null;
-    }
-
-    if (row.bookingExtras && row.bookingExtras.id) {
-      acc.bookingExtras.push(row.bookingExtras);
-    }
-
-    return acc;
-  }, {} as any);
-
-  SuccessResponse(res, { payment: grouped }, 200);
+  SuccessResponse(res, { payment }, 200);
 };
-
 
 export const changeStatus = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const [payment] = await db.select().from(payments).where(eq(payments.id, id));
   if (!payment) throw new NotFound("Payment Not Found");
   const { status, rejectionReason } = req.body;
-  if (status === "cancelled") {
-    await db
-      .update(payments)
-      .set({ status, rejectionReason })
-      .where(eq(payments.id, id));
-  }
+if (status === "cancelled") {
   await db
     .update(payments)
-    .set({ status, rejectionReason: null })
+    .set({ status, rejectionReason })
     .where(eq(payments.id, id));
+    // send email user reject reason
+     
+     // get user email
+    const userEmail = await db
+      .select({ email: users.email })
+      .from(users)
+      .innerJoin(bookings, eq(users.id, bookings.userId))
+      .innerJoin(payments, eq(bookings.id, payments.bookingId))
+      .where(eq(payments.id, id));
+    // send email user reject reason
+    await sendEmail(
+      userEmail[0].email,
+      "Payment Cancelled",
+      `${rejectionReason}`
+    );
+
+} else {
+  await db
+    .update(payments)
+    .set({ status })
+    .where(eq(payments.id, id));
+}
   SuccessResponse(res, { message: "Status Changed Succussfully" }, 200);
 };
 
@@ -111,7 +104,7 @@ export const getAllPayments = async(req: Request, res: Response) => {
     .from(payments)
     */
     
-    const rows = await db
+   const rows = await db
     .select({
       payment: payments,
       bookingDetails: bookingDetails,
@@ -125,18 +118,17 @@ export const getAllPayments = async(req: Request, res: Response) => {
         infantCount: bookingExtras.infantCount,
         createdAt: bookingExtras.createdAt,
       },
-      manualPayment: {
-        id: manualPaymentMethod.id,
-        proofImage: manualPaymentMethod.proofImage,
-        manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
-        uploadedAt: manualPaymentMethod.uploadedAt,
-      }
     })
     .from(payments)
-    .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.bookingId))
-    .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.bookingId))
-    .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
-    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id));
+    .innerJoin(
+      bookingDetails,
+      eq(bookingDetails.bookingId, payments.bookingId))
+    .innerJoin(
+      bookingExtras,
+      eq(bookingExtras.bookingId, payments.bookingId))
+    .innerJoin(
+      extras,
+      eq(extras.id, bookingExtras.extraId))
 
   // Group by payment.id
   const grouped = Object.values(
@@ -148,7 +140,6 @@ export const getAllPayments = async(req: Request, res: Response) => {
           payment: row.payment,
           bookingDetails: row.bookingDetails,
           bookingExtras: [],
-          manualPayment: row.manualPayment || null, // إذا موجود ضيفه، لو مش موجود خلي null
         };
       }
 
