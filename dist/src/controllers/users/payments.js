@@ -46,22 +46,37 @@ const getUserPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
             infantCount: schema_1.bookingExtras.infantCount,
             createdAt: schema_1.bookingExtras.createdAt,
         },
+        manualPayment: {
+            id: schema_1.manualPaymentMethod.id,
+            proofImage: schema_1.manualPaymentMethod.proofImage,
+            manualPaymentTypeId: schema_1.manualPaymentMethod.manualPaymentTypeId,
+            uploadedAt: schema_1.manualPaymentMethod.uploadedAt
+        }
     })
         .from(schema_1.payments)
         .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.payments.bookingId, schema_1.bookings.id))
         .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
         .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
         .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
+        .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.payments.id, schema_1.manualPaymentMethod.paymentId))
         .where((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId))
         .execute();
     // إعادة تجميع البيانات بحيث لا يتكرر paymentId
     const groupedByPayment = Object.values(userPaymentsRaw.reduce((acc, row) => {
+        var _a;
         const paymentId = row.payments.id;
         if (!acc[paymentId]) {
             acc[paymentId] = {
                 payments: row.payments,
                 bookingDetails: row.bookingDetails,
                 bookingExtras: [],
+                manualPayment: ((_a = row.manualPayment) === null || _a === void 0 ? void 0 : _a.proofImage)
+                    ? {
+                        proofImage: row.manualPayment.proofImage,
+                        manualPaymentTypeId: row.manualPayment.manualPaymentTypeId,
+                        uploadedAt: row.manualPayment.uploadedAt
+                    }
+                    : null
             };
         }
         if (row.bookingExtras && row.bookingExtras.id) {
@@ -79,6 +94,7 @@ const getUserPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
 });
 exports.getUserPayments = getUserPayments;
 const getPaymentById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     if (!req.user || !req.user.id) {
         throw new Errors_1.UnauthorizedError("User not authenticated");
     }
@@ -98,23 +114,38 @@ const getPaymentById = (req, res) => __awaiter(void 0, void 0, void 0, function*
             infantCount: schema_1.bookingExtras.infantCount,
             createdAt: schema_1.bookingExtras.createdAt,
         },
+        manualPayment: {
+            id: schema_1.manualPaymentMethod.id,
+            proofImage: schema_1.manualPaymentMethod.proofImage,
+            manualPaymentTypeId: schema_1.manualPaymentMethod.manualPaymentTypeId,
+            uploadedAt: schema_1.manualPaymentMethod.uploadedAt,
+        },
     })
         .from(schema_1.payments)
         .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.payments.bookingId, schema_1.bookings.id))
         .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
-        .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
-        .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
+        .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
+        .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, schema_1.payments.id))
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.payments.id, paymentId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId)))
         .execute();
     if (paymentRows.length === 0) {
         throw new Errors_1.NotFound("Payment not found or you don't have access to it");
     }
-    // دمج كل الـ extras في Array واحدة
     const paymentData = {
         payments: paymentRows[0].payments,
         bookingDetails: paymentRows[0].bookingDetails,
-        bookingExtras: paymentRows.map(row => row.bookingExtras),
+        bookingExtras: [],
+        manualPayment: ((_a = paymentRows[0].manualPayment) === null || _a === void 0 ? void 0 : _a.proofImage)
+            ? Object.assign({}, paymentRows[0].manualPayment) : null,
     };
+    // إضافة كل الـ bookingExtras بدون تكرار وبشكل آمن
+    paymentRows.forEach(row => {
+        var _a;
+        if (((_a = row.bookingExtras) === null || _a === void 0 ? void 0 : _a.id) != null) {
+            paymentData.bookingExtras.push(row.bookingExtras);
+        }
+    });
     (0, response_1.SuccessResponse)(res, paymentData, 200);
 });
 exports.getPaymentById = getPaymentById;
