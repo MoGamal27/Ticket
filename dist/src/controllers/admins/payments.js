@@ -28,19 +28,49 @@ const getPendingPayments = (req, res) => __awaiter(void 0, void 0, void 0, funct
 exports.getPendingPayments = getPendingPayments;
 const getPaymentById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const id = Number(req.params.id);
-    const [payment] = yield db_1.db
+    const rows = yield db_1.db
         .select({
         payment: schema_1.payments,
-        manualMethod: schema_1.manualPaymentMethod,
-        manualType: schema_1.manualPaymentTypes,
+        bookingDetails: schema_1.bookingDetails,
+        bookingExtras: {
+            id: schema_1.bookingExtras.id,
+            bookingId: schema_1.bookingExtras.bookingId,
+            extraId: schema_1.bookingExtras.extraId,
+            extraName: schema_1.extras.name,
+            adultCount: schema_1.bookingExtras.adultCount,
+            childCount: schema_1.bookingExtras.childCount,
+            infantCount: schema_1.bookingExtras.infantCount,
+            createdAt: schema_1.bookingExtras.createdAt,
+        },
+        manualPayment: {
+            id: schema_1.manualPaymentMethod.id,
+            proofImage: schema_1.manualPaymentMethod.proofImage,
+            manualPaymentTypeId: schema_1.manualPaymentMethod.manualPaymentTypeId,
+            uploadedAt: schema_1.manualPaymentMethod.uploadedAt,
+        }
     })
         .from(schema_1.payments)
         .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id))
-        .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, schema_1.payments.id))
-        .leftJoin(schema_1.manualPaymentTypes, (0, drizzle_orm_1.eq)(schema_1.manualPaymentTypes.id, schema_1.manualPaymentMethod.manualPaymentTypeId));
-    if (!payment)
+        .leftJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.payments.id))
+        .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.id))
+        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId))
+        .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, schema_1.payments.id));
+    if (!rows || rows.length === 0)
         throw new Errors_1.NotFound("Payment Not Found");
-    (0, response_1.SuccessResponse)(res, { payment }, 200);
+    // تجميع bookingExtras لو فيه أكتر من واحدة
+    const grouped = rows.reduce((acc, row) => {
+        if (!acc.payment) {
+            acc.payment = row.payment;
+            acc.bookingDetails = row.bookingDetails;
+            acc.bookingExtras = [];
+            acc.manualPayment = row.manualPayment || null;
+        }
+        if (row.bookingExtras && row.bookingExtras.id) {
+            acc.bookingExtras.push(row.bookingExtras);
+        }
+        return acc;
+    }, {});
+    (0, response_1.SuccessResponse)(res, { payment: grouped }, 200);
 });
 exports.getPaymentById = getPaymentById;
 const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -90,11 +120,18 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
             infantCount: schema_1.bookingExtras.infantCount,
             createdAt: schema_1.bookingExtras.createdAt,
         },
+        manualPayment: {
+            id: schema_1.manualPaymentMethod.id,
+            proofImage: schema_1.manualPaymentMethod.proofImage,
+            manualPaymentTypeId: schema_1.manualPaymentMethod.manualPaymentTypeId,
+            uploadedAt: schema_1.manualPaymentMethod.uploadedAt,
+        }
     })
         .from(schema_1.payments)
         .leftJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.payments.bookingId))
         .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.bookingId))
-        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId));
+        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId))
+        .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, schema_1.payments.id));
     // Group by payment.id
     const grouped = Object.values(rows.reduce((acc, row) => {
         const paymentId = row.payment.id;
@@ -103,6 +140,7 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 payment: row.payment,
                 bookingDetails: row.bookingDetails,
                 bookingExtras: [],
+                manualPayment: row.manualPayment || null, // إذا موجود ضيفه، لو مش موجود خلي null
             };
         }
         if (row.bookingExtras && row.bookingExtras.id) {

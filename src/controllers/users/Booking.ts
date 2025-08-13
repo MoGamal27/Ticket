@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { db } from "../../models/db";
 import {
-  bookings,users, tours, tourSchedules
+  bookings,users, tours, tourSchedules,
+  bookingDetails,
+  bookingExtras,
+  extras
 } from "../../models/schema";
 import { eq , and , lt , gte} from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -10,47 +13,72 @@ import { AuthenticatedRequest } from "../../types/custom";
 import { BadRequest } from "../../Errors/BadRequest";
 
 export const getUserBookings = async (req: AuthenticatedRequest, res: Response) => {
-  
-  if (!req.user||!req.user.id) {
+  if (!req.user || !req.user.id) {
     throw new UnauthorizedError("User not authenticated");
   }
-const userId = Number(req.user.id); // حول ال id إلى رقم
+
+  const userId = Number(req.user.id);
   const now = new Date();
-  const pastBookings = await db
-    .select()
+
+  // استدعاء كل الحجزات المرتبطة بالمستخدم
+  const userBookingsRaw = await db
+    .select({
+      bookings: bookings,
+      bookingDetails: bookingDetails,
+      bookingExtras: {
+        id: bookingExtras.id,
+        bookingId: bookingExtras.bookingId,
+        extraId: bookingExtras.extraId,
+        extraName: extras.name,
+        adultCount: bookingExtras.adultCount,
+        childCount: bookingExtras.childCount,
+        infantCount: bookingExtras.infantCount,
+        createdAt: bookingExtras.createdAt,
+      }
+    })
     .from(bookings)
     .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))
     .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
-    .where(
-      and(
-        eq(bookings.userId, userId),
-        lt(tourSchedules.endDate, now)
-      )
-    )
+    .leftJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .leftJoin(extras, eq(bookingExtras.extraId, extras.id))
+    .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
+    .where(eq(bookings.userId, userId))
     .execute();
 
-  const currentBookingsRaw = await db
-    .select()
-    .from(bookings)
-    .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))
-    .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
-    .where(
-      and(
-        eq(bookings.userId, userId),
-        gte(tourSchedules.endDate, now)
-      )
-    )
-    .execute();
+  // تجميع البيانات بحيث bookingExtras تبقى array لكل booking
+  const groupedBookings = Object.values(
+    userBookingsRaw.reduce((acc, row) => {
+      const bookingId = row.bookings.id;
 
+      if (!acc[bookingId]) {
+        acc[bookingId] = {
+          bookings: row.bookings,
+          bookingDetails: row.bookingDetails,
+          bookingExtras: [],
+        };
+      }
+
+      if (row.bookingExtras && row.bookingExtras.id) {
+        acc[bookingId].bookingExtras.push(row.bookingExtras);
+      }
+
+      return acc;
+    }, {} as Record<number, { bookings: any; bookingDetails: any; bookingExtras: any[] }>)
+  );
+
+  // تقسيم حسب الحالة
   const currentBookings = {
-  pending: currentBookingsRaw.filter(item => item.bookings.status === "pending"),
-  confirmed: currentBookingsRaw.filter(item => item.bookings.status === "confirmed"),
-  cancelled: currentBookingsRaw.filter(item => item.bookings.status === "cancelled"),
-};
+    pending: groupedBookings.filter(item => item.bookings.status === "pending"),
+    confirmed: groupedBookings.filter(item => item.bookings.status === "confirmed"),
+    cancelled: groupedBookings.filter(item => item.bookings.status === "cancelled"),
+  };
 
+  // حجزات ماضية (انتهت)
+  const pastBookings = groupedBookings.filter(item => new Date(item.bookings.createdAt) < now);
 
   SuccessResponse(res, { history: pastBookings, current: currentBookings }, 200);
 };
+
 
 
 //  export const createBooking = async (req: AuthenticatedRequest, res: Response) => {
@@ -119,27 +147,55 @@ export const getBookingDetails = async (req: AuthenticatedRequest, res: Response
   const userId = Number(req.user.id);
   const bookingId = Number(req.params.id);
 
-  // نجيب بيانات الحجز مع الانضمام للجداول المرتبطة (جدول الرحلات وجدول مواعيد الرحلات)
-      const booking = await db
-    .select()
+  // نجيب بيانات الحجز مع التفاصيل والإضافات
+  const bookingRaw = await db
+    .select({
+      bookings: bookings,
+      bookingDetails: bookingDetails,
+      bookingExtras: {
+        id: bookingExtras.id,
+        bookingId: bookingExtras.bookingId,
+        extraId: bookingExtras.extraId,
+        extraName: extras.name,
+        adultCount: bookingExtras.adultCount,
+        childCount: bookingExtras.childCount,
+        infantCount: bookingExtras.infantCount,
+        createdAt: bookingExtras.createdAt,
+      }
+    })
     .from(bookings)
-    .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))  // صححت الربط هنا
+    .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))
     .innerJoin(tours, eq(tourSchedules.tourId, tours.id))
+    .leftJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .leftJoin(extras, eq(bookingExtras.extraId, extras.id))
+    .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
     .where(
-     and(
-       eq(bookings.id, bookingId),
-       eq(bookings.userId, userId)
-     )
-  )
-  .execute();
+      and(
+        eq(bookings.userId, userId),
+        eq(bookings.id, bookingId)
+      )
+    )
+    .execute();
 
-
-  if (!booking || booking.length === 0) {
+  if (!bookingRaw || bookingRaw.length === 0) {
     throw new NotFound("Booking not found or you don't have permission to access it");
   }
 
-  SuccessResponse(res, booking[0], 200);
+  // تجميع بيانات bookingExtras في مصفوفة
+  const bookingData = bookingRaw.reduce((acc, row) => {
+    if (!acc.bookings) acc.bookings = row.bookings;
+    if (!acc.bookingDetails) acc.bookingDetails = row.bookingDetails;
+
+    if (row.bookingExtras && row.bookingExtras.id) {
+      acc.bookingExtras.push(row.bookingExtras);
+    }
+
+    return acc;
+  }, { bookings: null as any, bookingDetails: null as any, bookingExtras: [] as any[] });
+
+  SuccessResponse(res, bookingData, 200);
 };
+
 
 
 

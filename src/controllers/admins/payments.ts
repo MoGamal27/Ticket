@@ -27,27 +27,55 @@ export const getPendingPayments = async (req: Request, res: Response) => {
 export const getPaymentById = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
 
-  const [payment] = await db
+  const rows = await db
     .select({
       payment: payments,
-      manualMethod: manualPaymentMethod,
-      manualType: manualPaymentTypes,
+      bookingDetails: bookingDetails,
+      bookingExtras: {
+        id: bookingExtras.id,
+        bookingId: bookingExtras.bookingId,
+        extraId: bookingExtras.extraId,
+        extraName: extras.name,
+        adultCount: bookingExtras.adultCount,
+        childCount: bookingExtras.childCount,
+        infantCount: bookingExtras.infantCount,
+        createdAt: bookingExtras.createdAt,
+      },
+      manualPayment: {
+        id: manualPaymentMethod.id,
+        proofImage: manualPaymentMethod.proofImage,
+        manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
+        uploadedAt: manualPaymentMethod.uploadedAt,
+      }
     })
     .from(payments)
     .where(eq(payments.id, id))
-    .leftJoin(
-      manualPaymentMethod,
-      eq(manualPaymentMethod.paymentId, payments.id)
-    )
-    .leftJoin(
-      manualPaymentTypes,
-      eq(manualPaymentTypes.id, manualPaymentMethod.manualPaymentTypeId)
-    );
+    .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.id))
+    .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.id))
+    .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
+    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id));
 
-  if (!payment) throw new NotFound("Payment Not Found");
+  if (!rows || rows.length === 0) throw new NotFound("Payment Not Found");
 
-  SuccessResponse(res, { payment }, 200);
+  // تجميع bookingExtras لو فيه أكتر من واحدة
+  const grouped = rows.reduce((acc: any, row) => {
+    if (!acc.payment) {
+      acc.payment = row.payment;
+      acc.bookingDetails = row.bookingDetails;
+      acc.bookingExtras = [];
+      acc.manualPayment = row.manualPayment || null;
+    }
+
+    if (row.bookingExtras && row.bookingExtras.id) {
+      acc.bookingExtras.push(row.bookingExtras);
+    }
+
+    return acc;
+  }, {} as any);
+
+  SuccessResponse(res, { payment: grouped }, 200);
 };
+
 
 export const changeStatus = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
@@ -83,7 +111,7 @@ export const getAllPayments = async(req: Request, res: Response) => {
     .from(payments)
     */
     
-   const rows = await db
+    const rows = await db
     .select({
       payment: payments,
       bookingDetails: bookingDetails,
@@ -97,11 +125,18 @@ export const getAllPayments = async(req: Request, res: Response) => {
         infantCount: bookingExtras.infantCount,
         createdAt: bookingExtras.createdAt,
       },
+      manualPayment: {
+        id: manualPaymentMethod.id,
+        proofImage: manualPaymentMethod.proofImage,
+        manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
+        uploadedAt: manualPaymentMethod.uploadedAt,
+      }
     })
     .from(payments)
     .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.bookingId))
     .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.bookingId))
-    .leftJoin(extras, eq(extras.id, bookingExtras.extraId));
+    .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
+    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id));
 
   // Group by payment.id
   const grouped = Object.values(
@@ -113,6 +148,7 @@ export const getAllPayments = async(req: Request, res: Response) => {
           payment: row.payment,
           bookingDetails: row.bookingDetails,
           bookingExtras: [],
+          manualPayment: row.manualPayment || null, // إذا موجود ضيفه، لو مش موجود خلي null
         };
       }
 

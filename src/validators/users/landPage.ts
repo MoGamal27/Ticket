@@ -44,7 +44,7 @@ export const createBookingWithPaymentSchema = z.object({
     infantsCount: z.number().int().nonnegative().optional(),
     totalAmount: z.number().positive("Total amount must be positive"),
     paymentMethodId: z.number().int().optional(),
-    proofImage: z.string().url().optional(),
+    proofImage: z.string().optional(),
     extras: z.array(
       z.object({
         id: z.number().int(),
