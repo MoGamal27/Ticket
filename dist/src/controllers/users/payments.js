@@ -54,6 +54,22 @@ const getUserPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
         .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .where((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId))
         .execute();
+    // إعادة تجميع البيانات بحيث لا يتكرر paymentId
+    const groupedByPayment = Object.values(userPaymentsRaw.reduce((acc, row) => {
+        const paymentId = row.payments.id;
+        if (!acc[paymentId]) {
+            acc[paymentId] = {
+                payments: row.payments,
+                bookingDetails: row.bookingDetails,
+                bookingExtras: [],
+            };
+        }
+        if (row.bookingExtras && row.bookingExtras.id) {
+            acc[paymentId].bookingExtras.push(row.bookingExtras);
+        }
+        return acc;
+    }, {}));
+    // تقسيم حسب الحالة
     const groupedPayments = {
         pending: groupedByPayment.filter(item => item.payments.status === "pending"),
         confirmed: groupedByPayment.filter(item => item.payments.status === "confirmed"),
@@ -68,8 +84,7 @@ const getPaymentById = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
     const userId = Number(req.user.id);
     const paymentId = Number(req.params.id);
-    // 1️⃣ هات الـ payment مع الحجز المرتبط بيها
-    const paymentData = yield db_1.db
+    const paymentRows = yield db_1.db
         .select({
         payments: schema_1.payments,
         bookingDetails: schema_1.bookingDetails,
@@ -89,8 +104,7 @@ const getPaymentById = (req, res) => __awaiter(void 0, void 0, void 0, function*
         .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
         .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
         .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
-        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.payments.id, paymentId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId) // للتأكد أن اليوزر صاحب الـ payment
-    ))
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.payments.id, paymentId), (0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId)))
         .execute();
     if (paymentRows.length === 0) {
         throw new Errors_1.NotFound("Payment not found or you don't have access to it");
