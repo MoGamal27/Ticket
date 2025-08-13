@@ -7,11 +7,15 @@ import { db } from "../../../models/db";
 import { eq } from "drizzle-orm";
 const router = express.Router();
 
+router.get(
+  "/",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
 router.get("/callback", (req, res, next) => {
-  passport.authenticate("google", { session: false }, async (err, user, info) => {
-    if (err) {
-      console.error("Google auth error:", err);
-      return res.status(500).json({ message: "Internal server error" });
+  passport.authenticate("google", { session: false }, (err, user, info) => {
+    if (err || !user) {
+      throw new UnauthorizedError("Authentication failed");
     }
 
     try {

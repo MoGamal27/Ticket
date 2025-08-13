@@ -32,6 +32,12 @@ import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound } from "../../Errors";
 
+// format start date to YYYY-MM-DD
+export const formatDate = (date: Date) => {
+  return date.toISOString().split('T')[0]; 
+};
+
+
 export const getImages = async (req: Request, res: Response) => {
   let img;
   const [cover] = await db
@@ -188,6 +194,8 @@ export const getTourById = async (req: Request, res: Response) => {
     res,
     {
       ...mainTour,
+      startDate: mainTour.startDate.toISOString().split('T')[0],
+      endDate:  mainTour.endDate.toISOString().split('T')[0],
       highlights: highlights.map((h) => h.content),
       includes: includes.map((i) => i.content),
       excludes: excludes.map((e) => e.content),
@@ -302,9 +310,15 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     paymentMethodId,
     proofImage,
     // Extras array
-    extras
+    extras,
+    discount,
+    location,
+    address
   } = req.body;
 
+
+
+  
   // Parse tourId to ensure it's a number
   const tourIdNum = parseInt(tourId, 10);
   if (isNaN(tourIdNum)) {
@@ -314,6 +328,22 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 
+ 
+
+  // check if tourId exist in tourSchedule
+  const tourSchedule = await db
+    .select()
+    .from(tourSchedules)
+    .where(eq(tourSchedules.tourId, tourIdNum))
+    
+
+  if (!tourSchedule) {
+    return res.status(404).json({
+      success: false,
+      message: "Tour not found"
+    });
+  }
+  
   try {
     // Check if user exists by email and get userId
     const existingUser = await db
@@ -334,11 +364,16 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     // Start transaction
     await db.transaction(async (trx) => {
+   
+ 
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
         tourId: tourIdNum,
         userId,
         status: "pending",
+        discountNumber: discount,
+        location: location ,
+        address: address , 
       }).$returningId();
 
       // Create booking details - only store total amount
@@ -394,7 +429,10 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
           id: newBooking.id,
           tourId: tourIdNum,
           userId,
-          status: "pending"
+          status: "pending",
+          discountNumber: discount ,
+          location: location ,
+          address: address ,
         },
         payment: {
           id: payment.id,
@@ -417,13 +455,11 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
         userId: userId
       }, 201);
     });
-
-  } catch (error: any) {
-    console.error("Booking creation error:", error);
+  } catch (error) {
+    console.error("Error creating booking:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to create booking",
-      error: error.message
+      message: "Failed to create booking"
     });
   }
 };
