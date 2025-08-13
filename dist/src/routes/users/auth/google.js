@@ -7,13 +7,16 @@ const express_1 = __importDefault(require("express"));
 const passport_1 = __importDefault(require("passport"));
 require("../../../config/passport");
 const auth_1 = require("../../../utils/auth");
-const Errors_1 = require("../../../Errors");
+const schema_1 = require("../../../models/schema");
+const db_1 = require("../../../models/db");
+const drizzle_orm_1 = require("drizzle-orm");
 const router = express_1.default.Router();
 router.get("/", passport_1.default.authenticate("google", { scope: ["profile", "email"] }));
 router.get("/callback", (req, res, next) => {
     passport_1.default.authenticate("google", { session: false }, (err, user, info) => {
+        var _a, _b, _c, _d, _e;
         if (err || !user) {
-            throw new Errors_1.UnauthorizedError("Authentication failed");
+            throw new UnauthorizedError("Authentication failed");
         }
         try {
             let finalUser = user;
@@ -49,6 +52,6 @@ router.get("/callback", (req, res, next) => {
             console.error("Error processing user:", e);
             return res.status(500).json({ message: "Processing failed" });
         }
-    }))(req, res, next);
+    })(req, res, next);
 });
 exports.default = router;
