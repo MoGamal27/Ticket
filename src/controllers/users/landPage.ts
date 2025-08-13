@@ -316,6 +316,9 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     address
   } = req.body;
 
+
+
+  
   // Parse tourId to ensure it's a number
   const tourIdNum = parseInt(tourId, 10);
   if (isNaN(tourIdNum)) {
@@ -325,6 +328,22 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 
+ 
+
+  // check if tourId exist in tourSchedule
+  const tourSchedule = await db
+    .select()
+    .from(tourSchedules)
+    .where(eq(tourSchedules.tourId, tourIdNum))
+    
+
+  if (!tourSchedule) {
+    return res.status(404).json({
+      success: false,
+      message: "Tour not found"
+    });
+  }
+  
   try {
     // Check if user exists by email and get userId
     const existingUser = await db

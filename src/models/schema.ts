@@ -257,8 +257,6 @@ export const payments = mysqlTable("payments", {
   transactionId: varchar("transaction_id", { length: 255 }),
   createdAt: date("created_at").default(getCurrentEgyptTime()),
   rejectionReason: varchar("rejection_reason", { length: 255 }),
-
-
 });
 
 export const manualPaymentMethod = mysqlTable("manual_payment_method", {
