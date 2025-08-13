@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = exports.formatDate = void 0;
+exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const response_1 = require("../../utils/response");
@@ -19,25 +19,17 @@ const generateSchedules_1 = require("../../utils/generateSchedules");
 const handleImages_1 = require("../../utils/handleImages");
 const uuid_1 = require("uuid");
 const deleteImage_1 = require("../../utils/deleteImage");
-const formatDate = (date) => {
-    return date.toISOString().split('T')[0];
-};
-exports.formatDate = formatDate;
 const getAllTours = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const toursData = yield db_1.db
         .select({
         tours: schema_1.tours,
-        startDate: schema_1.tours.startDate,
-        endDate: schema_1.tours.endDate,
-        countryName: schema_1.countries.name,
-        cityName: schema_1.cites.name,
+        countryName: schema_1.countries.name, // Just the name from countries
+        cityName: schema_1.cites.name, // Just the name from cities
     })
         .from(schema_1.tours)
         .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.tours.country, schema_1.countries.id))
         .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.tours.city, schema_1.cites.id));
-    (0, response_1.SuccessResponse)(res, {
-        tours: toursData.map(tour => (Object.assign(Object.assign({}, tour.tours), { startDate: (0, exports.formatDate)(tour.tours.startDate), endDate: (0, exports.formatDate)(tour.tours.endDate) }))),
-    }, 200);
+    (0, response_1.SuccessResponse)(res, { tours: toursData }, 200);
 });
 exports.getAllTours = getAllTours;
 const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -107,22 +99,15 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             .leftJoin(schema_1.currencies, (0, drizzle_orm_1.eq)(schema_1.tourPrice.currencyId, schema_1.currencies.id))
             .where((0, drizzle_orm_1.eq)(schema_1.tourExtras.tourId, tourId)),
         db_1.db
-            .select({
-            id: schema_1.tourImages.id,
-            imagePath: schema_1.tourImages.imagePath
-        })
+            .select({ imagePath: schema_1.tourImages.imagePath })
             .from(schema_1.tourImages)
             .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId)),
     ]);
-    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
-            id: i.id,
+    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
             title: i.title,
             imagePath: i.imagePath,
             description: i.describtion,
-        })), faq: faq.map((f) => ({ question: f.question, answer: f.answer })), discounts, daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek), extras: extrasWithPrices, images: images.map((img) => ({
-            id: img.id,
-            url: img.imagePath
-        })) }), 200);
+        })), faq: faq.map((f) => ({ question: f.question, answer: f.answer })), discounts, daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek), extras: extrasWithPrices, images: images.map((img) => img.imagePath) }), 200);
 });
 exports.getTourById = getTourById;
 const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -373,50 +358,20 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             }));
         }
     }
-    /*if (data.images !== undefined) {
-      const existingImages = await db
-        .select()
-        .from(tourImages)
-        .where(eq(tourImages.tourId, tourId));
-  
-      // Delete old images from server
-      for (const img of existingImages) {
-        await deletePhotoFromServer(new URL(img.imagePath!).pathname);
-      }
-  
-      // Delete old image records from database
-      await db.delete(tourImages).where(eq(tourImages.tourId, tourId));
-  
-      // Insert new images if any
-      if (data.images.length > 0) {
-        const imageRecords = await Promise.all(
-          data.images.map(async (imagePath: any) => ({
-            tourId,
-            imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
-          }))
-        );
-        await db.insert(tourImages).values(imageRecords);
-      }
-    }*/
     if (data.images !== undefined) {
-        const { added = [], deleted = [] } = data.images;
-        // Handle deleted images
-        if (deleted.length > 0) {
-            // Get the images to delete
-            const imagesToDelete = yield db_1.db
-                .select()
-                .from(schema_1.tourImages)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourImages.id, deleted)));
-            // Delete physical files from server
-            for (const img of imagesToDelete) {
-                yield (0, deleteImage_1.deletePhotoFromServer)(new URL(img.imagePath).pathname);
-            }
-            // Delete records from database
-            yield db_1.db.delete(schema_1.tourImages).where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourImages.id, deleted)));
+        const existingImages = yield db_1.db
+            .select()
+            .from(schema_1.tourImages)
+            .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId));
+        // Delete old images from server
+        for (const img of existingImages) {
+            yield (0, deleteImage_1.deletePhotoFromServer)(new URL(img.imagePath).pathname);
         }
-        // Handle added images
-        if (added.length > 0) {
-            const imageRecords = yield Promise.all(added.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
+        // Delete old image records from database
+        yield db_1.db.delete(schema_1.tourImages).where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId));
+        // Insert new images if any
+        if (data.images.length > 0) {
+            const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
                 return ({
                     tourId,
                     imagePath: yield (0, handleImages_1.saveBase64Image)(imagePath, (0, uuid_1.v4)(), req, "tourImages"),
