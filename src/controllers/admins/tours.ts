@@ -20,26 +20,38 @@ import {
   tourSchedules,
 } from "../../models/schema";
 import { SuccessResponse } from "../../utils/response";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { NotFound } from "../../Errors";
 import { generateTourSchedules } from "../../utils/generateSchedules";
 import { saveBase64Image } from "../../utils/handleImages";
 import { v4 as uuid } from "uuid";
 import { deletePhotoFromServer } from "../../utils/deleteImage";
 
+export const formatDate = (date: Date) => {
+  return date.toISOString().split('T')[0]; 
+};
+
 export const getAllTours = async (req: Request, res: Response) => {
   const toursData = await db
     .select({
       tours,
-      countryName: countries.name, // Just the name from countries
-      cityName: cites.name, // Just the name from cities
+      startDate: tours.startDate,
+      endDate: tours.endDate,
+      countryName: countries.name, 
+      cityName: cites.name, 
     })
     .from(tours)
     .leftJoin(countries, eq(tours.country, countries.id))
     .leftJoin(cites, eq(tours.city, cites.id));
 
-  SuccessResponse(res, { tours: toursData }, 200);
-};
+  SuccessResponse(res, { 
+   tours: toursData.map(tour => ({
+    ...tour.tours,
+    startDate: formatDate(tour.tours.startDate),
+    endDate: formatDate(tour.tours.endDate),
+   })),
+  }, 200);
+}
 
 export const getTourById = async (req: Request, res: Response) => {
   const tourId = Number(req.params.id);
@@ -120,7 +132,9 @@ export const getTourById = async (req: Request, res: Response) => {
       .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
       .where(eq(tourExtras.tourId, tourId)),
     db
-      .select({ imagePath: tourImages.imagePath })
+      .select({ 
+        id: tourImages.id,
+        imagePath: tourImages.imagePath })
       .from(tourImages)
       .where(eq(tourImages.tourId, tourId)),
   ]);
@@ -129,10 +143,13 @@ export const getTourById = async (req: Request, res: Response) => {
     res,
     {
       ...mainTour,
+      startDate: mainTour.startDate.toISOString().split('T')[0],
+      endDate:  mainTour.endDate.toISOString().split('T')[0],
       highlights: highlights.map((h) => h.content),
       includes: includes.map((i) => i.content),
       excludes: excludes.map((e) => e.content),
       itinerary: itinerary.map((i) => ({
+        id: i.id,
         title: i.title,
         imagePath: i.imagePath,
         description: i.describtion,
@@ -141,7 +158,10 @@ export const getTourById = async (req: Request, res: Response) => {
       discounts,
       daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek),
       extras: extrasWithPrices,
-      images: images.map((img) => img.imagePath),
+     images: images.map((img) => ({
+     id: img.id,
+     url: img.imagePath
+})),
     },
     200
   );
@@ -412,7 +432,7 @@ export const updateTour = async (req: Request, res: Response) => {
     }
   }
 
-  if (data.images !== undefined) {
+  /*if (data.images !== undefined) {
     const existingImages = await db
       .select()
       .from(tourImages)
@@ -436,7 +456,48 @@ export const updateTour = async (req: Request, res: Response) => {
       );
       await db.insert(tourImages).values(imageRecords);
     }
+  }*/
+
+
+    if (data.images !== undefined) {
+  const { added = [], deleted = [] } = data.images;
+  
+  // Handle deleted images
+  if (deleted.length > 0) {
+    // Get the images to delete
+    const imagesToDelete = await db
+      .select()
+      .from(tourImages)
+      .where(and(
+        eq(tourImages.tourId, tourId),
+        inArray(tourImages.id, deleted) 
+      ));
+
+    // Delete physical files from server
+    for (const img of imagesToDelete) {
+      await deletePhotoFromServer(new URL(img.imagePath!).pathname);
+    }
+
+    // Delete records from database
+    await db.delete(tourImages).where(
+      and(
+        eq(tourImages.tourId, tourId),
+        inArray(tourImages.id, deleted)
+      )
+    );
   }
+
+  // Handle added images
+  if (added.length > 0) {
+    const imageRecords = await Promise.all(
+      added.map(async (imagePath: any) => ({
+        tourId,
+        imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
+      }))
+    );
+    await db.insert(tourImages).values(imageRecords);
+  }
+}
 
   if (data.highlights !== undefined) {
     await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
