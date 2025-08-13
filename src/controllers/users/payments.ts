@@ -50,32 +50,37 @@ export const getUserPayments = async (req: AuthenticatedRequest, res: Response) 
     .from(payments)
     .innerJoin(bookings, eq(payments.bookingId, bookings.id))
     .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
-    .innerJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
-    .innerJoin(extras, eq(bookingExtras.extraId, extras.id))
+    .leftJoin(bookingExtras, eq(bookings.id, bookingExtras.bookingId))
+    .leftJoin(extras, eq(bookingExtras.extraId, extras.id))
     .where(eq(bookings.userId, userId))
     .execute();
 
-  // إعادة تجميع الـ Extras لكل Payment
-  const groupedByPayment = userPaymentsRaw.reduce((acc, row) => {
-    const paymentId = row.payments.id;
+  // إعادة تجميع البيانات بحيث لا يتكرر paymentId
+  const groupedByPayment = Object.values(
+    userPaymentsRaw.reduce((acc, row) => {
+      const paymentId = row.payments.id;
 
-    if (!acc[paymentId]) {
-      acc[paymentId] = {
-        payments: row.payments,
-        bookingDetails: row.bookingDetails,
-        bookingExtras: [],
-      };
-    }
+      if (!acc[paymentId]) {
+        acc[paymentId] = {
+          payments: row.payments,
+          bookingDetails: row.bookingDetails,
+          bookingExtras: [],
+        };
+      }
 
-    acc[paymentId].bookingExtras.push(row.bookingExtras);
-    return acc;
-  }, {} as Record<number, { payments: any; bookingDetails: any; bookingExtras: any[] }>);
+      if (row.bookingExtras && row.bookingExtras.id) {
+        acc[paymentId].bookingExtras.push(row.bookingExtras);
+      }
+
+      return acc;
+    }, {} as Record<number, { payments: any; bookingDetails: any; bookingExtras: any[] }>)
+  );
 
   // تقسيم حسب الحالة
   const groupedPayments = {
-    pending: Object.values(groupedByPayment).filter(item => item.payments.status === "pending"),
-    confirmed: Object.values(groupedByPayment).filter(item => item.payments.status === "confirmed"),
-    cancelled: Object.values(groupedByPayment).filter(item => item.payments.status === "cancelled"),
+    pending: groupedByPayment.filter(item => item.payments.status === "pending"),
+    confirmed: groupedByPayment.filter(item => item.payments.status === "confirmed"),
+    cancelled: groupedByPayment.filter(item => item.payments.status === "cancelled"),
   };
 
   SuccessResponse(res, groupedPayments, 200);
@@ -140,9 +145,7 @@ export const updatePayment = async (req: AuthenticatedRequest, res: Response) =>
 
   const userId = Number(req.user.id);
   const paymentId = Number(req.params.id);
-  const { method } = req.body; // المستخدم بس يقدر يعدل الميثود
-
-  // تحقق إن الـ payment بتخص اليوزر
+  const { method } = req.body; 
   const paymentCheck = await db
     .select()
     .from(payments)
@@ -154,7 +157,6 @@ export const updatePayment = async (req: AuthenticatedRequest, res: Response) =>
     throw new NotFound("Payment not found or you don't have access to it");
   }
 
-  // تحديث الحقول المسموح بيها فقط
   await db
     .update(payments)
     .set({

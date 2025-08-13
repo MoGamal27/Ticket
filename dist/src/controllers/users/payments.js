@@ -50,12 +50,12 @@ const getUserPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
         .from(schema_1.payments)
         .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.payments.bookingId, schema_1.bookings.id))
         .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
-        .innerJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
-        .innerJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
+        .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingExtras.bookingId))
+        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .where((0, drizzle_orm_1.eq)(schema_1.bookings.userId, userId))
         .execute();
-    // إعادة تجميع الـ Extras لكل Payment
-    const groupedByPayment = userPaymentsRaw.reduce((acc, row) => {
+    // إعادة تجميع البيانات بحيث لا يتكرر paymentId
+    const groupedByPayment = Object.values(userPaymentsRaw.reduce((acc, row) => {
         const paymentId = row.payments.id;
         if (!acc[paymentId]) {
             acc[paymentId] = {
@@ -64,14 +64,16 @@ const getUserPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
                 bookingExtras: [],
             };
         }
-        acc[paymentId].bookingExtras.push(row.bookingExtras);
+        if (row.bookingExtras && row.bookingExtras.id) {
+            acc[paymentId].bookingExtras.push(row.bookingExtras);
+        }
         return acc;
-    }, {});
+    }, {}));
     // تقسيم حسب الحالة
     const groupedPayments = {
-        pending: Object.values(groupedByPayment).filter(item => item.payments.status === "pending"),
-        confirmed: Object.values(groupedByPayment).filter(item => item.payments.status === "confirmed"),
-        cancelled: Object.values(groupedByPayment).filter(item => item.payments.status === "cancelled"),
+        pending: groupedByPayment.filter(item => item.payments.status === "pending"),
+        confirmed: groupedByPayment.filter(item => item.payments.status === "confirmed"),
+        cancelled: groupedByPayment.filter(item => item.payments.status === "cancelled"),
     };
     (0, response_1.SuccessResponse)(res, groupedPayments, 200);
 });
@@ -122,8 +124,7 @@ const updatePayment = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
     const userId = Number(req.user.id);
     const paymentId = Number(req.params.id);
-    const { method } = req.body; // المستخدم بس يقدر يعدل الميثود
-    // تحقق إن الـ payment بتخص اليوزر
+    const { method } = req.body;
     const paymentCheck = yield db_1.db
         .select()
         .from(schema_1.payments)
@@ -133,7 +134,6 @@ const updatePayment = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     if (paymentCheck.length === 0) {
         throw new Errors_1.NotFound("Payment not found or you don't have access to it");
     }
-    // تحديث الحقول المسموح بيها فقط
     yield db_1.db
         .update(schema_1.payments)
         .set(Object.assign({}, (method && { method })))
