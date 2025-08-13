@@ -10,8 +10,8 @@ dotenv.config();
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+     clientID: "13659139511-ufbmiruhec9ihmctnd1e041mpfjvbhal.apps.googleusercontent.com",
+     clientSecret: "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",
       callbackURL: "https://tickethub-tours.com/api/user/auth/google/callback",
     },
     async (_accessToken, _refreshToken, profile, done) => {
