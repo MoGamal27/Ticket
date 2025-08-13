@@ -37,7 +37,7 @@ exports.createBookingWithPaymentSchema = zod_1.z.object({
         infantsCount: zod_1.z.number().int().nonnegative().optional(),
         totalAmount: zod_1.z.number().positive("Total amount must be positive"),
         paymentMethodId: zod_1.z.number().int().optional(),
-        proofImage: zod_1.z.string().url().optional(),
+        proofImage: zod_1.z.string().optional(),
         extras: zod_1.z.array(zod_1.z.object({
             id: zod_1.z.number().int(),
             count: zod_1.z.object({
