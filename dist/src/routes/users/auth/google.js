@@ -29,7 +29,6 @@ router.get("/callback", (req, res, next) => {
         }
         try {
             let finalUser = user;
-            // لو المستخدم مش موجود بالفعل، يبقى نعمله signup
             if (!user) {
                 const email = (_c = (_b = (_a = info === null || info === void 0 ? void 0 : info.emails) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.value) !== null && _c !== void 0 ? _c : "";
                 const name = (_e = (_d = info === null || info === void 0 ? void 0 : info.name) === null || _d === void 0 ? void 0 : _d.givenName) !== null && _e !== void 0 ? _e : "";
@@ -55,7 +54,6 @@ router.get("/callback", (req, res, next) => {
                     finalUser = newUser;
                 }
             }
-            // توليد token سواء المستخدم جديد أو موجود
             const token = (0, auth_1.generateToken)({ id: finalUser.id, roles: ["user"] });
             return res.json({ token, user: { id: finalUser.id, email: finalUser.email, name: finalUser.name } });
         }

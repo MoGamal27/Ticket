@@ -2,7 +2,6 @@ import express from "express";
 import passport from "passport";
 import "../../../config/passport";
 import { generateToken } from "../../../utils/auth";
-import { UnauthorizedError } from "../../../Errors";
 import { users } from "../../../models/schema";
 import { db } from "../../../models/db";
 import { eq } from "drizzle-orm";
@@ -18,7 +17,6 @@ router.get("/callback", (req, res, next) => {
     try {
       let finalUser = user;
 
-      // لو المستخدم مش موجود بالفعل، يبقى نعمله signup
       if (!user) {
         const email = info?.emails?.[0]?.value ?? "";
         const name = info?.name?.givenName ?? "";
@@ -47,7 +45,6 @@ router.get("/callback", (req, res, next) => {
         }
       }
 
-      // توليد token سواء المستخدم جديد أو موجود
       const token = generateToken({ id: finalUser.id, roles: ["user"] });
 
       return res.json({ token, user: { id: finalUser.id, email: finalUser.email, name: finalUser.name } });
