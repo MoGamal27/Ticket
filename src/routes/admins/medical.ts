@@ -8,8 +8,8 @@ import {
 } from "../../controllers/admins/medical";
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
-import { idParams } from "../../validators/admins/users";
-import { createMedicalCategorySchema, updateMedicalCategorySchema } from "../../validators/admins/medical";
+
+import { createMedicalCategorySchema, updateMedicalCategorySchema, idParams } from "../../validators/admins/medical";
 
 const router = Router();
 
