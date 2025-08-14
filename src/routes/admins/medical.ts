@@ -9,18 +9,19 @@ import {
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
 import { idParams } from "../../validators/admins/users";
+import { createMedicalCategorySchema, updateMedicalCategorySchema } from "../../validators/admins/medical";
 
 const router = Router();
 
 router
   .route("/")
   .get(catchAsync(getMedicalCategories))
-  .post(catchAsync(createMedicalCategory));
+  .post(validate(createMedicalCategorySchema),catchAsync(createMedicalCategory));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getMedicalCategoryById))
-  .put(catchAsync(updateCategoryMedical))
+  .put(validate(updateMedicalCategorySchema),catchAsync(updateCategoryMedical))
   .delete(validate(idParams), catchAsync(deleteMedicalCategory));
 
 export default router;

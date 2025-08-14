@@ -15,7 +15,7 @@ router.route("/")
 router.get("/add-data", (0, catchAsync_1.catchAsync)(tours_2.addData));
 // Individual tour operations
 router.route("/:id")
-    .put((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.updateTour))
+    .put((0, validation_1.validate)(tours_1.updateTourSchema), (0, catchAsync_1.catchAsync)(tours_2.updateTour))
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.getTourById))
     .delete((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(tours_2.deleteTour));
 exports.default = router;

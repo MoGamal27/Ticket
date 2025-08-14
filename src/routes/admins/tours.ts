@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
-import { createTourSchema } from "../../validators/admins/tours";
+import { createTourSchema, updateTourSchema } from "../../validators/admins/tours";
 import {
   addData,
   createTour,
@@ -11,6 +11,7 @@ import {
   updateTour,
 } from "../../controllers/admins/tours";
 import { idParams } from "../../validators/admins/users";
+
 
 const router = Router();
 
@@ -25,7 +26,7 @@ router.get("/add-data", catchAsync(addData));
 
 // Individual tour operations
 router.route("/:id")
-  .put(validate(idParams), catchAsync(updateTour)) 
+  .put(validate(updateTourSchema), catchAsync(updateTour)) 
   .get(validate(idParams), catchAsync(getTourById))
   .delete(validate(idParams), catchAsync(deleteTour));
 
