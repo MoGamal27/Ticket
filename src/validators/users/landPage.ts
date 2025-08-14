@@ -1,3 +1,4 @@
+import { use } from "passport";
 import { z } from "zod";
 
 export const getImagesSchema = z.object({
@@ -64,4 +65,13 @@ export const createBookingWithPaymentSchema = z.object({
 export const getActivePaymentMethodsSchema = z.object({
   params: z.object({}).optional(),
   query: z.object({}).optional(),
+});
+
+export const medicalRecordSchema = z.object({
+  fullName: z.string().min(1),
+  phoneNumber: z.string().min(1),
+  email: z.string().email(),
+  categoryIds: z.array(z.number()).min(1),
+  describtion: z.string().min(1),
+  images: z.array(z.string()).optional(),
 });

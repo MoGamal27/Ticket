@@ -27,10 +27,16 @@ import {
   bookingDetails,
   bookingExtras,
   tourSchedules,
+  Medicals,
+  categoryMedical,
+  MedicalImages,
 } from "../../models/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound } from "../../Errors";
+import { saveBase64Image } from "../../utils/handleImages";
+import { v4 as uuid } from "uuid";
+
 
 // format start date to YYYY-MM-DD
 export const formatDate = (date: Date) => {
@@ -522,5 +528,211 @@ export const getBookingWithDetails = async (req: Request, res: Response) => {
       message: "Failed to fetch booking",
       error: error.message
     });
+  }
+};
+
+
+/*export const createMedical = async (req: Request, res: Response) => {
+  const data = req.body;
+  
+  // Validate required fields
+  if (!data.email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+  if (!data.categoryIds || !Array.isArray(data.categoryIds) || data.categoryIds.length === 0) {
+    return res.status(400).json({ message: "At least one category ID is required" });
+  }
+  if (!data.describtion) {
+    return res.status(400).json({ message: "Description is required" });
+  }
+
+  try {
+    // Find user by email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, data.email));
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Validate all categories exist
+    const categories = await Promise.all(
+      data.categoryIds.map(async (categoryId: number) => {
+        const [category] = await db
+          .select()
+          .from(categoryMedical)
+          .where(eq(categoryMedical.id, categoryId));
+        if (!category) {
+          throw new Error(`Category with ID ${categoryId} not found`);
+        }
+        return category;
+      })
+    );
+
+    // Create medical records for each category
+    const medicalRecords = await Promise.all(
+      data.categoryIds.map(async (categoryId: number) => {
+        const [newMedical] = await db.insert(Medicals).values({
+          userId: user.id,
+          categoryId: categoryId, // This was missing in your original code
+          describtion: data.describtion,
+        }).returning({ id: Medicals.id });
+        
+        return newMedical;
+      })
+    );
+
+    // Handle images if provided
+    if (data.images && data.images.length > 0) {
+      // Create image records for each medical record
+      await Promise.all(
+        medicalRecords.flatMap(medicalRecord => 
+          data.images.map(async (imagePath: string) => {
+            await db.insert(MedicalImages).values({
+              medicalId: medicalRecord.id,
+              imagePath: await saveBase64Image(imagePath, uuid(), req, "medicalImages"),
+            });
+          })
+        )
+      );
+    }
+
+    SuccessResponse(res, { 
+      message: "Medical Created Successfully",
+      medicalRecords 
+    }, 200);
+  } catch (error: any) {
+    if (error.message.startsWith('Category with ID')) {
+      return res.status(404).json({ message: error.message });
+    }
+    console.error("Error creating medical record:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};*/
+
+export const createMedical = async (req: Request, res: Response) => {
+  const data = req.body;
+  
+  // Validate required fields
+  if (!data.email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+  if (!data.categoryIds || !Array.isArray(data.categoryIds) || data.categoryIds.length === 0) {
+    return res.status(400).json({ message: "At least one category ID is required" });
+  }
+  if (!data.describtion) {
+    return res.status(400).json({ message: "Description is required" });
+  }
+
+  try {
+    // Find user by email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, data.email));
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Validate all categories exist
+    const categories = await Promise.all(
+      data.categoryIds.map(async (categoryId: number) => {
+        const [category] = await db
+          .select()
+          .from(categoryMedical)
+          .where(eq(categoryMedical.id, categoryId));
+        if (!category) {
+          throw new Error(`Category with ID ${categoryId} not found`);
+        }
+        return category;
+      })
+    );
+
+    // Create medical records for each category
+    const medicalRecords = await Promise.all(
+      data.categoryIds.map(async (categoryId: number) => {
+        // Insert medical record
+        const insertResult = await db.insert(Medicals).values({
+          userId: user.id,
+          categoryId: categoryId,
+          describtion: data.describtion,
+        });
+
+        // Get the last inserted ID (MySQL-specific approach)
+        const [newMedical] = await db.select()
+          .from(Medicals)
+          .where(eq(Medicals.userId, user.id))
+          .orderBy(desc(Medicals.id))
+          .limit(1);
+
+        if (!newMedical?.id) {
+          throw new Error('Failed to create medical record');
+        }
+         console.log("New Medical Record ID:", newMedical.id);
+        // Handle images if provided
+        if (data.images && data.images.length > 0) {
+          // Process all images first
+          const imageRecords = await Promise.all(
+            data.images.map(async (imagePath: string) => {
+              const path = await saveBase64Image(imagePath, uuid(), req, "medicalImages");
+              return {
+                medicalId: newMedical.id, // Use the plain ID number here
+                imagePath: path
+              };
+            })
+          );
+          
+          // Then insert all at once
+          await db.insert(MedicalImages).values(imageRecords);
+        }
+
+        return { id: newMedical.id, categoryId };
+      })
+    );
+
+    SuccessResponse(res, { 
+      message: "Medical records created successfully",
+      medicalRecords 
+    }, 200);
+  } catch (error: any) {
+    if (error.message.startsWith('Category with ID')) {
+      return res.status(404).json({ message: error.message });
+    }
+    console.error("Error creating medical record:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+// get all medical 
+export const getAllMedicals = async (req: Request, res: Response) => {
+  try {
+    // Get all medical records
+    const medicals = await db.select().from(Medicals);
+
+    // Get all medical images grouped by medical_id
+    const images = await db.select().from(MedicalImages);
+    const imagesByMedicalId = images.reduce((acc, image: any) => {
+      if (!acc[image.medicalId]) {
+        acc[image.medicalId] = [];
+      }
+      acc[image.medicalId].push(image);
+      return acc;
+    }, {} as Record<number, typeof images>);
+
+    // Combine medical records with their images
+    const medicalsWithImages = medicals.map(medical => ({
+      ...medical,
+      images: imagesByMedicalId[medical.id] || []
+    }));
+
+    SuccessResponse(res, { medicals: medicalsWithImages }, 200);
+  } catch (error) {
+    console.error("Error fetching medical records:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

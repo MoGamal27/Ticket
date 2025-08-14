@@ -7,6 +7,8 @@ const validation_1 = require("../../middlewares/validation");
 const landPage_2 = require("..//..//validators/users/landPage");
 const router = (0, express_1.Router)();
 router.post("/book-tour", (0, validation_1.validate)(landPage_2.createBookingWithPaymentSchema), (0, catchAsync_1.catchAsync)(landPage_1.createBookingWithPayment));
+router.post("/create-medical", /*validate(createMedicalSchema),*/ (0, catchAsync_1.catchAsync)(landPage_1.createMedical));
+router.get("/medicals", (0, catchAsync_1.catchAsync)(landPage_1.getAllMedicals));
 router.get("/active", (0, catchAsync_1.catchAsync)(landPage_1.getActivePaymentMethods));
 router.get("/images", (0, catchAsync_1.catchAsync)(landPage_1.getImages));
 router.get("/featured-tours", (0, catchAsync_1.catchAsync)(landPage_1.getFeaturedTours));

@@ -7,6 +7,8 @@ const validation_1 = require("../../middlewares/validation");
 const medical_2 = require("../../validators/admins/medical");
 const router = (0, express_1.Router)();
 router
+    .route("/medicalTour-all").get((0, catchAsync_1.catchAsync)(medical_1.getAllMedicals));
+router
     .route("/")
     .get((0, catchAsync_1.catchAsync)(medical_1.getMedicalCategories))
     .post((0, validation_1.validate)(medical_2.createMedicalCategorySchema), (0, catchAsync_1.catchAsync)(medical_1.createMedicalCategory));
@@ -15,4 +17,6 @@ router
     .get((0, validation_1.validate)(medical_2.idParams), (0, catchAsync_1.catchAsync)(medical_1.getMedicalCategoryById))
     .put((0, validation_1.validate)(medical_2.updateMedicalCategorySchema), (0, catchAsync_1.catchAsync)(medical_1.updateCategoryMedical))
     .delete((0, validation_1.validate)(medical_2.idParams), (0, catchAsync_1.catchAsync)(medical_1.deleteMedicalCategory));
+router
+    .route("/medicals/:id").get((0, catchAsync_1.catchAsync)(medical_1.getMedicalById));
 exports.default = router;

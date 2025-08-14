@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getActivePaymentMethodsSchema = exports.createBookingWithPaymentSchema = exports.getBookingWithDetailsSchema = exports.getTourByIdSchema = exports.getToursByCategorySchema = exports.getFeaturedToursSchema = exports.getImagesSchema = void 0;
+exports.medicalRecordSchema = exports.getActivePaymentMethodsSchema = exports.createBookingWithPaymentSchema = exports.getBookingWithDetailsSchema = exports.getTourByIdSchema = exports.getToursByCategorySchema = exports.getFeaturedToursSchema = exports.getImagesSchema = void 0;
 const zod_1 = require("zod");
 exports.getImagesSchema = zod_1.z.object({
     params: zod_1.z.object({}).optional(), // مفيش Params
@@ -51,4 +51,12 @@ exports.createBookingWithPaymentSchema = zod_1.z.object({
 exports.getActivePaymentMethodsSchema = zod_1.z.object({
     params: zod_1.z.object({}).optional(),
     query: zod_1.z.object({}).optional(),
+});
+exports.medicalRecordSchema = zod_1.z.object({
+    fullName: zod_1.z.string().min(1),
+    phoneNumber: zod_1.z.string().min(1),
+    email: zod_1.z.string().email(),
+    categoryIds: zod_1.z.array(zod_1.z.number()).min(1),
+    describtion: zod_1.z.string().min(1),
+    images: zod_1.z.array(zod_1.z.string()).optional(),
 });

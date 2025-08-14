@@ -9,12 +9,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
+exports.getAllMedicals = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
 const response_1 = require("../../utils/response");
 const Errors_1 = require("../../Errors");
+const handleImages_1 = require("../../utils/handleImages");
+const uuid_1 = require("uuid");
 // format start date to YYYY-MM-DD
 const formatDate = (date) => {
     return date.toISOString().split('T')[0];
@@ -435,3 +437,185 @@ const getBookingWithDetails = (req, res) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 exports.getBookingWithDetails = getBookingWithDetails;
+/*export const createMedical = async (req: Request, res: Response) => {
+  const data = req.body;
+  
+  // Validate required fields
+  if (!data.email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+  if (!data.categoryIds || !Array.isArray(data.categoryIds) || data.categoryIds.length === 0) {
+    return res.status(400).json({ message: "At least one category ID is required" });
+  }
+  if (!data.describtion) {
+    return res.status(400).json({ message: "Description is required" });
+  }
+
+  try {
+    // Find user by email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, data.email));
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Validate all categories exist
+    const categories = await Promise.all(
+      data.categoryIds.map(async (categoryId: number) => {
+        const [category] = await db
+          .select()
+          .from(categoryMedical)
+          .where(eq(categoryMedical.id, categoryId));
+        if (!category) {
+          throw new Error(`Category with ID ${categoryId} not found`);
+        }
+        return category;
+      })
+    );
+
+    // Create medical records for each category
+    const medicalRecords = await Promise.all(
+      data.categoryIds.map(async (categoryId: number) => {
+        const [newMedical] = await db.insert(Medicals).values({
+          userId: user.id,
+          categoryId: categoryId, // This was missing in your original code
+          describtion: data.describtion,
+        }).returning({ id: Medicals.id });
+        
+        return newMedical;
+      })
+    );
+
+    // Handle images if provided
+    if (data.images && data.images.length > 0) {
+      // Create image records for each medical record
+      await Promise.all(
+        medicalRecords.flatMap(medicalRecord =>
+          data.images.map(async (imagePath: string) => {
+            await db.insert(MedicalImages).values({
+              medicalId: medicalRecord.id,
+              imagePath: await saveBase64Image(imagePath, uuid(), req, "medicalImages"),
+            });
+          })
+        )
+      );
+    }
+
+    SuccessResponse(res, {
+      message: "Medical Created Successfully",
+      medicalRecords
+    }, 200);
+  } catch (error: any) {
+    if (error.message.startsWith('Category with ID')) {
+      return res.status(404).json({ message: error.message });
+    }
+    console.error("Error creating medical record:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};*/
+const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const data = req.body;
+    // Validate required fields
+    if (!data.email) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+    if (!data.categoryIds || !Array.isArray(data.categoryIds) || data.categoryIds.length === 0) {
+        return res.status(400).json({ message: "At least one category ID is required" });
+    }
+    if (!data.describtion) {
+        return res.status(400).json({ message: "Description is required" });
+    }
+    try {
+        // Find user by email
+        const [user] = yield db_1.db
+            .select()
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.email, data.email));
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        // Validate all categories exist
+        const categories = yield Promise.all(data.categoryIds.map((categoryId) => __awaiter(void 0, void 0, void 0, function* () {
+            const [category] = yield db_1.db
+                .select()
+                .from(schema_1.categoryMedical)
+                .where((0, drizzle_orm_1.eq)(schema_1.categoryMedical.id, categoryId));
+            if (!category) {
+                throw new Error(`Category with ID ${categoryId} not found`);
+            }
+            return category;
+        })));
+        // Create medical records for each category
+        const medicalRecords = yield Promise.all(data.categoryIds.map((categoryId) => __awaiter(void 0, void 0, void 0, function* () {
+            // Insert medical record
+            const insertResult = yield db_1.db.insert(schema_1.Medicals).values({
+                userId: user.id,
+                categoryId: categoryId,
+                describtion: data.describtion,
+            });
+            // Get the last inserted ID (MySQL-specific approach)
+            const [newMedical] = yield db_1.db.select()
+                .from(schema_1.Medicals)
+                .where((0, drizzle_orm_1.eq)(schema_1.Medicals.userId, user.id))
+                .orderBy((0, drizzle_orm_1.desc)(schema_1.Medicals.id))
+                .limit(1);
+            if (!(newMedical === null || newMedical === void 0 ? void 0 : newMedical.id)) {
+                throw new Error('Failed to create medical record');
+            }
+            console.log("New Medical Record ID:", newMedical.id);
+            // Handle images if provided
+            if (data.images && data.images.length > 0) {
+                // Process all images first
+                const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
+                    const path = yield (0, handleImages_1.saveBase64Image)(imagePath, (0, uuid_1.v4)(), req, "medicalImages");
+                    return {
+                        medicalId: newMedical.id, // Use the plain ID number here
+                        imagePath: path
+                    };
+                })));
+                // Then insert all at once
+                yield db_1.db.insert(schema_1.MedicalImages).values(imageRecords);
+            }
+            return { id: newMedical.id, categoryId };
+        })));
+        (0, response_1.SuccessResponse)(res, {
+            message: "Medical records created successfully",
+            medicalRecords
+        }, 200);
+    }
+    catch (error) {
+        if (error.message.startsWith('Category with ID')) {
+            return res.status(404).json({ message: error.message });
+        }
+        console.error("Error creating medical record:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.createMedical = createMedical;
+// get all medical 
+const getAllMedicals = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // Get all medical records
+        const medicals = yield db_1.db.select().from(schema_1.Medicals);
+        // Get all medical images grouped by medical_id
+        const images = yield db_1.db.select().from(schema_1.MedicalImages);
+        const imagesByMedicalId = images.reduce((acc, image) => {
+            if (!acc[image.medicalId]) {
+                acc[image.medicalId] = [];
+            }
+            acc[image.medicalId].push(image);
+            return acc;
+        }, {});
+        // Combine medical records with their images
+        const medicalsWithImages = medicals.map(medical => (Object.assign(Object.assign({}, medical), { images: imagesByMedicalId[medical.id] || [] })));
+        (0, response_1.SuccessResponse)(res, { medicals: medicalsWithImages }, 200);
+    }
+    catch (error) {
+        console.error("Error fetching medical records:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.getAllMedicals = getAllMedicals;

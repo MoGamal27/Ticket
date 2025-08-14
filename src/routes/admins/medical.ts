@@ -5,6 +5,8 @@ import {
   createMedicalCategory,
   updateCategoryMedical,
   deleteMedicalCategory,
+  getAllMedicals,
+  getMedicalById
 } from "../../controllers/admins/medical";
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
@@ -12,6 +14,8 @@ import { validate } from "../../middlewares/validation";
 import { createMedicalCategorySchema, updateMedicalCategorySchema, idParams } from "../../validators/admins/medical";
 
 const router = Router();
+router
+  .route("/medicalTour-all").get(catchAsync(getAllMedicals));
 
 router
   .route("/")
@@ -23,5 +27,8 @@ router
   .get(validate(idParams), catchAsync(getMedicalCategoryById))
   .put(validate(updateMedicalCategorySchema),catchAsync(updateCategoryMedical))
   .delete(validate(idParams), catchAsync(deleteMedicalCategory));
+
+router
+  .route("/medicals/:id").get(catchAsync(getMedicalById));
 
 export default router;

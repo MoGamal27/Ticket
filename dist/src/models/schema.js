@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.categoryMedical = exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookingExtras = exports.bookingDetails = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
+exports.MedicalImages = exports.Medicals = exports.categoryMedical = exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookingExtras = exports.bookingDetails = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 const timeZone_1 = require("../utils/timeZone");
 exports.admins = (0, mysql_core_1.mysqlTable)("admins", {
@@ -184,7 +184,7 @@ exports.bookings = (0, mysql_core_1.mysqlTable)("bookings", {
     tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tourSchedules.id),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "confirmed", "cancelled"]),
     //discount
-    discountNumber: (0, mysql_core_1.decimal)("discount_number", { precision: 10, scale: 2 }),
+    discountNumber: (0, mysql_core_1.decimal)("discount_number", { precision: 5, scale: 2 }),
     location: (0, mysql_core_1.varchar)("location", { length: 255 }),
     address: (0, mysql_core_1.varchar)("address", { length: 255 }),
     createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
@@ -261,4 +261,15 @@ exports.cites = (0, mysql_core_1.mysqlTable)("cities", {
 exports.categoryMedical = (0, mysql_core_1.mysqlTable)("category_medical", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
     title: (0, mysql_core_1.varchar)("title", { length: 255 }).notNull(),
+});
+exports.Medicals = (0, mysql_core_1.mysqlTable)("medicals", {
+    id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
+    userId: (0, mysql_core_1.int)("user_id").references(() => exports.users.id),
+    categoryId: (0, mysql_core_1.int)("category_id").references(() => exports.categoryMedical.id),
+    describtion: (0, mysql_core_1.text)("describtion").notNull(),
+});
+exports.MedicalImages = (0, mysql_core_1.mysqlTable)("medical_images", {
+    id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
+    medicalId: (0, mysql_core_1.int)("medical_id").references(() => exports.Medicals.id),
+    imagePath: (0, mysql_core_1.varchar)("image_path", { length: 255 }).notNull(),
 });

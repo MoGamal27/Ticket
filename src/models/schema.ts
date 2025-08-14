@@ -10,6 +10,7 @@ import {
   mysqlEnum,
 } from "drizzle-orm/mysql-core";
 import { getCurrentEgyptTime } from "../utils/timeZone";
+import { use } from "passport";
 
 
 export const admins = mysqlTable("admins", {
@@ -309,3 +310,18 @@ export const categoryMedical = mysqlTable("category_medical", {
   id: int("id").autoincrement().primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
 });
+
+
+export const Medicals = mysqlTable("medicals", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").references(() => users.id),
+  categoryId: int("category_id").references(() => categoryMedical.id),
+  describtion: text("describtion").notNull(),
+});
+
+export const MedicalImages = mysqlTable("medical_images", {
+  id: int("id").autoincrement().primaryKey(),
+  medicalId: int("medical_id").references(() => Medicals.id),
+  imagePath: varchar("image_path", { length: 255 }).notNull(),
+});
+
