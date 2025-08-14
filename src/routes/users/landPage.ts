@@ -7,7 +7,7 @@ import {
   getActivePaymentMethods,
   createBookingWithPayment,
   createMedical,
-  getAllMedicals
+  getMedicalCategories
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
 
@@ -20,7 +20,7 @@ router.post("/book-tour",validate(createBookingWithPaymentSchema) ,catchAsync(cr
 router.post("/create-medical", /*validate(createMedicalSchema),*/ catchAsync(createMedical));
 
 
-router.get("/medicals", catchAsync(getAllMedicals));
+router.get("/medicals-categories", catchAsync(getMedicalCategories));
 
 router.get("/active", catchAsync(getActivePaymentMethods));
 

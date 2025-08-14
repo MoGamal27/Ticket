@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllMedicals = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
+exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -595,27 +595,8 @@ const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.createMedical = createMedical;
-// get all medical 
-const getAllMedicals = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        // Get all medical records
-        const medicals = yield db_1.db.select().from(schema_1.Medicals);
-        // Get all medical images grouped by medical_id
-        const images = yield db_1.db.select().from(schema_1.MedicalImages);
-        const imagesByMedicalId = images.reduce((acc, image) => {
-            if (!acc[image.medicalId]) {
-                acc[image.medicalId] = [];
-            }
-            acc[image.medicalId].push(image);
-            return acc;
-        }, {});
-        // Combine medical records with their images
-        const medicalsWithImages = medicals.map(medical => (Object.assign(Object.assign({}, medical), { images: imagesByMedicalId[medical.id] || [] })));
-        (0, response_1.SuccessResponse)(res, { medicals: medicalsWithImages }, 200);
-    }
-    catch (error) {
-        console.error("Error fetching medical records:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
+const getMedicalCategories = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const data = yield db_1.db.select().from(schema_1.categoryMedical);
+    (0, response_1.SuccessResponse)(res, { categoriesMedical: data }, 200);
 });
-exports.getAllMedicals = getAllMedicals;
+exports.getMedicalCategories = getMedicalCategories;

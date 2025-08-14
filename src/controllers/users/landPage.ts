@@ -708,31 +708,8 @@ export const createMedical = async (req: Request, res: Response) => {
 
 
 
-// get all medical 
-export const getAllMedicals = async (req: Request, res: Response) => {
-  try {
-    // Get all medical records
-    const medicals = await db.select().from(Medicals);
 
-    // Get all medical images grouped by medical_id
-    const images = await db.select().from(MedicalImages);
-    const imagesByMedicalId = images.reduce((acc, image: any) => {
-      if (!acc[image.medicalId]) {
-        acc[image.medicalId] = [];
-      }
-      acc[image.medicalId].push(image);
-      return acc;
-    }, {} as Record<number, typeof images>);
-
-    // Combine medical records with their images
-    const medicalsWithImages = medicals.map(medical => ({
-      ...medical,
-      images: imagesByMedicalId[medical.id] || []
-    }));
-
-    SuccessResponse(res, { medicals: medicalsWithImages }, 200);
-  } catch (error) {
-    console.error("Error fetching medical records:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
+export const getMedicalCategories = async (req: Request, res: Response) => {
+    const data = await db.select().from(categoryMedical);
+    SuccessResponse(res, { categoriesMedical: data }, 200);
+    }
