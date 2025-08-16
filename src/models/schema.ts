@@ -315,8 +315,18 @@ export const categoryMedical = mysqlTable("category_medical", {
 export const Medicals = mysqlTable("medicals", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("user_id").references(() => users.id),
-  categoryId: int("category_id").references(() => categoryMedical.id),
+  fullName: varchar("full_name", { length: 255 }), 
+  phoneNumber: varchar("phone_number", { length: 20 }), 
   describtion: text("describtion").notNull(),
+  status: mysqlEnum("status", ["pending", "accepted", "history"]).default("pending"),
+});
+
+
+export const medicalCategories = mysqlTable("medical_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  medicalId: int("medical_id").references(() => Medicals.id),
+  categoryId: int("category_id").references(() => categoryMedical.id),
+  createdAt: timestamp("created_at").default(getCurrentEgyptTime()),
 });
 
 export const MedicalImages = mysqlTable("medical_images", {
