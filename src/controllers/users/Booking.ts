@@ -75,8 +75,9 @@ export const getUserBookings = async (req: AuthenticatedRequest, res: Response) 
 
   // حجزات ماضية (انتهت)
   const pastBookings = groupedBookings.filter(item => new Date(item.bookings.createdAt) < now);
+  const upcomingBookings = groupedBookings.filter(item => new Date(item.bookings.createdAt) > now);
 
-  SuccessResponse(res, { history: pastBookings, current: currentBookings }, 200);
+  SuccessResponse(res, { history: pastBookings, current: currentBookings, upcoming: upcomingBookings}, 200);
 };
 
 

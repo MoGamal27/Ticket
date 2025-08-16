@@ -79,7 +79,8 @@ const getUserBookings = (req, res) => __awaiter(void 0, void 0, void 0, function
     };
     // حجزات ماضية (انتهت)
     const pastBookings = groupedBookings.filter(item => new Date(item.bookings.createdAt) < now);
-    (0, response_1.SuccessResponse)(res, { history: pastBookings, current: currentBookings }, 200);
+    const upcomingBookings = groupedBookings.filter(item => new Date(item.bookings.createdAt) > now);
+    (0, response_1.SuccessResponse)(res, { history: pastBookings, current: currentBookings, upcoming: upcomingBookings }, 200);
 });
 exports.getUserBookings = getUserBookings;
 //  export const createBooking = async (req: AuthenticatedRequest, res: Response) => {
