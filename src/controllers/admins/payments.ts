@@ -86,33 +86,45 @@ export const changeStatus = async (req: Request, res: Response) => {
   const [payment] = await db.select().from(payments).where(eq(payments.id, id));
   if (!payment) throw new NotFound("Payment Not Found");
   const { status, rejectionReason } = req.body;
-     if (status === "cancelled") {
-  await db
-    .update(payments)
-    .set({ status, rejectionReason })
-    .where(eq(payments.id, id));
-    // send email user reject reason
-     
+
+  if (status === "cancelled") {
+    await db
+      .update(payments)
+      .set({ status, rejectionReason })
+      .where(eq(payments.id, id));
+
+    // Update booking status to cancelled
+    await db
+      .update(bookings)
+      .set({ status: "cancelled" })
+      .where(eq(bookings.id, payment.bookingId));
+
     const userEmail = await db
       .select({ email: users.email })
       .from(users)
       .innerJoin(bookings, eq(users.id, bookings.userId))
       .innerJoin(payments, eq(bookings.id, payments.bookingId))
       .where(eq(payments.id, id));
-    // send email user reject reason
+
     await sendEmail(
       userEmail[0].email,
       "Payment Cancelled",
       `${rejectionReason}`
     );
+  } else {
+    await db
+      .update(payments)
+      .set({ status })
+      .where(eq(payments.id, id));
 
-} else {
-  await db
-    .update(payments)
-    .set({ status })
-    .where(eq(payments.id, id));
-}
-  SuccessResponse(res, { message: "Status Changed Succussfully" }, 200);
+    // Update booking status to match payment status
+    await db
+      .update(bookings)
+      .set({ status: status === "confirmed" ? "confirmed" : "pending" })
+      .where(eq(bookings.id, payment.bookingId));
+  }
+
+  SuccessResponse(res, { message: "Status Changed Successfully" }, 200);
 };
 export const getAutoPayments = async (req: Request, res: Response) => {
   const paymentsData = await db
@@ -129,10 +141,19 @@ export const getAllPayments = async(req: Request, res: Response) => {
     .select({ id: payments.bookingId })
     .from(payments)
     */
-    
     const rows = await db
     .select({
       payment: payments,
+      bookings: {
+        id: bookings.id,
+        tourId: bookings.tourId,
+        userId: bookings.userId,
+        status: bookings.status,
+        discountNumber: bookings.discountNumber,
+        location: bookings.location,
+        address: bookings.address,
+        createdAt: bookings.createdAt,
+      },
       bookingDetails: bookingDetails,
       bookingExtras: {
         id: bookingExtras.id,
@@ -152,6 +173,7 @@ export const getAllPayments = async(req: Request, res: Response) => {
       }
     })
     .from(payments)
+    .leftJoin(bookings, eq(bookings.id, payments.bookingId))
     .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.bookingId))
     .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.bookingId))
     .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
@@ -165,9 +187,10 @@ export const getAllPayments = async(req: Request, res: Response) => {
       if (!acc[paymentId]) {
         acc[paymentId] = {
           payment: row.payment,
+          bookings: row.bookings,
           bookingDetails: row.bookingDetails,
           bookingExtras: [],
-          manualPayment: row.manualPayment || null, // إذا موجود ضيفه، لو مش موجود خلي null
+          manualPayment: row.manualPayment || null, 
         };
       }
 

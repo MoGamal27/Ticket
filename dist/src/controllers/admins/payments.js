@@ -85,14 +85,17 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .update(schema_1.payments)
             .set({ status, rejectionReason })
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
-        // send email user reject reason
+        // Update booking status to cancelled
+        yield db_1.db
+            .update(schema_1.bookings)
+            .set({ status: "cancelled" })
+            .where((0, drizzle_orm_1.eq)(schema_1.bookings.id, payment.bookingId));
         const userEmail = yield db_1.db
             .select({ email: schema_1.users.email })
             .from(schema_1.users)
             .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.bookings.userId))
             .innerJoin(schema_1.payments, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
-        // send email user reject reason
         yield (0, sendEmails_1.sendEmail)(userEmail[0].email, "Payment Cancelled", `${rejectionReason}`);
     }
     else {
@@ -100,8 +103,13 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .update(schema_1.payments)
             .set({ status })
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+        // Update booking status to match payment status
+        yield db_1.db
+            .update(schema_1.bookings)
+            .set({ status: status === "confirmed" ? "confirmed" : "pending" })
+            .where((0, drizzle_orm_1.eq)(schema_1.bookings.id, payment.bookingId));
     }
-    (0, response_1.SuccessResponse)(res, { message: "Status Changed Succussfully" }, 200);
+    (0, response_1.SuccessResponse)(res, { message: "Status Changed Successfully" }, 200);
 });
 exports.changeStatus = changeStatus;
 const getAutoPayments = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -121,6 +129,16 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
     const rows = yield db_1.db
         .select({
         payment: schema_1.payments,
+        bookings: {
+            id: schema_1.bookings.id,
+            tourId: schema_1.bookings.tourId,
+            userId: schema_1.bookings.userId,
+            status: schema_1.bookings.status,
+            discountNumber: schema_1.bookings.discountNumber,
+            location: schema_1.bookings.location,
+            address: schema_1.bookings.address,
+            createdAt: schema_1.bookings.createdAt,
+        },
         bookingDetails: schema_1.bookingDetails,
         bookingExtras: {
             id: schema_1.bookingExtras.id,
@@ -140,6 +158,7 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
         }
     })
         .from(schema_1.payments)
+        .leftJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
         .leftJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.payments.bookingId))
         .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.bookingId))
         .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId))
@@ -150,9 +169,10 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
         if (!acc[paymentId]) {
             acc[paymentId] = {
                 payment: row.payment,
+                bookings: row.bookings,
                 bookingDetails: row.bookingDetails,
                 bookingExtras: [],
-                manualPayment: row.manualPayment || null, // إذا موجود ضيفه، لو مش موجود خلي null
+                manualPayment: row.manualPayment || null,
             };
         }
         if (row.bookingExtras && row.bookingExtras.id) {
