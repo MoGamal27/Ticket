@@ -1,14 +1,16 @@
 import {
     categoryMedical,
     Medicals,
-    MedicalImages
+    MedicalImages,
+    users,
+    medicalCategories
 } from "../../models/schema";
 
 import { Request, Response } from "express";
 import { db } from "../../models/db";
 
 import { SuccessResponse } from "../../utils/response";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { NotFound } from "../../Errors";
 
 
@@ -58,10 +60,25 @@ export const deleteMedicalCategory = async (req: Request, res: Response) => {
 
 
 // get all medical 
-export const getAllMedicals = async (req: Request, res: Response) => {
+/*export const getAllMedicals = async (req: Request, res: Response) => {
   try {
     // Get all medical records
-    const medicals = await db.select().from(Medicals);
+    const medicals = await db.select({
+       // Medical record fields
+        medicalId: Medicals.id,
+        userId: Medicals.userId,
+        categoryId: Medicals.categoryId,
+        describtion: Medicals.describtion,
+        
+        // User fields
+        userEmail: users.email,
+        
+        // Category fields
+        categoryTitle: categoryMedical.title,
+
+    }).from(Medicals)
+      .leftJoin(users, eq(Medicals.userId, users.id))
+      .leftJoin(categoryMedical, eq(Medicals.categoryId, categoryMedical.id));;
 
     // Get all medical images grouped by medical_id
     const images = await db.select().from(MedicalImages);
@@ -84,7 +101,66 @@ export const getAllMedicals = async (req: Request, res: Response) => {
     console.error("Error fetching medical records:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-};
+};*/
+
+
+/*export const getAllMedicals = async (req: Request, res: Response) => {
+  try {
+    // Get all medical records with user info
+    const medicals = await db
+      .select({
+        id: Medicals.id,
+        userId: Medicals.userId,
+        describtion: Medicals.describtion,
+        userEmail: users.email,
+      })
+      .from(Medicals)
+      .leftJoin(users, eq(Medicals.userId, users.id));
+
+     
+    // Get all category associations
+    const medicalCategories = await db
+      .select({
+        categoryId: categoryMedical.id,
+        categoryTitle: categoryMedical.title,
+      })
+      .from(categoryMedical)
+      .leftJoin(categoryMedical, eq(categoryMedical.id, categoryMedical.id));
+
+    // Get all medical images
+    const images = await db.select().from(MedicalImages);
+    const imagesByMedicalId = images.reduce((acc, image:any) => {
+      if (!acc[image.medicalId]) acc[image.medicalId] = [];
+      acc[image.medicalId].push(image);
+      return acc;
+    }, {} as Record<number, typeof images>);
+
+    // Group categories by medicalId
+    const categoriesByMedicalId = medicalCategories.reduce((acc, mc: any) => {
+      if (!acc[mc.medicalId]) acc[mc.medicalId] = [];
+      acc[mc.medicalId].push({
+        categoryId: mc.categoryId,
+        categoryTitle: mc.categoryTitle,
+      });
+      return acc;
+    }, {} as Record<number, Array<{ categoryId: number; categoryTitle: string }>>);
+
+    // Combine everything
+    const medicalsWithDetails = medicals.map(medical => ({
+      id: medical.id,
+      userId: medical.userId,
+      userEmail: medical.userEmail,
+      describtion: medical.describtion,
+      categories: categoriesByMedicalId[medical.id] || [],
+      images: imagesByMedicalId[medical.id] || [],
+    }));
+
+    SuccessResponse(res, { medicals: medicalsWithDetails }, 200);
+  } catch (error) {
+    console.error("Error fetching medical records:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};*/
 
 
 
@@ -124,3 +200,78 @@ export const getMedicalById = async (req: Request, res: Response) => {
   }
 };
 
+
+
+export const getAllMedicals = async (req: Request, res: Response) => {
+  try {
+    const medicals = await db
+      .select({
+        id: Medicals.id,
+        userId: Medicals.userId,
+        userName: Medicals.fullName,
+        userEmail: users.email,
+        phoneNumber: Medicals.phoneNumber,
+        describtion: Medicals.describtion,
+        status: Medicals.status,
+      })
+      .from(Medicals)
+      .leftJoin(users, eq(Medicals.userId, users.id));
+
+    // Get all medical categories associations
+    const medicalCategoriesData = await db
+      .select()
+      .from(medicalCategories)
+      .where(inArray(medicalCategories.medicalId, medicals.map(m => m.id)));
+
+    // Get all unique category IDs from medical categories
+    const uniqueCategoryIds = [...new Set(medicalCategoriesData.map(mc => mc.categoryId))];
+
+    // Get all categories
+    const categories = await db
+      .select()
+      .from(categoryMedical)
+      .where(inArray(categoryMedical.id, uniqueCategoryIds));
+
+    // Get all images for these medicals
+    const images = await db
+      .select()
+      .from(MedicalImages)
+      .where(inArray(MedicalImages.medicalId, medicals.map(m => m.id)));
+
+    // Group images by medical ID
+    const imagesByMedicalId = images.reduce((acc, img: any) => {
+      if (!acc[img.medicalId]) acc[img.medicalId] = [];
+      acc[img.medicalId].push(img);
+      return acc;
+    }, {});
+
+    // Combine and process medical records
+    const medicalsWithDetails = medicals.map(medical => ({
+      id: medical.id,
+      userId: medical.userId,
+      describtion: medical.describtion,
+      status: medical.status,
+      userName: medical.userName,
+      userEmail: medical.userEmail,
+      phoneNumber: medical.phoneNumber,
+      categories: categories.filter(cat => 
+        medicalCategoriesData.some(mc => 
+          mc.medicalId === medical.id && mc.categoryId === cat.id
+        )
+      ),
+      images: imagesByMedicalId[medical.id] || [],
+    }));
+
+    // Group medicals by status
+    const groupedMedicals = {
+      pending: medicalsWithDetails.filter(m => m.status === 'pending'),
+      accepted: medicalsWithDetails.filter(m => m.status === 'accepted'),
+      history: medicalsWithDetails.filter(m => m.status === 'history')
+    };
+
+    SuccessResponse(res, { medicals: groupedMedicals }, 200);
+  } catch (error) {
+    console.error("Error fetching medical records:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
