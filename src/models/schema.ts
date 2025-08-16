@@ -319,6 +319,9 @@ export const Medicals = mysqlTable("medicals", {
   phoneNumber: varchar("phone_number", { length: 20 }), 
   describtion: text("describtion").notNull(),
   status: mysqlEnum("status", ["pending", "accepted", "history"]).default("pending"),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  documentUrl: varchar("document_url", { length: 512 }),
+  documentType: mysqlEnum("document_type", ["image", "file"]),
 });
 
 

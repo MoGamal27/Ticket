@@ -9,6 +9,8 @@ const router = (0, express_1.Router)();
 router
     .route("/medicalTour-all").get((0, catchAsync_1.catchAsync)(medical_1.getAllMedicals));
 router
+    .route("/accept-medical").post((0, catchAsync_1.catchAsync)(medical_1.acceptMedicalRequest));
+router
     .route("/")
     .get((0, catchAsync_1.catchAsync)(medical_1.getMedicalCategories))
     .post((0, validation_1.validate)(medical_2.createMedicalCategorySchema), (0, catchAsync_1.catchAsync)(medical_1.createMedicalCategory));

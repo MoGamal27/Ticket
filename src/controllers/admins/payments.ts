@@ -8,7 +8,9 @@ import {
   bookingExtras,
   extras,
   bookings,
-  users
+  users,
+  tours,
+  tourSchedules
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -135,18 +137,13 @@ export const getAutoPayments = async (req: Request, res: Response) => {
 };
 
 export const getAllPayments = async(req: Request, res: Response) => {
-
-  // get all payemnt with related bookingDetails & bookingextras
-  /*const [bookingsId] = await db
-    .select({ id: payments.bookingId })
-    .from(payments)
-    */
-    const rows = await db
+  const rows = await db
     .select({
       payment: payments,
       bookings: {
         id: bookings.id,
-        tourId: bookings.tourId,
+        tourId: tours.id,
+        tourScheduleId: bookings.tourId,
         userId: bookings.userId,
         status: bookings.status,
         discountNumber: bookings.discountNumber,
@@ -170,14 +167,24 @@ export const getAllPayments = async(req: Request, res: Response) => {
         proofImage: manualPaymentMethod.proofImage,
         manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
         uploadedAt: manualPaymentMethod.uploadedAt,
+      },
+      manualPaymentType: {
+        id: manualPaymentTypes.id,
+        name: manualPaymentTypes.name,
+      },
+      tour: {
+        id: tours.id
       }
     })
     .from(payments)
     .leftJoin(bookings, eq(bookings.id, payments.bookingId))
+    .leftJoin(tourSchedules, eq(tourSchedules.id, bookings.tourId))
+    .leftJoin(tours, eq(tours.id, tourSchedules.tourId))
     .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.bookingId))
     .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.bookingId))
     .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
-    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id));
+    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id))
+    .leftJoin(manualPaymentTypes, eq(manualPaymentTypes.id, manualPaymentMethod.manualPaymentTypeId)); // Added this join
 
   // Group by payment.id
   const grouped = Object.values(
@@ -187,10 +194,17 @@ export const getAllPayments = async(req: Request, res: Response) => {
       if (!acc[paymentId]) {
         acc[paymentId] = {
           payment: row.payment,
-          bookings: row.bookings,
+          bookings: {
+            ...row.bookings,
+            tourId: row.tour?.id || null,
+            tour: row.tour || null
+          },
           bookingDetails: row.bookingDetails,
           bookingExtras: [],
-          manualPayment: row.manualPayment || null, 
+          manualPayment: row.manualPayment ? {
+            ...row.manualPayment,
+            type: row.manualPaymentType // Include payment type info
+          } : null, 
         };
       }
 

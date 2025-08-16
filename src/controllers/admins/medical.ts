@@ -12,6 +12,7 @@ import { db } from "../../models/db";
 import { SuccessResponse } from "../../utils/response";
 import { eq, inArray } from "drizzle-orm";
 import { NotFound } from "../../Errors";
+import { saveFile } from "../../utils/saveFile";
 
 
 export const getMedicalCategories = async (req: Request, res: Response) => {
@@ -273,5 +274,50 @@ export const getAllMedicals = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching medical records:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+export const acceptMedicalRequest = async (req: Request, res: Response) => {
+  const { medicalId, price, fileData } = req.body; 
+
+  try {
+    // Validation
+    if (!medicalId || price === undefined) {
+      return res.status(400).json({ error: "Medical ID and price are required" });
+    }
+
+    let documentUrl = null;
+    let documentType = null;
+
+    // Handle file if provided
+    if (fileData) {
+      const { url, type } = await saveFile(fileData, medicalId, req);
+      documentUrl = url;
+       documentType = type === 'image' || type === 'file' ? type : null;
+    }
+
+    // Update medical record
+    const result = await db.update(Medicals)
+    .set({ 
+    status: 'accepted',
+    price,
+    documentUrl,
+    documentType,
+    acceptedAt: new Date()
+  })
+  .where(eq(Medicals.id, medicalId));
+
+// Retrieve the updated medical record
+const [medical] = await db.select().from(Medicals).where(eq(Medicals.id, medicalId));
+
+res.json({
+  success: true,
+  medical
+});
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

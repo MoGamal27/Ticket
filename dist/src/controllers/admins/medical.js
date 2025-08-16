@@ -9,12 +9,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllMedicals = exports.getMedicalById = exports.deleteMedicalCategory = exports.getMedicalCategoryById = exports.updateCategoryMedical = exports.createMedical = exports.createMedicalCategory = exports.getMedicalCategories = void 0;
+exports.acceptMedicalRequest = exports.getAllMedicals = exports.getMedicalById = exports.deleteMedicalCategory = exports.getMedicalCategoryById = exports.updateCategoryMedical = exports.createMedicalCategory = exports.getMedicalCategories = void 0;
 const schema_1 = require("../../models/schema");
 const db_1 = require("../../models/db");
 const response_1 = require("../../utils/response");
 const drizzle_orm_1 = require("drizzle-orm");
 const Errors_1 = require("../../Errors");
+const saveFile_1 = require("../../utils/saveFile");
 const getMedicalCategories = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = yield db_1.db.select().from(schema_1.categoryMedical);
     (0, response_1.SuccessResponse)(res, { categoriesMedical: data }, 200);
@@ -26,94 +27,6 @@ const createMedicalCategory = (req, res) => __awaiter(void 0, void 0, void 0, fu
     (0, response_1.SuccessResponse)(res, { message: "Category Medical Created Successfully" }, 201);
 });
 exports.createMedicalCategory = createMedicalCategory;
-const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const data = req.body;
-    // Validate required fields
-    if (!data.email) {
-        return res.status(400).json({ message: "Email is required" });
-    }
-    if (!data.categoryIds || !Array.isArray(data.categoryIds) || data.categoryIds.length === 0) {
-        return res.status(400).json({ message: "At least one category ID is required" });
-    }
-    if (!data.describtion) {
-        return res.status(400).json({ message: "Description is required" });
-    }
-    try {
-        // Find user by email
-        const [user] = yield db_1.db
-            .select()
-            .from(schema_1.users)
-            .where((0, drizzle_orm_1.eq)(schema_1.users.email, data.email));
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-        // Validate all categories exist
-        const categories = yield Promise.all(data.categoryIds.map((categoryId) => __awaiter(void 0, void 0, void 0, function* () {
-            const [category] = yield db_1.db
-                .select()
-                .from(schema_1.categoryMedical)
-                .where((0, drizzle_orm_1.eq)(schema_1.categoryMedical.id, categoryId));
-            if (!category) {
-                throw new Error(`Category with ID ${categoryId} not found`);
-            }
-            return category;
-        })));
-        // Create a single medical record
-        const [insertResult] = yield db_1.db.insert(schema_1.Medicals).values({
-            userId: user.id,
-            describtion: data.describtion,
-        });
-        const medicalId = insertResult.insertId;
-        if (!medicalId) {
-            throw new Error('Failed to create medical record');
-        }
-        // Create category associations
-        yield db_1.db.insert(schema_1.medicalCategories).values(data.categoryIds.map(categoryId => ({
-            medicalId: medicalId,
-            categoryId: categoryId,
-        })));
-        // Handle images if provided
-        if (data.images && data.images.length > 0) {
-            const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
-                const path = yield saveBase64Image(imagePath, uuid(), req, "medicalImages");
-                return {
-                    medicalId: medicalId,
-                    imagePath: path
-                };
-            })));
-            yield db_1.db.insert(schema_1.MedicalImages).values(imageRecords);
-        }
-        // Get the created medical record with its categories
-        const [medical] = yield db_1.db
-            .select({
-            id: schema_1.Medicals.id,
-            userId: schema_1.Medicals.userId,
-            describtion: schema_1.Medicals.describtion,
-            status: schema_1.Medicals.status,
-        })
-            .from(schema_1.Medicals)
-            .where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
-        // Get associated categories
-        const associatedCategories = yield db_1.db
-            .select({
-            categoryId: schema_1.medicalCategories.categoryId,
-        })
-            .from(schema_1.medicalCategories)
-            .where((0, drizzle_orm_1.eq)(schema_1.medicalCategories.medicalId, medicalId));
-        (0, response_1.SuccessResponse)(res, {
-            message: "Medical record created successfully",
-            medical: Object.assign(Object.assign({}, medical), { categories: associatedCategories })
-        }, 201);
-    }
-    catch (error) {
-        if (error.message.startsWith('Category with ID')) {
-            return res.status(404).json({ message: error.message });
-        }
-        console.error("Error creating medical record:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
-});
-exports.createMedical = createMedical;
 const updateCategoryMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const id = Number(req.params.id);
     const [categorymedical] = yield db_1.db
@@ -342,3 +255,41 @@ const getAllMedicals = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
 });
 exports.getAllMedicals = getAllMedicals;
+const acceptMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { medicalId, price, fileData } = req.body;
+    try {
+        // Validation
+        if (!medicalId || price === undefined) {
+            return res.status(400).json({ error: "Medical ID and price are required" });
+        }
+        let documentUrl = null;
+        let documentType = null;
+        // Handle file if provided
+        if (fileData) {
+            const { url, type } = yield (0, saveFile_1.saveFile)(fileData, medicalId, req);
+            documentUrl = url;
+            documentType = type === 'image' || type === 'file' ? type : null;
+        }
+        // Update medical record
+        const result = yield db_1.db.update(schema_1.Medicals)
+            .set({
+            status: 'accepted',
+            price,
+            documentUrl,
+            documentType,
+            acceptedAt: new Date()
+        })
+            .where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
+        // Retrieve the updated medical record
+        const [medical] = yield db_1.db.select().from(schema_1.Medicals).where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
+        res.json({
+            success: true,
+            medical
+        });
+    }
+    catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+exports.acceptMedicalRequest = acceptMedicalRequest;

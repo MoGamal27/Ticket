@@ -17,9 +17,7 @@ const response_1 = require("../../utils/response");
 const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const rows = yield db_1.db
         .select({
-        bookingId: schema_1.bookings.id,
-        bookingStatus: schema_1.bookings.status,
-        bookingCreatedAt: schema_1.bookings.createdAt,
+        booking: schema_1.bookings,
         // Tour data
         tourId: schema_1.tours.id,
         tourName: schema_1.tours.title,
@@ -63,15 +61,10 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     const grouped = rows.reduce((acc, row) => {
         let booking = acc.find((b) => b.id === row.bookingId);
         if (!booking) {
-            booking = {
-                id: row.bookingId,
-                status: row.bookingStatus,
-                createdAt: row.bookingCreatedAt,
-                user: {
+            booking = Object.assign(Object.assign({}, row.booking), { user: {
                     id: row.userId,
                     name: row.userName,
-                },
-                tour: {
+                }, tour: {
                     id: row.tourId,
                     name: row.tourName,
                     mainImage: row.tourMainImage,
@@ -89,10 +82,7 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                     country: row.tourCountry,
                     city: row.tourCity,
                     maxUsers: row.tourMaxUser,
-                },
-                bookingDetails: [],
-                bookingExtras: [],
-            };
+                }, bookingDetails: [], bookingExtras: [] });
             acc.push(booking);
         }
         if (row.bookingDetailsId) {

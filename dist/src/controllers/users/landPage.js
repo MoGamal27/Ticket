@@ -252,7 +252,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
     //
     totalAmount, 
     // Payment method as ID
-    paymentMethodId, proofImage, 
+    paymentMethodId, proofImage, // This is now expected as base64 string
     // Extras array
     extras, discount, location, address } = req.body;
     // Parse tourId to ensure it's a number
@@ -299,7 +299,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 location: location,
                 address: address,
             }).$returningId();
-            // Create booking details - only store total amount
+            // Create booking details
             yield trx.insert(schema_1.bookingDetails).values({
                 bookingId: newBooking.id,
                 fullName,
@@ -332,14 +332,22 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 createdAt: new Date()
             }).$returningId();
             // Handle proof image if provided
+            let savedImageUrl = null;
             if (proofImage && paymentMethodId) {
-                yield trx.insert(schema_1.manualPaymentMethod).values({
-                    paymentId: payment.id,
-                    proofImage: proofImage,
-                    manualPaymentTypeId: paymentMethodId, // Fawry, Visa, Vodafone Cash, InstaPay
-                    prooftext: null,
-                    uploadedAt: new Date()
-                });
+                try {
+                    savedImageUrl = yield (0, handleImages_1.saveBase64Image)(proofImage, userId.toString(), req, "payment-proofs");
+                    yield trx.insert(schema_1.manualPaymentMethod).values({
+                        paymentId: payment.id,
+                        proofImage: savedImageUrl, // Now storing the URL
+                        manualPaymentTypeId: paymentMethodId,
+                        prooftext: null,
+                        uploadedAt: new Date()
+                    });
+                }
+                catch (error) {
+                    console.error("Failed to save proof image:", error);
+                    throw new Error("Failed to save payment proof image");
+                }
             }
             // Return success response
             (0, response_1.SuccessResponse)(res, {
@@ -357,7 +365,8 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                     bookingId: newBooking.id,
                     method: "manual",
                     status: "pending",
-                    amount: totalAmount
+                    amount: totalAmount,
+                    proofImageUrl: savedImageUrl // Include the image URL in response
                 },
                 details: {
                     fullName,
@@ -378,7 +387,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
         console.error("Error creating booking:", error);
         return res.status(500).json({
             success: false,
-            message: "Failed to create booking"
+            message: error instanceof Error ? error.message : "Failed to create booking"
         });
     }
 });

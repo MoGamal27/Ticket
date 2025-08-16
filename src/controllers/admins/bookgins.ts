@@ -7,9 +7,7 @@ import { SuccessResponse } from "../../utils/response";
 export const getBookings = async (req: Request, res: Response) => {
   const rows = await db
     .select({
-      bookingId: bookings.id,
-      bookingStatus: bookings.status,
-      bookingCreatedAt: bookings.createdAt,
+      booking: bookings,
 
       // Tour data
       tourId: tours.id,
@@ -55,14 +53,12 @@ export const getBookings = async (req: Request, res: Response) => {
     .leftJoin(extras, eq(extras.id, bookingExtras.extraId));
 
   // Group bookings
-  const grouped = rows.reduce((acc, row) => {
+  const grouped = rows.reduce((acc, row: any) => {
     let booking = acc.find((b) => b.id === row.bookingId);
+
     if (!booking) {
       booking = {
-        id: row.bookingId,
-        status: row.bookingStatus,
-        createdAt: row.bookingCreatedAt,
-
+        ...row.booking,
         user: {
           id: row.userId,
           name: row.userName,

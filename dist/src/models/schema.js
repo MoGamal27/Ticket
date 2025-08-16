@@ -184,7 +184,7 @@ exports.bookings = (0, mysql_core_1.mysqlTable)("bookings", {
     tourId: (0, mysql_core_1.int)("tour_id").references(() => exports.tourSchedules.id),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "confirmed", "cancelled"]),
     //discount
-    discountNumber: (0, mysql_core_1.decimal)("discount_number", { precision: 5, scale: 2 }),
+    discountNumber: (0, mysql_core_1.decimal)("discount_number", { precision: 10, scale: 2 }),
     location: (0, mysql_core_1.varchar)("location", { length: 255 }),
     address: (0, mysql_core_1.varchar)("address", { length: 255 }),
     createdAt: (0, mysql_core_1.timestamp)("created_at").default((0, timeZone_1.getCurrentEgyptTime)()),
@@ -269,6 +269,9 @@ exports.Medicals = (0, mysql_core_1.mysqlTable)("medicals", {
     phoneNumber: (0, mysql_core_1.varchar)("phone_number", { length: 20 }),
     describtion: (0, mysql_core_1.text)("describtion").notNull(),
     status: (0, mysql_core_1.mysqlEnum)("status", ["pending", "accepted", "history"]).default("pending"),
+    price: (0, mysql_core_1.decimal)("price", { precision: 10, scale: 2 }),
+    documentUrl: (0, mysql_core_1.varchar)("document_url", { length: 512 }),
+    documentType: (0, mysql_core_1.mysqlEnum)("document_type", ["image", "file"]),
 });
 exports.medicalCategories = (0, mysql_core_1.mysqlTable)("medical_categories", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),

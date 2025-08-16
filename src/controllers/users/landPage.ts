@@ -315,7 +315,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     totalAmount,
     // Payment method as ID
     paymentMethodId,
-    proofImage,
+    proofImage, // This is now expected as base64 string
     // Extras array
     extras,
     discount,
@@ -323,9 +323,6 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     address
   } = req.body;
 
-
-
-  
   // Parse tourId to ensure it's a number
   const tourIdNum = parseInt(tourId, 10);
   if (isNaN(tourIdNum)) {
@@ -335,15 +332,12 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 
- 
-
   // check if tourId exist in tourSchedule
   const tourSchedule = await db
     .select()
     .from(tourSchedules)
     .where(eq(tourSchedules.tourId, tourIdNum))
     
-
   if (!tourSchedule) {
     return res.status(404).json({
       success: false,
@@ -368,22 +362,19 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     const userId = existingUser[0].id;
 
-
     // Start transaction
     await db.transaction(async (trx) => {
-   
- 
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
         tourId: tourIdNum,
         userId,
         status: "pending",
         discountNumber: discount,
-        location: location ,
-        address: address , 
+        location: location,
+        address: address, 
       }).$returningId();
 
-      // Create booking details - only store total amount
+      // Create booking details
       await trx.insert(bookingDetails).values({
         bookingId: newBooking.id,
         fullName,
@@ -420,14 +411,22 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
       }).$returningId();
 
       // Handle proof image if provided
+      let savedImageUrl = null;
       if (proofImage && paymentMethodId) {
-        await trx.insert(manualPaymentMethod).values({
-          paymentId: payment.id,
-          proofImage: proofImage,
-          manualPaymentTypeId: paymentMethodId, // Fawry, Visa, Vodafone Cash, InstaPay
-          prooftext: null, 
-          uploadedAt: new Date()
-        });
+        try {
+          savedImageUrl = await saveBase64Image(proofImage, userId.toString(), req, "payment-proofs");
+          
+          await trx.insert(manualPaymentMethod).values({
+            paymentId: payment.id,
+            proofImage: savedImageUrl, // Now storing the URL
+            manualPaymentTypeId: paymentMethodId,
+            prooftext: null, 
+            uploadedAt: new Date()
+          });
+        } catch (error) {
+          console.error("Failed to save proof image:", error);
+          throw new Error("Failed to save payment proof image");
+        }
       }
 
       // Return success response
@@ -437,16 +436,17 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
           tourId: tourIdNum,
           userId,
           status: "pending",
-          discountNumber: discount ,
-          location: location ,
-          address: address ,
+          discountNumber: discount,
+          location: location,
+          address: address,
         },
         payment: {
           id: payment.id,
           bookingId: newBooking.id,
           method: "manual",
           status: "pending",
-          amount: totalAmount
+          amount: totalAmount,
+          proofImageUrl: savedImageUrl // Include the image URL in response
         },
         details: {
           fullName,
@@ -466,7 +466,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     console.error("Error creating booking:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to create booking"
+      message: error instanceof Error ? error.message : "Failed to create booking"
     });
   }
 };
