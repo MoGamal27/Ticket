@@ -30,6 +30,7 @@ import {
   Medicals,
   categoryMedical,
   MedicalImages,
+  medicalCategories,
 } from "../../models/schema";
 import { desc, eq, inArray } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -132,7 +133,7 @@ export const getTourById = async (req: Request, res: Response) => {
       country: countries.name,
       city: cites.name,
       maxUsers: tours.maxUsers,
-      category: categories.id,
+      category: categories.name,
       tourScheduleId: tourSchedules.id,
       price: {
         adult: tourPrice.adult,
@@ -614,7 +615,7 @@ export const getBookingWithDetails = async (req: Request, res: Response) => {
 
 export const createMedical = async (req: Request, res: Response) => {
   const data = req.body;
-  
+
   // Validate required fields
   if (!data.email) {
     return res.status(400).json({ message: "Email is required" });
@@ -624,6 +625,12 @@ export const createMedical = async (req: Request, res: Response) => {
   }
   if (!data.describtion) {
     return res.status(400).json({ message: "Description is required" });
+  }
+  if (!data.fullName) {
+    return res.status(400).json({ message: "Full name is required" });
+  }
+  if (!data.phoneNumber) {
+    return res.status(400).json({ message: "Phone number is required" });
   }
 
   try {
@@ -651,52 +658,70 @@ export const createMedical = async (req: Request, res: Response) => {
       })
     );
 
-    // Create medical records for each category
-    const medicalRecords = await Promise.all(
-      data.categoryIds.map(async (categoryId: number) => {
-        // Insert medical record
-        const insertResult = await db.insert(Medicals).values({
-          userId: user.id,
-          categoryId: categoryId,
-          describtion: data.describtion,
-        });
+    // Create a single medical record with the new fields
+    const [insertResult] = await db.insert(Medicals).values({
+      userId: user.id,
+      fullName: data.fullName, 
+      phoneNumber: data.phoneNumber, 
+      describtion: data.describtion,
+    });
 
-        // Get the last inserted ID (MySQL-specific approach)
-        const [newMedical] = await db.select()
-          .from(Medicals)
-          .where(eq(Medicals.userId, user.id))
-          .orderBy(desc(Medicals.id))
-          .limit(1);
+    const medicalId = insertResult.insertId;
+    if (!medicalId) {
+      throw new Error('Failed to create medical record');
+    }
 
-        if (!newMedical?.id) {
-          throw new Error('Failed to create medical record');
-        }
-         console.log("New Medical Record ID:", newMedical.id);
-        // Handle images if provided
-        if (data.images && data.images.length > 0) {
-          // Process all images first
-          const imageRecords = await Promise.all(
-            data.images.map(async (imagePath: string) => {
-              const path = await saveBase64Image(imagePath, uuid(), req, "medicalImages");
-              return {
-                medicalId: newMedical.id, // Use the plain ID number here
-                imagePath: path
-              };
-            })
-          );
-          
-          // Then insert all at once
-          await db.insert(MedicalImages).values(imageRecords);
-        }
-
-        return { id: newMedical.id, categoryId };
-      })
+    // Create category associations
+    await db.insert(medicalCategories).values(
+      data.categoryIds.map(categoryId => ({
+        medicalId: medicalId,
+        categoryId: categoryId,
+      }))
     );
 
-    SuccessResponse(res, { 
-      message: "Medical records created successfully",
-      medicalRecords 
-    }, 200);
+    // Handle images if provided
+    if (data.images && data.images.length > 0) {
+      const imageRecords = await Promise.all(
+        data.images.map(async (imagePath: string) => {
+          const path = await saveBase64Image(imagePath, uuid(), req, "medicalImages");
+          return {
+            medicalId: medicalId,
+            imagePath: path
+          };
+        })
+      );
+      
+      await db.insert(MedicalImages).values(imageRecords);
+    }
+
+    // Get the created medical record with its categories
+    const [medical] = await db
+      .select({
+        id: Medicals.id,
+        userId: Medicals.userId,
+        fullName: Medicals.fullName, 
+        phoneNumber: Medicals.phoneNumber, 
+        describtion: Medicals.describtion,
+        status: Medicals.status,
+      })
+      .from(Medicals)
+      .where(eq(Medicals.id, medicalId));
+
+    // Get associated categories
+    const associatedCategories = await db
+      .select({
+        categoryId: medicalCategories.categoryId,
+      })
+      .from(medicalCategories)
+      .where(eq(medicalCategories.medicalId, medicalId));
+
+    SuccessResponse(res, {
+      message: "Medical record created successfully",
+      medical: {
+        ...medical,
+        categories: associatedCategories
+      }
+    }, 201);
   } catch (error: any) {
     if (error.message.startsWith('Category with ID')) {
       return res.status(404).json({ message: error.message });
@@ -705,6 +730,7 @@ export const createMedical = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 

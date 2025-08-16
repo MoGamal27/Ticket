@@ -110,7 +110,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         country: schema_1.countries.name,
         city: schema_1.cites.name,
         maxUsers: schema_1.tours.maxUsers,
-        category: schema_1.categories.id,
+        category: schema_1.categories.name,
         tourScheduleId: schema_1.tourSchedules.id,
         price: {
             adult: schema_1.tourPrice.adult,
@@ -528,6 +528,12 @@ const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     if (!data.describtion) {
         return res.status(400).json({ message: "Description is required" });
     }
+    if (!data.fullName) {
+        return res.status(400).json({ message: "Full name is required" });
+    }
+    if (!data.phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+    }
     try {
         // Find user by email
         const [user] = yield db_1.db
@@ -548,43 +554,56 @@ const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             }
             return category;
         })));
-        // Create medical records for each category
-        const medicalRecords = yield Promise.all(data.categoryIds.map((categoryId) => __awaiter(void 0, void 0, void 0, function* () {
-            // Insert medical record
-            const insertResult = yield db_1.db.insert(schema_1.Medicals).values({
-                userId: user.id,
-                categoryId: categoryId,
-                describtion: data.describtion,
-            });
-            // Get the last inserted ID (MySQL-specific approach)
-            const [newMedical] = yield db_1.db.select()
-                .from(schema_1.Medicals)
-                .where((0, drizzle_orm_1.eq)(schema_1.Medicals.userId, user.id))
-                .orderBy((0, drizzle_orm_1.desc)(schema_1.Medicals.id))
-                .limit(1);
-            if (!(newMedical === null || newMedical === void 0 ? void 0 : newMedical.id)) {
-                throw new Error('Failed to create medical record');
-            }
-            console.log("New Medical Record ID:", newMedical.id);
-            // Handle images if provided
-            if (data.images && data.images.length > 0) {
-                // Process all images first
-                const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
-                    const path = yield (0, handleImages_1.saveBase64Image)(imagePath, (0, uuid_1.v4)(), req, "medicalImages");
-                    return {
-                        medicalId: newMedical.id, // Use the plain ID number here
-                        imagePath: path
-                    };
-                })));
-                // Then insert all at once
-                yield db_1.db.insert(schema_1.MedicalImages).values(imageRecords);
-            }
-            return { id: newMedical.id, categoryId };
+        // Create a single medical record with the new fields
+        const [insertResult] = yield db_1.db.insert(schema_1.Medicals).values({
+            userId: user.id,
+            fullName: data.fullName,
+            phoneNumber: data.phoneNumber,
+            describtion: data.describtion,
+        });
+        const medicalId = insertResult.insertId;
+        if (!medicalId) {
+            throw new Error('Failed to create medical record');
+        }
+        // Create category associations
+        yield db_1.db.insert(schema_1.medicalCategories).values(data.categoryIds.map(categoryId => ({
+            medicalId: medicalId,
+            categoryId: categoryId,
         })));
+        // Handle images if provided
+        if (data.images && data.images.length > 0) {
+            const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
+                const path = yield (0, handleImages_1.saveBase64Image)(imagePath, (0, uuid_1.v4)(), req, "medicalImages");
+                return {
+                    medicalId: medicalId,
+                    imagePath: path
+                };
+            })));
+            yield db_1.db.insert(schema_1.MedicalImages).values(imageRecords);
+        }
+        // Get the created medical record with its categories
+        const [medical] = yield db_1.db
+            .select({
+            id: schema_1.Medicals.id,
+            userId: schema_1.Medicals.userId,
+            fullName: schema_1.Medicals.fullName,
+            phoneNumber: schema_1.Medicals.phoneNumber,
+            describtion: schema_1.Medicals.describtion,
+            status: schema_1.Medicals.status,
+        })
+            .from(schema_1.Medicals)
+            .where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
+        // Get associated categories
+        const associatedCategories = yield db_1.db
+            .select({
+            categoryId: schema_1.medicalCategories.categoryId,
+        })
+            .from(schema_1.medicalCategories)
+            .where((0, drizzle_orm_1.eq)(schema_1.medicalCategories.medicalId, medicalId));
         (0, response_1.SuccessResponse)(res, {
-            message: "Medical records created successfully",
-            medicalRecords
-        }, 200);
+            message: "Medical record created successfully",
+            medical: Object.assign(Object.assign({}, medical), { categories: associatedCategories })
+        }, 201);
     }
     catch (error) {
         if (error.message.startsWith('Category with ID')) {
