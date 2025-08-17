@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
+exports.getAcceptMedicalRequests = exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -628,3 +628,26 @@ const getMedicalCategories = (req, res) => __awaiter(void 0, void 0, void 0, fun
     (0, response_1.SuccessResponse)(res, { categoriesMedical: data }, 200);
 });
 exports.getMedicalCategories = getMedicalCategories;
+const getAcceptMedicalRequests = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!req.user || !req.user.id) {
+        throw new Errors_1.UnauthorizedError("User not authenticated");
+    }
+    const userId = Number(req.user.id);
+    const data = yield db_1.db
+        .select({
+        id: schema_1.Medicals.id,
+        userId: schema_1.Medicals.userId,
+        fullName: schema_1.Medicals.fullName,
+        phoneNumber: schema_1.Medicals.phoneNumber,
+        title: schema_1.categoryMedical.title,
+        describtion: schema_1.Medicals.describtion,
+        price: schema_1.Medicals.price,
+        status: schema_1.Medicals.status,
+    })
+        .from(schema_1.Medicals)
+        .leftJoin(schema_1.medicalCategories, (0, drizzle_orm_1.eq)(schema_1.medicalCategories.medicalId, schema_1.Medicals.id))
+        .leftJoin(schema_1.categoryMedical, (0, drizzle_orm_1.eq)(schema_1.categoryMedical.id, schema_1.medicalCategories.categoryId))
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.Medicals.status, "accepted"), (0, drizzle_orm_1.eq)(schema_1.Medicals.userId, userId)));
+    (0, response_1.SuccessResponse)(res, { medicalRequests: data }, 200);
+});
+exports.getAcceptMedicalRequests = getAcceptMedicalRequests;

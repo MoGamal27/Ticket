@@ -7,9 +7,13 @@ import {
   getActivePaymentMethods,
   createBookingWithPayment,
   createMedical,
-  getMedicalCategories
+  getMedicalCategories,
+  getAcceptMedicalRequests,
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
+import { AuthenticatedRequest } from "../../types/custom";
+
+import { authenticated } from "../../middlewares/authenticated";
 
 import { validate } from "../../middlewares/validation";
 import { createBookingWithPaymentSchema, medicalRecordSchema } from "..//..//validators/users/landPage";
@@ -23,6 +27,11 @@ router.post("/create-medical", /*validate(createMedicalSchema),*/ catchAsync(cre
 router.get("/medicals-categories", catchAsync(getMedicalCategories));
 
 router.get("/active", catchAsync(getActivePaymentMethods));
+
+router.get("/accept-medical-requests", authenticated, catchAsync((req, res) => {
+  return getAcceptMedicalRequests(req as AuthenticatedRequest, res);
+}));
+
 
 router.get("/images", catchAsync(getImages));
 router.get("/featured-tours", catchAsync(getFeaturedTours));

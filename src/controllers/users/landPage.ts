@@ -30,13 +30,18 @@ import {
   Medicals,
   categoryMedical,
   MedicalImages,
-  medicalCategories,
+  medicalCategories
+  
 } from "../../models/schema";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
-import { NotFound } from "../../Errors";
+import { NotFound, UnauthorizedError } from "../../Errors";
 import { saveBase64Image } from "../../utils/handleImages";
 import { v4 as uuid } from "uuid";
+import { AuthenticatedRequest } from "../../types/custom";
+import { title } from "process";
+import { privateDecrypt } from "crypto";
+import { sendEmail } from "../../utils/sendEmails";
 
 
 // format start date to YYYY-MM-DD
@@ -739,3 +744,33 @@ export const getMedicalCategories = async (req: Request, res: Response) => {
     const data = await db.select().from(categoryMedical);
     SuccessResponse(res, { categoriesMedical: data }, 200);
     }
+
+
+export const getAcceptMedicalRequests = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+
+  const data = await db
+    .select({
+      id: Medicals.id,
+      userId: Medicals.userId,
+      fullName: Medicals.fullName,
+      phoneNumber: Medicals.phoneNumber,
+      title: categoryMedical.title,
+      describtion: Medicals.describtion,
+      price: Medicals.price,
+      status: Medicals.status,
+    })
+    .from(Medicals)
+    .leftJoin(medicalCategories, eq(medicalCategories.medicalId, Medicals.id))
+    .leftJoin(categoryMedical, eq(categoryMedical.id, medicalCategories.categoryId))
+    .where(and(
+      eq(Medicals.status, "accepted"),
+      eq(Medicals.userId, userId)
+    ));
+
+  SuccessResponse(res, { medicalRequests: data }, 200);
+}
