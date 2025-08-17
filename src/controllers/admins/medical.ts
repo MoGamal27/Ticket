@@ -14,6 +14,8 @@ import { eq, inArray } from "drizzle-orm";
 import { NotFound } from "../../Errors";
 import { saveFile } from "../../utils/saveFile";
 
+import { sendEmail } from "../../utils/sendEmails";
+
 
 export const getMedicalCategories = async (req: Request, res: Response) => {
     const data = await db.select().from(categoryMedical);
@@ -311,6 +313,34 @@ export const acceptMedicalRequest = async (req: Request, res: Response) => {
 
 // Retrieve the updated medical record
 const [medical] = await db.select().from(Medicals).where(eq(Medicals.id, medicalId));
+
+// Get user email by joining with users table
+    const [user] = await db.select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, medical.userId));
+
+    // Send email notification if user exists and has email
+    if (user?.email) {
+      try {
+        const emailSubject = `Your Medical Request Has Been Accepted`;
+        const emailText = `
+          Dear ${medical.fullName || 'User'},
+          
+          Your medical request has been accepted.
+          
+          Details:
+          - Status: Accepted
+          - Price: ${price}
+          ${documentUrl ? `- Document: ${documentUrl}` : ''}
+          
+          Thank you for using our service.
+        `;
+        
+        await sendEmail(user.email, emailSubject, emailText);
+      } catch (emailError) {
+        console.error("Error sending email:", emailError);
+      }
+    }
 
 res.json({
   success: true,

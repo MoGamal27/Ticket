@@ -16,6 +16,7 @@ const response_1 = require("../../utils/response");
 const drizzle_orm_1 = require("drizzle-orm");
 const Errors_1 = require("../../Errors");
 const saveFile_1 = require("../../utils/saveFile");
+const sendEmails_1 = require("../../utils/sendEmails");
 const getMedicalCategories = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = yield db_1.db.select().from(schema_1.categoryMedical);
     (0, response_1.SuccessResponse)(res, { categoriesMedical: data }, 200);
@@ -282,6 +283,32 @@ const acceptMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, fun
             .where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
         // Retrieve the updated medical record
         const [medical] = yield db_1.db.select().from(schema_1.Medicals).where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
+        // Get user email by joining with users table
+        const [user] = yield db_1.db.select({ email: schema_1.users.email })
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, medical.userId));
+        // Send email notification if user exists and has email
+        if (user === null || user === void 0 ? void 0 : user.email) {
+            try {
+                const emailSubject = `Your Medical Request Has Been Accepted`;
+                const emailText = `
+          Dear ${medical.fullName || 'User'},
+          
+          Your medical request has been accepted.
+          
+          Details:
+          - Status: Accepted
+          - Price: ${price}
+          ${documentUrl ? `- Document: ${documentUrl}` : ''}
+          
+          Thank you for using our service.
+        `;
+                yield (0, sendEmails_1.sendEmail)(user.email, emailSubject, emailText);
+            }
+            catch (emailError) {
+                console.error("Error sending email:", emailError);
+            }
+        }
         res.json({
             success: true,
             medical
