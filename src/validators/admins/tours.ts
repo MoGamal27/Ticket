@@ -130,7 +130,7 @@ export const updateTourSchema = z.object({
     includes: z.array(z.string().min(1)).optional(),
     excludes: z.array(z.string().min(1)).optional(),
 
-    itinerary: z
+    /*itinerary: z
       .array(
         z.object({
           title: z.string(),
@@ -139,7 +139,7 @@ export const updateTourSchema = z.object({
         })
       )
       .optional(),
-
+      */ 
     faq: z
       .array(
         z.object({

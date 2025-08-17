@@ -449,20 +449,87 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 .values(data.excludes.map((content) => ({ content, tourId })));
         }
     }
+    /* if (data.itinerary !== undefined) {
+       await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
+       if (data.itinerary.length > 0) {
+         // First process all async operations in parallel
+         const itineraryItems = await Promise.all(
+           data.itinerary.map(async (item: any) => ({
+             title: item.title,
+             imagePath: await saveBase64Image(
+               item.imagePath,
+               uuid(),
+               req,
+               "itineraryImages"
+             ),
+             describtion: item.description, // Keep as 'describtion' to match DB schema
+             tourId,
+           }))
+         );
+         
+         // Then insert all processed items
+         await db.insert(tourItinerary).values(itineraryItems);
+       }
+     }*/
     if (data.itinerary !== undefined) {
-        yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId));
-        if (data.itinerary.length > 0) {
-            // First process all async operations in parallel
-            const itineraryItems = yield Promise.all(data.itinerary.map((item) => __awaiter(void 0, void 0, void 0, function* () {
+        const { added = [], deleted = [], updated = [] } = data.itinerary;
+        // Handle deletions first
+        if (deleted.length > 0) {
+            // Get existing itinerary items to delete their images
+            const itemsToDelete = yield db_1.db
+                .select()
+                .from(schema_1.tourItinerary)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourItinerary.id, deleted)));
+            // Delete physical image files
+            for (const item of itemsToDelete) {
+                if (item.imagePath) {
+                    try {
+                        yield (0, deleteImage_1.deletePhotoFromServer)(new URL(item.imagePath).pathname);
+                    }
+                    catch (error) {
+                        console.error(`Failed to delete image: ${item.imagePath}`, error);
+                    }
+                }
+            }
+            // Delete from database
+            yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourItinerary.id, deleted)));
+        }
+        // Handle updates to existing items
+        if (updated.length > 0) {
+            yield Promise.all(updated.map((item) => __awaiter(void 0, void 0, void 0, function* () {
+                const updateData = {
+                    title: item.title,
+                    describtion: item.description
+                };
+                // Only update image if a new one is provided
+                if (item.imagePath) {
+                    // Delete old image if it exists
+                    const [existingItem] = yield db_1.db.select()
+                        .from(schema_1.tourItinerary)
+                        .where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.id, item.id));
+                    if (existingItem === null || existingItem === void 0 ? void 0 : existingItem.imagePath) {
+                        yield (0, deleteImage_1.deletePhotoFromServer)(new URL(existingItem.imagePath).pathname);
+                    }
+                    updateData.imagePath = yield (0, handleImages_1.saveBase64Image)(item.imagePath, (0, uuid_1.v4)(), req, "itineraryImages");
+                }
+                yield db_1.db.update(schema_1.tourItinerary)
+                    .set(updateData)
+                    .where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.id, item.id));
+            })));
+        }
+        // Handle additions of new items
+        if (added.length > 0) {
+            const newItems = yield Promise.all(added.map((item) => __awaiter(void 0, void 0, void 0, function* () {
                 return ({
                     title: item.title,
-                    imagePath: yield (0, handleImages_1.saveBase64Image)(item.imagePath, (0, uuid_1.v4)(), req, "itineraryImages"),
-                    describtion: item.description, // Keep as 'describtion' to match DB schema
+                    describtion: item.description,
+                    imagePath: item.imagePath ?
+                        yield (0, handleImages_1.saveBase64Image)(item.imagePath, (0, uuid_1.v4)(), req, "itineraryImages") :
+                        null,
                     tourId,
                 });
             })));
-            // Then insert all processed items
-            yield db_1.db.insert(schema_1.tourItinerary).values(itineraryItems);
+            yield db_1.db.insert(schema_1.tourItinerary).values(newItems);
         }
     }
     if (data.faq !== undefined) {

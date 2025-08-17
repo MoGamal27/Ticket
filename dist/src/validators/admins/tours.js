@@ -105,13 +105,16 @@ exports.updateTourSchema = zod_1.z.object({
         highlights: zod_1.z.array(zod_1.z.string().min(1)).optional(),
         includes: zod_1.z.array(zod_1.z.string().min(1)).optional(),
         excludes: zod_1.z.array(zod_1.z.string().min(1)).optional(),
-        itinerary: zod_1.z
-            .array(zod_1.z.object({
-            title: zod_1.z.string(),
-            imagePath: zod_1.z.string().optional(),
-            description: zod_1.z.string().optional(),
-        }))
-            .optional(),
+        /*itinerary: z
+          .array(
+            z.object({
+              title: z.string(),
+              imagePath: z.string().optional(),
+              description: z.string().optional(),
+            })
+          )
+          .optional(),
+          */
         faq: zod_1.z
             .array(zod_1.z.object({
             question: zod_1.z.string(),

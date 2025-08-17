@@ -526,7 +526,7 @@ export const updateTour = async (req: Request, res: Response) => {
     }
   }
 
-  if (data.itinerary !== undefined) {
+ /* if (data.itinerary !== undefined) {
     await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
     if (data.itinerary.length > 0) {
       // First process all async operations in parallel
@@ -547,7 +547,90 @@ export const updateTour = async (req: Request, res: Response) => {
       // Then insert all processed items
       await db.insert(tourItinerary).values(itineraryItems);
     }
+  }*/
+
+          if (data.itinerary !== undefined) {
+  const { added = [], deleted = [], updated = [] } = data.itinerary;
+  
+  // Handle deletions first
+  if (deleted.length > 0) {
+    // Get existing itinerary items to delete their images
+    const itemsToDelete = await db
+      .select()
+      .from(tourItinerary)
+      .where(and(
+        eq(tourItinerary.tourId, tourId),
+        inArray(tourItinerary.id, deleted)
+      ));
+
+    // Delete physical image files
+    for (const item of itemsToDelete) {
+      if (item.imagePath) {
+        try {
+          await deletePhotoFromServer(new URL(item.imagePath).pathname);
+        } catch (error) {
+          console.error(`Failed to delete image: ${item.imagePath}`, error);
+        }
+      }
+    }
+
+    // Delete from database
+    await db.delete(tourItinerary).where(
+      and(
+        eq(tourItinerary.tourId, tourId),
+        inArray(tourItinerary.id, deleted)
+    ));
   }
+
+  // Handle updates to existing items
+  if (updated.length > 0) {
+    await Promise.all(updated.map(async (item: any) => {
+      const updateData: any = {
+        title: item.title,
+        describtion: item.description
+      };
+      
+      // Only update image if a new one is provided
+      if (item.imagePath) {
+        // Delete old image if it exists
+        const [existingItem] = await db.select()
+          .from(tourItinerary)
+          .where(eq(tourItinerary.id, item.id));
+        
+        if (existingItem?.imagePath) {
+          await deletePhotoFromServer(new URL(existingItem.imagePath).pathname);
+        }
+        
+        updateData.imagePath = await saveBase64Image(
+          item.imagePath, 
+          uuid(), 
+          req, 
+          "itineraryImages"
+        );
+      }
+      
+      await db.update(tourItinerary)
+        .set(updateData)
+        .where(eq(tourItinerary.id, item.id));
+    }));
+  }
+
+  // Handle additions of new items
+  if (added.length > 0) {
+    const newItems = await Promise.all(
+      added.map(async (item: any) => ({
+        title: item.title,
+        describtion: item.description,
+        imagePath: item.imagePath ? 
+          await saveBase64Image(item.imagePath, uuid(), req, "itineraryImages") : 
+          null,
+        tourId,
+      }))
+    );
+    
+    await db.insert(tourItinerary).values(newItems);
+  }
+}
 
   if (data.faq !== undefined) {
     await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
