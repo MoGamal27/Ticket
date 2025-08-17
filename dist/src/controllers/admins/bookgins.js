@@ -88,20 +88,28 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                     country: row.tourCountry,
                     city: row.tourCity,
                     maxUsers: row.tourMaxUser,
-                }, bookingDetails: [], bookingExtras: [] });
+                }, bookingDetails: {
+                    id: row.bookingDetailsId,
+                    notes: row.bookingDetailsNotes,
+                    adultsCount: row.bookingDetailsAdults,
+                    childrenCount: row.bookingDetailsChildren,
+                    UserFullName: row.UserFullName,
+                    UserEmail: row.UserEmail,
+                    UserPhone: row.UserPhone,
+                }, bookingExtras: [] });
             acc.push(booking);
         }
-        if (row.bookingDetailsId) {
-            booking.bookingDetails.push({
-                id: row.bookingDetailsId,
-                notes: row.bookingDetailsNotes,
-                adultsCount: row.bookingDetailsAdults,
-                childrenCount: row.bookingDetailsChildren,
-                UserFullName: row.UserFullName,
-                UserEmail: row.UserEmail,
-                UserPhone: row.UserPhone,
-            });
-        }
+        /*if (row.bookingDetailsId) {
+          booking.bookingDetails.push({
+            id: row.bookingDetailsId,
+            notes: row.bookingDetailsNotes,
+            adultsCount: row.bookingDetailsAdults,
+            childrenCount: row.bookingDetailsChildren,
+            UserFullName: row.UserFullName,
+            UserEmail: row.UserEmail,
+            UserPhone: row.UserPhone,
+          });
+        }*/
         if (row.bookingExtrasId) {
             booking.bookingExtras.push({
                 id: row.bookingExtrasId,

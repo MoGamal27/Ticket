@@ -92,13 +92,21 @@ export const getBookings = async (req: Request, res: Response) => {
           maxUsers: row.tourMaxUser,
         },
 
-        bookingDetails: [],
+        bookingDetails: {
+        id: row.bookingDetailsId,
+        notes: row.bookingDetailsNotes,
+        adultsCount: row.bookingDetailsAdults,
+        childrenCount: row.bookingDetailsChildren,
+        UserFullName: row.UserFullName,
+        UserEmail: row.UserEmail,
+        UserPhone: row.UserPhone,
+      },
         bookingExtras: [],
       };
       acc.push(booking);
     }
 
-    if (row.bookingDetailsId) {
+    /*if (row.bookingDetailsId) {
       booking.bookingDetails.push({
         id: row.bookingDetailsId,
         notes: row.bookingDetailsNotes,
@@ -108,7 +116,7 @@ export const getBookings = async (req: Request, res: Response) => {
         UserEmail: row.UserEmail,
         UserPhone: row.UserPhone,
       });
-    }
+    }*/
 
     if (row.bookingExtrasId) {
       booking.bookingExtras.push({
