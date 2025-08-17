@@ -28,7 +28,7 @@ router
 
 router
   .route("/:id")
-  .get(validate(idParams), catchAsync(getMedicalCategoryById))
+  .get(catchAsync(getMedicalCategoryById))
   .put(validate(updateMedicalCategorySchema),catchAsync(updateCategoryMedical))
   .delete(validate(idParams), catchAsync(deleteMedicalCategory));
 
