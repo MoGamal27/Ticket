@@ -9,11 +9,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createBooking = exports.getBookingsStats = exports.getBookings = void 0;
+exports.createBooking = exports.getBookingsStats = exports.getBookings = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const drizzle_orm_1 = require("drizzle-orm");
 const schema_1 = require("../../models/schema");
 const response_1 = require("../../utils/response");
+const formatDate = (date) => {
+    return date.toISOString().split('T')[0];
+};
+exports.formatDate = formatDate;
 const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const rows = yield db_1.db
         .select({
@@ -38,12 +42,14 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         tourMaxUser: schema_1.tours.maxUsers,
         // User data
         userId: schema_1.users.id,
-        userName: schema_1.users.name,
         // BookingDetails
         bookingDetailsId: schema_1.bookingDetails.id,
         bookingDetailsNotes: schema_1.bookingDetails.notes,
         bookingDetailsAdults: schema_1.bookingDetails.adultsCount,
         bookingDetailsChildren: schema_1.bookingDetails.childrenCount,
+        UserFullName: schema_1.bookingDetails.fullName,
+        UserEmail: schema_1.bookingDetails.email,
+        UserPhone: schema_1.bookingDetails.phone,
         // BookingExtras
         bookingExtrasId: schema_1.bookingExtras.id,
         bookingExtrasAdultCount: schema_1.bookingExtras.adultCount,
@@ -75,8 +81,8 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                     meetingPointAddress: row.tourMeetingPointAddress,
                     meetingPointLocation: row.tourMeetingPointLocation,
                     points: row.tourPoints,
-                    startDate: row.tourStartDate,
-                    endDate: row.tourEndDate,
+                    startDate: (0, exports.formatDate)(row.tourStartDate),
+                    endDate: (0, exports.formatDate)(row.tourEndDate),
                     durationDays: row.tourDurationDays,
                     hours: row.tourHours,
                     country: row.tourCountry,
@@ -91,6 +97,9 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 notes: row.bookingDetailsNotes,
                 adultsCount: row.bookingDetailsAdults,
                 childrenCount: row.bookingDetailsChildren,
+                UserFullName: row.UserFullName,
+                UserEmail: row.UserEmail,
+                UserPhone: row.UserPhone,
             });
         }
         if (row.bookingExtrasId) {

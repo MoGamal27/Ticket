@@ -4,6 +4,11 @@ import { sql, eq, and, lt } from "drizzle-orm";
 import { bookings, tours, tourSchedules, users,extras,bookingDetails,bookingExtras } from "../../models/schema";
 import { SuccessResponse } from "../../utils/response";
 
+
+export const formatDate = (date: Date) => {
+  return date.toISOString().split('T')[0]; 
+};
+
 export const getBookings = async (req: Request, res: Response) => {
   const rows = await db
     .select({
@@ -30,13 +35,16 @@ export const getBookings = async (req: Request, res: Response) => {
 
       // User data
       userId: users.id,
-      userName: users.name,
 
       // BookingDetails
       bookingDetailsId: bookingDetails.id,
       bookingDetailsNotes: bookingDetails.notes,
       bookingDetailsAdults: bookingDetails.adultsCount,
       bookingDetailsChildren: bookingDetails.childrenCount,
+      UserFullName: bookingDetails.fullName,
+      UserEmail: bookingDetails.email,
+      UserPhone: bookingDetails.phone,
+     
 
       // BookingExtras
       bookingExtrasId: bookingExtras.id,
@@ -75,8 +83,8 @@ export const getBookings = async (req: Request, res: Response) => {
           meetingPointAddress: row.tourMeetingPointAddress,
           meetingPointLocation: row.tourMeetingPointLocation,
           points: row.tourPoints,
-          startDate: row.tourStartDate,
-          endDate: row.tourEndDate,
+          startDate: formatDate(row.tourStartDate),
+          endDate: formatDate(row.tourEndDate),
           durationDays: row.tourDurationDays,
           hours: row.tourHours,
           country: row.tourCountry,
@@ -96,6 +104,9 @@ export const getBookings = async (req: Request, res: Response) => {
         notes: row.bookingDetailsNotes,
         adultsCount: row.bookingDetailsAdults,
         childrenCount: row.bookingDetailsChildren,
+        UserFullName: row.UserFullName,
+        UserEmail: row.UserEmail,
+        UserPhone: row.UserPhone,
       });
     }
 
