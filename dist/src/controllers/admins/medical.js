@@ -321,7 +321,7 @@ const acceptMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, fun
     }
     catch (error) {
         console.error("Error:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: "Internal server error: " + error.message });
     }
 });
 exports.acceptMedicalRequest = acceptMedicalRequest;

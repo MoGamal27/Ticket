@@ -354,11 +354,12 @@ res.json({
   success: true,
   medical
 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error: " + error.message });
   }
 };
+  
 
 export const rejectMedicalRequest = async (req: Request, res: Response) => {
   const { medicalId, reason } = req.body;
