@@ -21,7 +21,7 @@ router
   .route("/medicalTour-all").get(catchAsync(getAllMedicals));
 
   router
-  .route("/accept-medical").post(upload.single('file'),catchAsync(acceptMedicalRequest));
+  .route("/accept-medical").post(upload.single('fileData'),catchAsync(acceptMedicalRequest));
 
   router.route("/reject-medical").post(catchAsync(rejectMedicalRequest));
 

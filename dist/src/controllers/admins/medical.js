@@ -257,8 +257,9 @@ const getAllMedicals = (req, res) => __awaiter(void 0, void 0, void 0, function*
 });
 exports.getAllMedicals = getAllMedicals;
 const acceptMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { medicalId, price } = req.body;
     const fileData = req.file;
+    const { medicalId, price } = req.body;
+    //const fileData = req.file as Express.Multer.File;
     try {
         // Validation
         if (!medicalId || price === undefined) {
@@ -271,6 +272,9 @@ const acceptMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, fun
             const { url, type } = yield (0, saveFile_1.saveFile)(fileData, medicalId, req);
             documentUrl = url;
             documentType = type === 'image' || type === 'file' ? type : null;
+        }
+        else {
+            return res.status(400).json({ error: "File is required" });
         }
         // Update medical record
         const result = yield db_1.db.update(schema_1.Medicals)

@@ -287,8 +287,9 @@ export const getAllMedicals = async (req: Request, res: Response) => {
 
 
 export const acceptMedicalRequest = async (req: Request, res: Response) => {
+   const fileData = req.file as Express.Multer.File;
   const { medicalId, price } = req.body; 
-  const fileData = req.file as Express.Multer.File;
+  //const fileData = req.file as Express.Multer.File;
   try {
     // Validation
     if (!medicalId || price === undefined) {
@@ -303,6 +304,8 @@ export const acceptMedicalRequest = async (req: Request, res: Response) => {
       const { url, type } = await saveFile(fileData, medicalId, req);
       documentUrl = url;
        documentType = type === 'image' || type === 'file' ? type : null;
+    } else {
+      return res.status(400).json({ error: "File is required" });
     }
 
     // Update medical record

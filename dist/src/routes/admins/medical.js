@@ -10,7 +10,7 @@ const router = (0, express_1.Router)();
 router
     .route("/medicalTour-all").get((0, catchAsync_1.catchAsync)(medical_1.getAllMedicals));
 router
-    .route("/accept-medical").post(saveFile_1.upload.single('file'), (0, catchAsync_1.catchAsync)(medical_1.acceptMedicalRequest));
+    .route("/accept-medical").post(saveFile_1.upload.single('fileData'), (0, catchAsync_1.catchAsync)(medical_1.acceptMedicalRequest));
 router.route("/reject-medical").post((0, catchAsync_1.catchAsync)(medical_1.rejectMedicalRequest));
 router
     .route("/")
