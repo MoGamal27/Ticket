@@ -9,6 +9,33 @@ export const formatDate = (date: Date) => {
   return date.toISOString().split('T')[0]; 
 };
 
+export const formatDateMyPhp = (dateString: string) => {
+  if (!dateString) return ''; // Handle empty/null cases
+  
+  // Parse the PHPMyAdmin datetime string (format: "YYYY-MM-DD HH:MM:SS")
+  const [datePart, timePart] = dateString.split(' ');
+  const [year, month, day] = datePart.split('-').map(Number);
+  
+  // Create a Date object (time part is optional if you only want date)
+  const dateObj = new Date(year, month - 1, day);
+  
+  // Format as desired (here are some options)
+  
+  // Option 1: ISO format (YYYY-MM-DD)
+  // return dateObj.toISOString().split('T')[0];
+  
+  // Option 2: Locale-specific format
+  // return dateObj.toLocaleDateString(); // System locale
+  // return dateObj.toLocaleDateString('en-US'); // US format (MM/DD/YYYY)
+  // return dateObj.toLocaleDateString('en-GB'); // UK format (DD/MM/YYYY)
+  
+  // Option 3: Custom formatted string (DD-MM-YYYY)
+  return `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
+  
+  // Option 4: Keep just the date part as is (YYYY-MM-DD)
+  // return datePart;
+};
+
 export const getBookings = async (req: Request, res: Response) => {
   const rows = await db
     .select({
@@ -131,17 +158,31 @@ export const getBookings = async (req: Request, res: Response) => {
   }, [] as any[]);
 
   // Split into upcoming / current / history
-  const now = new Date();
+// Fix the date comparison logic
+const now = new Date(); 
+//console.log(formatDate(now)); 
+
+grouped.forEach((b) => {
+  // Convert database dates to proper Date objects
+  b.tour.startDate = new Date(b.tour.startDate);
+  b.tour.endDate = new Date(b.tour.endDate);
+
+  b.tour.startDate = formatDate(b.tour.startDateObj);
+  b.tour.endDate = formatDate(b.tour.endDateObj);
+});
+
+// Now compare Date objects properly
+const upcoming = grouped.filter((b) => b.tour.startDate > now);
+const current = grouped.filter((b) => 
+  b.tour.startDate <= now && b.tour.endDate >= now
+);
+const history = grouped.filter((b) => b.tour.endDate < now);
+  
+/*const now = new Date()
   grouped.forEach((b) => {
     b.tour.startDate = formatDate(new Date(b.tour.startDate));
     b.tour.endDate = formatDate(new Date(b.tour.endDate));
-  });
-  
-  const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now);
-  const current = grouped.filter(
-    (b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now
-  );
-  const history = grouped.filter((b) => new Date(b.tour.endDate) < now);
+  });*/
 
   SuccessResponse(
     res,
