@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.acceptMedicalRequest = exports.getAllMedicals = exports.getMedicalById = exports.deleteMedicalCategory = exports.getMedicalCategoryById = exports.updateCategoryMedical = exports.createMedicalCategory = exports.getMedicalCategories = void 0;
+exports.rejectMedicalRequest = exports.acceptMedicalRequest = exports.getAllMedicals = exports.getMedicalById = exports.deleteMedicalCategory = exports.getMedicalCategoryById = exports.updateCategoryMedical = exports.createMedicalCategory = exports.getMedicalCategories = void 0;
 const schema_1 = require("../../models/schema");
 const db_1 = require("../../models/db");
 const response_1 = require("../../utils/response");
@@ -246,7 +246,7 @@ const getAllMedicals = (req, res) => __awaiter(void 0, void 0, void 0, function*
         const groupedMedicals = {
             pending: medicalsWithDetails.filter(m => m.status === 'pending'),
             accepted: medicalsWithDetails.filter(m => m.status === 'accepted'),
-            history: medicalsWithDetails.filter(m => m.status === 'history')
+            history: medicalsWithDetails.filter(m => m.status === 'rejected'),
         };
         (0, response_1.SuccessResponse)(res, { medicals: groupedMedicals }, 200);
     }
@@ -257,7 +257,8 @@ const getAllMedicals = (req, res) => __awaiter(void 0, void 0, void 0, function*
 });
 exports.getAllMedicals = getAllMedicals;
 const acceptMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { medicalId, price, fileData } = req.body;
+    const { medicalId, price } = req.body;
+    const fileData = req.file;
     try {
         // Validation
         if (!medicalId || price === undefined) {
@@ -320,3 +321,47 @@ const acceptMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 exports.acceptMedicalRequest = acceptMedicalRequest;
+const rejectMedicalRequest = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { medicalId, reason } = req.body;
+    try {
+        // Validation
+        if (!medicalId) {
+            return res.status(400).json({ error: "Medical ID is required" });
+        }
+        // Update medical record to rejected status
+        const result = yield db_1.db.update(schema_1.Medicals)
+            .set({ status: 'rejected', rejectionReason: reason || null })
+            .where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
+        // Retrieve the updated medical record
+        const [medical] = yield db_1.db.select().from(schema_1.Medicals).where((0, drizzle_orm_1.eq)(schema_1.Medicals.id, medicalId));
+        // Get user email by joining with users table
+        const [user] = yield db_1.db.select({ email: schema_1.users.email })
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, medical.userId));
+        // Send email notification if user exists and has email
+        if (user === null || user === void 0 ? void 0 : user.email) {
+            try {
+                const emailSubject = `Your Medical Request Has Been Rejected`;
+                const emailText = `
+          Dear ${medical.fullName || 'User'},
+          
+          Reason for rejection: ${reason || 'No reason provided'}
+          
+          Your medical request has been rejected.
+          
+          Thank you for using our service.
+        `;
+                yield (0, sendEmails_1.sendEmail)(user.email, emailSubject, emailText);
+            }
+            catch (emailError) {
+                console.error("Error sending email:", emailError);
+            }
+        }
+        (0, response_1.SuccessResponse)(res, { message: "Medical request rejected successfully", medical }, 200);
+    }
+    catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+exports.rejectMedicalRequest = rejectMedicalRequest;

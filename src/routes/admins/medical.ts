@@ -7,10 +7,12 @@ import {
   deleteMedicalCategory,
   getAllMedicals,
   getMedicalById,
-  acceptMedicalRequest
+  acceptMedicalRequest,
+  rejectMedicalRequest,
 } from "../../controllers/admins/medical";
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
+import { upload } from "../../utils/saveFile";
 
 import { createMedicalCategorySchema, updateMedicalCategorySchema, idParams } from "../../validators/admins/medical";
 
@@ -19,7 +21,9 @@ router
   .route("/medicalTour-all").get(catchAsync(getAllMedicals));
 
   router
-  .route("/accept-medical").post(catchAsync(acceptMedicalRequest));
+  .route("/accept-medical").post(upload.single('file'),catchAsync(acceptMedicalRequest));
+
+  router.route("/reject-medical").post(catchAsync(rejectMedicalRequest));
 
 router
   .route("/")

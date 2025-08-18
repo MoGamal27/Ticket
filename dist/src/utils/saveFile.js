@@ -12,24 +12,36 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.upload = void 0;
 exports.saveFile = saveFile;
 const path_1 = __importDefault(require("path"));
 const promises_1 = __importDefault(require("fs/promises"));
-function saveFile(base64, medicalId, req) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const matches = base64.match(/^data:(.+?);base64,(.+)$/);
-        if (!matches)
-            throw new Error("Invalid base64 format");
-        const mimeType = matches[1];
-        const isImage = mimeType.startsWith('image/');
-        const extension = isImage ? mimeType.split('/')[1] : 'pdf'; // Default to PDF for files
-        const filename = `${medicalId}-${Date.now()}.${extension}`;
+const multer_1 = __importDefault(require("multer"));
+// Configure multer storage
+const storage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
         const folder = path_1.default.join(__dirname, '../../uploads/medical');
-        yield promises_1.default.mkdir(folder, { recursive: true });
-        const filePath = path_1.default.join(folder, filename);
-        yield promises_1.default.writeFile(filePath, Buffer.from(matches[2], 'base64'));
+        promises_1.default.mkdir(folder, { recursive: true }).then(() => {
+            cb(null, folder);
+        }).catch(err => {
+            cb(err, folder);
+        });
+    },
+    filename: (req, file, cb) => {
+        const medicalId = req.body.medicalId || req.params.medicalId;
+        const extension = file.mimetype.startsWith('image/')
+            ? file.mimetype.split('/')[1]
+            : 'pdf';
+        const filename = `${medicalId}-${Date.now()}.${extension}`;
+        cb(null, filename);
+    }
+});
+exports.upload = (0, multer_1.default)({ storage });
+function saveFile(file, medicalId, req) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const isImage = file.mimetype.startsWith('image/');
         return {
-            url: `${req.protocol}://${req.get('host')}/medical-docs/${filename}`,
+            url: `${req.protocol}://${req.get('host')}/medical-docs/${file.filename}`,
             type: isImage ? 'image' : 'file'
         };
     });

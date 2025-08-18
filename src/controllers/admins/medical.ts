@@ -16,6 +16,11 @@ import { saveFile } from "../../utils/saveFile";
 
 import { sendEmail } from "../../utils/sendEmails";
 
+import { Request } from "express";
+import multer from "multer";
+
+
+
 
 export const getMedicalCategories = async (req: Request, res: Response) => {
     const data = await db.select().from(categoryMedical);
@@ -269,7 +274,7 @@ export const getAllMedicals = async (req: Request, res: Response) => {
     const groupedMedicals = {
       pending: medicalsWithDetails.filter(m => m.status === 'pending'),
       accepted: medicalsWithDetails.filter(m => m.status === 'accepted'),
-      history: medicalsWithDetails.filter(m => m.status === 'history')
+      history: medicalsWithDetails.filter(m => m.status === 'rejected'),
     };
 
     SuccessResponse(res, { medicals: groupedMedicals }, 200);
@@ -282,8 +287,8 @@ export const getAllMedicals = async (req: Request, res: Response) => {
 
 
 export const acceptMedicalRequest = async (req: Request, res: Response) => {
-  const { medicalId, price, fileData } = req.body; 
-
+  const { medicalId, price } = req.body; 
+  const fileData = req.file as Express.Multer.File;
   try {
     // Validation
     if (!medicalId || price === undefined) {
@@ -352,3 +357,51 @@ res.json({
   }
 };
 
+export const rejectMedicalRequest = async (req: Request, res: Response) => {
+  const { medicalId, reason } = req.body;
+
+  try {
+    // Validation
+    if (!medicalId) {
+      return res.status(400).json({ error: "Medical ID is required" });
+    }
+
+    // Update medical record to rejected status
+    const result = await db.update(Medicals)
+      .set({ status: 'rejected',  rejectionReason: reason || null })
+      .where(eq(Medicals.id, medicalId));
+
+    // Retrieve the updated medical record
+    const [medical] = await db.select().from(Medicals).where(eq(Medicals.id, medicalId));
+
+    // Get user email by joining with users table
+    const [user] = await db.select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, medical.userId));
+
+    // Send email notification if user exists and has email
+    if (user?.email) {
+      try {
+        const emailSubject = `Your Medical Request Has Been Rejected`;
+        const emailText = `
+          Dear ${medical.fullName || 'User'},
+          
+          Reason for rejection: ${reason || 'No reason provided'}
+          
+          Your medical request has been rejected.
+          
+          Thank you for using our service.
+        `;
+        
+        await sendEmail(user.email, emailSubject, emailText);
+      } catch (emailError) {
+        console.error("Error sending email:", emailError);
+      }
+    }
+
+    SuccessResponse(res, { message: "Medical request rejected successfully", medical }, 200);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
