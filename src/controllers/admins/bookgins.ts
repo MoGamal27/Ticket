@@ -162,22 +162,29 @@ export const getBookings = async (req: Request, res: Response) => {
 const now = new Date(); 
 //console.log(formatDate(now)); 
 
-grouped.forEach((b) => {
-  // Convert database dates to proper Date objects
-  b.tour.startDate = new Date(b.tour.startDate);
-  b.tour.endDate = new Date(b.tour.endDate);
+ grouped.forEach((b) => {
+    // Convert to Date objects
+    const startDateObj = new Date(b.tour.startDate);
+    const endDateObj = new Date(b.tour.endDate);
 
-  b.tour.startDate = formatDate(b.tour.startDateObj);
-  b.tour.endDate = formatDate(b.tour.endDateObj);
-});
+    // Format for display (keep original format)
+    b.tour.startDate = formatDate(startDateObj);
+    b.tour.endDate = formatDate(endDateObj);
 
-// Now compare Date objects properly
-const upcoming = grouped.filter((b) => b.tour.startDate > now);
-const current = grouped.filter((b) => 
-  b.tour.startDate <= now && b.tour.endDate >= now
-);
-const history = grouped.filter((b) => b.tour.endDate < now);
-  
+    // Store Date objects for comparison
+    b.tour.startDateObj = startDateObj;
+    b.tour.endDateObj = endDateObj;
+  });
+
+
+  // Filter using Date objects
+  const upcoming = grouped.filter((b) => b.tour.startDateObj > now);
+  const current = grouped.filter((b) => 
+    b.tour.startDateObj <= now && b.tour.endDateObj >= now
+  );
+  const history = grouped.filter((b) => b.tour.endDateObj < now);
+
+
 /*const now = new Date()
   grouped.forEach((b) => {
     b.tour.startDate = formatDate(new Date(b.tour.startDate));
