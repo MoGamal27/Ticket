@@ -371,6 +371,8 @@ export const updateTour = async (req: Request, res: Response) => {
   const tourId = Number(req.params.id);
   const data = req.body;
 
+   // Start transaction
+    await db.transaction(async (tx) => {
   const [existingTour] = await db.select().from(tours).where(eq(tours.id, tourId));
   if (!existingTour) throw new NotFound("Tour not found");
 
@@ -694,6 +696,8 @@ export const updateTour = async (req: Request, res: Response) => {
     });
   }
 
+     });
+     
   SuccessResponse(res, { message: "Tour Updated Successfully" }, 200);
 };
 
