@@ -667,6 +667,7 @@ const getRejectedMedicalRequests = (req, res) => __awaiter(void 0, void 0, void 
         describtion: schema_1.Medicals.describtion,
         price: schema_1.Medicals.price,
         status: schema_1.Medicals.status,
+        reason: schema_1.Medicals.rejectionReason,
     })
         .from(schema_1.Medicals)
         .leftJoin(schema_1.medicalCategories, (0, drizzle_orm_1.eq)(schema_1.medicalCategories.medicalId, schema_1.Medicals.id))

@@ -793,6 +793,7 @@ export const getRejectedMedicalRequests = async (req: AuthenticatedRequest, res:
       describtion: Medicals.describtion,
       price: Medicals.price,
       status: Medicals.status,
+      reason: Medicals.rejectionReason,
     })
     .from(Medicals)
     .leftJoin(medicalCategories, eq(medicalCategories.medicalId, Medicals.id))

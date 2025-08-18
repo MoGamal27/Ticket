@@ -123,6 +123,10 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }, []);
     // Split into upcoming / current / history
     const now = new Date();
+    grouped.forEach((b) => {
+        b.tour.startDate = (0, exports.formatDate)(new Date(b.tour.startDate));
+        b.tour.endDate = (0, exports.formatDate)(new Date(b.tour.endDate));
+    });
     const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now);
     const current = grouped.filter((b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now);
     const history = grouped.filter((b) => new Date(b.tour.endDate) < now);

@@ -59,7 +59,6 @@ export const getBookings = async (req: Request, res: Response) => {
     .leftJoin(bookingDetails, eq(bookingDetails.bookingId, bookings.id))
     .leftJoin(bookingExtras, eq(bookingExtras.bookingId, bookings.id))
     .leftJoin(extras, eq(extras.id, bookingExtras.extraId));
-
   // Group bookings
   const grouped = rows.reduce((acc, row: any) => {
     let booking = acc.find((b) => b.id === row.bookingId);
@@ -133,6 +132,11 @@ export const getBookings = async (req: Request, res: Response) => {
 
   // Split into upcoming / current / history
   const now = new Date();
+  grouped.forEach((b) => {
+    b.tour.startDate = formatDate(new Date(b.tour.startDate));
+    b.tour.endDate = formatDate(new Date(b.tour.endDate));
+  });
+  
   const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now);
   const current = grouped.filter(
     (b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now
