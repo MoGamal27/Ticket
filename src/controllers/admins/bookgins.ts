@@ -159,8 +159,8 @@ export const getBookings = async (req: Request, res: Response) => {
 
   // Split into upcoming / current / history
 // Fix the date comparison logic
-const now = new Date(); 
-//console.log(formatDate(now)); 
+const now = formatDate(new Date()); 
+//console.log(now);
 
  grouped.forEach((b) => {
     // Convert to Date objects
@@ -178,11 +178,11 @@ const now = new Date();
 
 
   // Filter using Date objects
-  const upcoming = grouped.filter((b) => b.tour.startDateObj > now);
+  const upcoming = grouped.filter((b) => b.tour.startDate > now);
   const current = grouped.filter((b) => 
-    b.tour.startDateObj <= now && b.tour.endDateObj >= now
+    b.tour.startDate <= now && b.tour.endDate >= now
   );
-  const history = grouped.filter((b) => b.tour.endDateObj < now);
+  const history = grouped.filter((b) => b.tour.endDate < now);
 
 
 /*const now = new Date()

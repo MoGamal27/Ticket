@@ -144,8 +144,8 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }, []);
     // Split into upcoming / current / history
     // Fix the date comparison logic
-    const now = new Date();
-    //console.log(formatDate(now)); 
+    const now = (0, exports.formatDate)(new Date());
+    //console.log(now);
     grouped.forEach((b) => {
         // Convert to Date objects
         const startDateObj = new Date(b.tour.startDate);
@@ -158,9 +158,9 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         b.tour.endDateObj = endDateObj;
     });
     // Filter using Date objects
-    const upcoming = grouped.filter((b) => b.tour.startDateObj > now);
-    const current = grouped.filter((b) => b.tour.startDateObj <= now && b.tour.endDateObj >= now);
-    const history = grouped.filter((b) => b.tour.endDateObj < now);
+    const upcoming = grouped.filter((b) => b.tour.startDate > now);
+    const current = grouped.filter((b) => b.tour.startDate <= now && b.tour.endDate >= now);
+    const history = grouped.filter((b) => b.tour.endDate < now);
     /*const now = new Date()
       grouped.forEach((b) => {
         b.tour.startDate = formatDate(new Date(b.tour.startDate));
