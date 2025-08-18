@@ -761,6 +761,7 @@ export const getAcceptMedicalRequests = async (req: AuthenticatedRequest, res: R
       phoneNumber: Medicals.phoneNumber,
       title: categoryMedical.title,
       describtion: Medicals.describtion,
+      documentUrl: Medicals.documentUrl,
       price: Medicals.price,
       status: Medicals.status,
     })
@@ -769,6 +770,35 @@ export const getAcceptMedicalRequests = async (req: AuthenticatedRequest, res: R
     .leftJoin(categoryMedical, eq(categoryMedical.id, medicalCategories.categoryId))
     .where(and(
       eq(Medicals.status, "accepted"),
+      eq(Medicals.userId, userId)
+    ));
+
+  SuccessResponse(res, { medicalRequests: data }, 200);
+}
+
+export const getRejectedMedicalRequests = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+
+  const data = await db
+    .select({
+      id: Medicals.id,
+      userId: Medicals.userId,
+      fullName: Medicals.fullName,
+      phoneNumber: Medicals.phoneNumber,
+      title: categoryMedical.title,
+      describtion: Medicals.describtion,
+      price: Medicals.price,
+      status: Medicals.status,
+    })
+    .from(Medicals)
+    .leftJoin(medicalCategories, eq(medicalCategories.medicalId, Medicals.id))
+    .leftJoin(categoryMedical, eq(categoryMedical.id, medicalCategories.categoryId))
+    .where(and(
+      eq(Medicals.status, "rejected"),
       eq(Medicals.userId, userId)
     ));
 

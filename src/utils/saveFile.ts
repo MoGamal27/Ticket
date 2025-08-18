@@ -33,7 +33,7 @@ export async function saveFile(
   const isImage = file.mimetype.startsWith('image/');
   
   return {
-    url: `${req.protocol}://${req.get('host')}/medical-docs/${file.filename}`,
+    url: `${req.protocol}://${req.get('host')}/uploads/medical/${file.filename}`,
     type: isImage ? 'image' : 'file'
   };
 }

@@ -41,7 +41,7 @@ function saveFile(file, medicalId, req) {
     return __awaiter(this, void 0, void 0, function* () {
         const isImage = file.mimetype.startsWith('image/');
         return {
-            url: `${req.protocol}://${req.get('host')}/medical-docs/${file.filename}`,
+            url: `${req.protocol}://${req.get('host')}/uploads/medical/${file.filename}`,
             type: isImage ? 'image' : 'file'
         };
     });

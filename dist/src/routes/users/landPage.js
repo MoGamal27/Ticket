@@ -14,6 +14,9 @@ router.get("/active", (0, catchAsync_1.catchAsync)(landPage_1.getActivePaymentMe
 router.get("/accept-medical-requests", authenticated_1.authenticated, (0, catchAsync_1.catchAsync)((req, res) => {
     return (0, landPage_1.getAcceptMedicalRequests)(req, res);
 }));
+router.get("/rejected-medical-requests", authenticated_1.authenticated, (0, catchAsync_1.catchAsync)((req, res) => {
+    return (0, landPage_1.getRejectedMedicalRequests)(req, res);
+}));
 router.get("/images", (0, catchAsync_1.catchAsync)(landPage_1.getImages));
 router.get("/featured-tours", (0, catchAsync_1.catchAsync)(landPage_1.getFeaturedTours));
 router.get("/category-tours/:category", (0, catchAsync_1.catchAsync)(landPage_1.getToursByCategory));

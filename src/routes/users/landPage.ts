@@ -9,6 +9,7 @@ import {
   createMedical,
   getMedicalCategories,
   getAcceptMedicalRequests,
+  getRejectedMedicalRequests 
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
 import { AuthenticatedRequest } from "../../types/custom";
@@ -31,6 +32,10 @@ router.get("/active", catchAsync(getActivePaymentMethods));
 router.get("/accept-medical-requests", authenticated, catchAsync((req, res) => {
   return getAcceptMedicalRequests(req as AuthenticatedRequest, res);
 }));
+
+router.get("/rejected-medical-requests", authenticated, catchAsync((req, res) => {
+  return getRejectedMedicalRequests(req as AuthenticatedRequest, res);
+}))
 
 
 router.get("/images", catchAsync(getImages));
