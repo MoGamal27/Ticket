@@ -10,13 +10,20 @@ export const formatDate = (date: Date) => {
 };
 
 export const getBookings = async (req: Request, res: Response) => {
-  // First, get the main bookings with user and tour info
+  // First, get the main bookings with user, tour schedule, and tour info
   const mainBookings = await db
     .select({
       id: bookings.id,
       status: bookings.status,
       createdAt: bookings.createdAt,
-      userName: users.name,
+      discountNumber: bookings.discountNumber,
+      location: bookings.location,
+      address: bookings.address,
+
+      
+      
+      // Tour info (via tourSchedule -> tour relationship)
+      tourId: tours.id,
       tourName: tours.title,
       tourMainImage: tours.mainImage,
       tourStatus: tours.status,
@@ -36,7 +43,8 @@ export const getBookings = async (req: Request, res: Response) => {
     })
     .from(bookings)
     .leftJoin(users, eq(bookings.userId, users.id))
-    .leftJoin(tours, eq(bookings.tourId, tours.id));
+    .leftJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id)) 
+    .leftJoin(tours, eq(tourSchedules.tourId, tours.id)); 
 
   // Get booking IDs for batch querying
   const bookingIds = mainBookings.map(booking => booking.id);

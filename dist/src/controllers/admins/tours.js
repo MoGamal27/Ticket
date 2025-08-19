@@ -144,14 +144,13 @@ const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             : null,
         meetingPointAddress: data.meetingPoint ? data.meetingPointAddress : null,
         points: (_c = data.points) !== null && _c !== void 0 ? _c : 0,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
+        startDate: data.startDate,
+        endDate: data.endDate,
         durationDays: data.durationDays,
         durationHours: data.durationHours,
         country: data.country,
         city: data.city,
         maxUsers: data.maxUsers,
-        //highlight: data.highlights,
     })
         .$returningId();
     console.log("tour added success");
@@ -205,7 +204,6 @@ const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             .values(data.excludes.map((content) => ({ content, tourId })));
     }
     if ((_g = data.itinerary) === null || _g === void 0 ? void 0 : _g.length) {
-        // First process all async operations in parallel
         const itineraryItems = yield Promise.all(data.itinerary.map((item) => __awaiter(void 0, void 0, void 0, function* () {
             return ({
                 title: item.title,
@@ -214,7 +212,6 @@ const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 tourId,
             });
         })));
-        // Then insert all processed items
         yield db_1.db.insert(schema_1.tourItinerary).values(itineraryItems);
     }
     if ((_h = data.faq) === null || _h === void 0 ? void 0 : _h.length) {
@@ -248,6 +245,36 @@ const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             });
         }
     }
+    if (data.promoCodeIds && data.promoCodeIds.length > 0) {
+        // Validate that the promo codes exist
+        const existingPromoCodes = yield db_1.db
+            .select({
+            id: schema_1.promoCode.id
+        })
+            .from(schema_1.promoCode)
+            .where((0, drizzle_orm_1.inArray)(schema_1.promoCode.id, data.promoCodeIds));
+        const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
+        const invalidPromoCodeIds = data.promoCodeIds.filter((id) => !existingPromoCodeIds.includes(id));
+        // Handle invalid promo codes
+        if (invalidPromoCodeIds.length > 0) {
+            throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+        }
+        // Check which promo codes are already associated with this tour
+        const existingAssociations = yield db_1.db
+            .select({ promoCodeId: schema_1.tourPromoCode.promoCodeId })
+            .from(schema_1.tourPromoCode)
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourPromoCode.promoCodeId, data.promoCodeIds)));
+        const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
+        const newAssociations = data.promoCodeIds.filter((id) => !alreadyAssociatedIds.includes(id));
+        // Insert new associations only
+        if (newAssociations.length > 0) {
+            yield db_1.db.insert(schema_1.tourPromoCode).values(newAssociations.map((promoCodeId) => ({
+                tourId,
+                promoCodeId
+            })));
+            console.log(`Associated ${newAssociations.length} new promo codes with tour ${tourId}`);
+        }
+    }
     yield (0, generateSchedules_1.generateTourSchedules)({
         tourId,
         startDate: new Date(data.startDate).toISOString(),
@@ -266,12 +293,14 @@ const addData = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const extra = yield db_1.db.select().from(schema_1.extras);
     const city = yield db_1.db.select().from(schema_1.cites);
     const country = yield db_1.db.select().from(schema_1.countries);
+    const PromoCode = yield db_1.db.select().from(schema_1.promoCode);
     (0, response_1.SuccessResponse)(res, {
         categories: category,
         currencies: currency,
         extras: extra,
         countries: country,
         cities: city,
+        PromoCode: PromoCode
     }, 200);
 });
 exports.addData = addData;
@@ -344,7 +373,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             updateData.city = data.city;
         if (data.maxUsers)
             updateData.maxUsers = data.maxUsers;
-        yield db_1.db.update(schema_1.tours).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
+        yield tx.update(schema_1.tours).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
         // Update related content if provided (check for existence, not just length)
         if (data.prices !== undefined) {
             yield db_1.db.delete(schema_1.tourPrice).where((0, drizzle_orm_1.eq)(schema_1.tourPrice.tourId, tourId));

@@ -18,6 +18,9 @@ import {
   tourPrice,
   tours,
   tourSchedules,
+  promoCode,
+  promoCodeUsers,
+  tourPromoCode
 } from "../../models/schema";
 import { SuccessResponse } from "../../utils/response";
 import { eq, and, inArray } from "drizzle-orm";
@@ -170,6 +173,7 @@ export const getTourById = async (req: Request, res: Response) => {
 export const createTour = async (req: Request, res: Response) => {
   const data = req.body;
   console.log("before add");
+  
   const [newTour] = await db
     .insert(tours)
     .values({
@@ -185,16 +189,16 @@ export const createTour = async (req: Request, res: Response) => {
         : null,
       meetingPointAddress: data.meetingPoint ? data.meetingPointAddress : null,
       points: data.points ?? 0,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
+      startDate: data.startDate,
+      endDate: data.endDate,
       durationDays: data.durationDays,
       durationHours: data.durationHours,
       country: data.country,
       city: data.city,
       maxUsers: data.maxUsers, 
-      //highlight: data.highlights,
     })
     .$returningId();
+  
   console.log("tour added success");
   const tourId = newTour.id;
 
@@ -226,14 +230,14 @@ export const createTour = async (req: Request, res: Response) => {
   }
 
   if (data.images && data.images.length > 0) {
-  const imageRecords = await Promise.all(
-    data.images.map(async (imagePath: any) => ({
-      tourId,
-      imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
-    }))
-  );
-  await db.insert(tourImages).values(imageRecords);
-}
+    const imageRecords = await Promise.all(
+      data.images.map(async (imagePath: any) => ({
+        tourId,
+        imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
+      }))
+    );
+    await db.insert(tourImages).values(imageRecords);
+  }
 
   if (data.highlights?.length) {
     await db
@@ -253,25 +257,22 @@ export const createTour = async (req: Request, res: Response) => {
       .values(data.excludes.map((content: string) => ({ content, tourId })));
   }
 
- if (data.itinerary?.length) {
-  // First process all async operations in parallel
-  const itineraryItems = await Promise.all(
-    data.itinerary.map(async (item: any) => ({
-      title: item.title,
-      imagePath: await saveBase64Image(
-        item.imagePath,
-        uuid(),
-        req,
-        "itineraryImages"
-      ),
-      describtion: item.description,
-      tourId,
-    }))
-  );
-  
-  // Then insert all processed items
-  await db.insert(tourItinerary).values(itineraryItems);
-}
+  if (data.itinerary?.length) {
+    const itineraryItems = await Promise.all(
+      data.itinerary.map(async (item: any) => ({
+        title: item.title,
+        imagePath: await saveBase64Image(
+          item.imagePath,
+          uuid(),
+          req,
+          "itineraryImages"
+        ),
+        describtion: item.description,
+        tourId,
+      }))
+    );
+    await db.insert(tourItinerary).values(itineraryItems);
+  }
 
   if (data.faq?.length) {
     await db.insert(tourFAQ).values(
@@ -311,6 +312,56 @@ export const createTour = async (req: Request, res: Response) => {
       });
     }
   }
+
+    
+  if (data.promoCodeIds && data.promoCodeIds.length > 0) {
+  // Validate that the promo codes exist
+  const existingPromoCodes = await db
+    .select({ 
+      id: promoCode.id
+    })
+    .from(promoCode)
+    .where(inArray(promoCode.id, data.promoCodeIds));
+
+  const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
+  const invalidPromoCodeIds = data.promoCodeIds.filter((id: number) => 
+    !existingPromoCodeIds.includes(id)
+  );
+
+  // Handle invalid promo codes
+  if (invalidPromoCodeIds.length > 0) {
+    throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+  }
+
+  // Check which promo codes are already associated with this tour
+  const existingAssociations = await db
+    .select({ promoCodeId: tourPromoCode.promoCodeId })
+    .from(tourPromoCode)
+    .where(
+      and(
+        eq(tourPromoCode.tourId, tourId),
+        inArray(tourPromoCode.promoCodeId, data.promoCodeIds)
+      )
+    );
+
+  const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
+  const newAssociations = data.promoCodeIds.filter((id: number) => 
+    !alreadyAssociatedIds.includes(id)
+  );
+
+  // Insert new associations only
+  if (newAssociations.length > 0) {
+    await db.insert(tourPromoCode).values(
+      newAssociations.map((promoCodeId: number) => ({
+        tourId,
+        promoCodeId
+      }))
+    );
+
+    console.log(`Associated ${newAssociations.length} new promo codes with tour ${tourId}`);
+  }
+}
+
   await generateTourSchedules({
     tourId,
     startDate: new Date(data.startDate).toISOString(),
@@ -330,6 +381,7 @@ export const addData = async (req: Request, res: Response) => {
   const extra = await db.select().from(extras);
   const city = await db.select().from(cites);
   const country = await db.select().from(countries);
+  const PromoCode = await db.select().from(promoCode)
   SuccessResponse(
     res,
     {
@@ -338,6 +390,7 @@ export const addData = async (req: Request, res: Response) => {
       extras: extra,
       countries: country,
       cities: city,
+      PromoCode: PromoCode
     },
     200
   );
@@ -399,7 +452,7 @@ export const updateTour = async (req: Request, res: Response) => {
   if (data.city) updateData.city = data.city;
   if (data.maxUsers) updateData.maxUsers = data.maxUsers;
 
-  await db.update(tours).set(updateData).where(eq(tours.id, tourId));
+  await tx.update(tours).set(updateData).where(eq(tours.id, tourId));
 
   // Update related content if provided (check for existence, not just length)
   if (data.prices !== undefined) {
@@ -700,5 +753,6 @@ export const updateTour = async (req: Request, res: Response) => {
      
   SuccessResponse(res, { message: "Tour Updated Successfully" }, 200);
 };
+
 
 

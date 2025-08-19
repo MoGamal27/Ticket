@@ -63,8 +63,8 @@ export const tours = mysqlTable("tours", {
   meetingPointLocation: text("meetingPointLocation"),
   meetingPointAddress: text("meetingPointAddress"),
   points: int("points").default(0),
-  startDate: timestamp("startDate").notNull(),
-  endDate: timestamp("endDate").notNull(),
+  startDate: date("startDate").notNull(),
+  endDate: date("endDate").notNull(),
   durationDays: int("duration_days").notNull(),
   durationHours: int("duration_hours").notNull(),
   country: int("country").references(() => countries.id),
@@ -120,7 +120,7 @@ export const tourSchedules = mysqlTable("tour_schedules", {
 
   date: date("date").notNull(),
   availableSeats: int("available_seats").notNull(),
-  startDate: timestamp("start_date").notNull(), // Optional if your logic needs range per schedule
+  startDate: timestamp("start_date").notNull(), 
   endDate: timestamp("end_date").notNull(),
 });
 
@@ -184,9 +184,15 @@ export const promoCode = mysqlTable("promo_code", {
   discountValue: int("discount_value").notNull(),
   usageLimit: int("usade_limit").notNull(),
   status: boolean("status").default(false),
-  startDate: date("startDate").notNull(),
-  endDate: date("endDate").notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
 });
+
+export const tourPromoCode = mysqlTable("tour_promo_code", {
+  id: int("id").autoincrement().primaryKey(),
+  tourId: int("tour_id").notNull().references(() => tours.id),
+  promoCodeId: int("promo_code_id").notNull().references(() => promoCode.id),
+})
 
 export const promoCodeUsers = mysqlTable("promo_code_users", {
   id: int("id").autoincrement().primaryKey(),

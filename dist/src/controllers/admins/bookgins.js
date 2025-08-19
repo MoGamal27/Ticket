@@ -19,13 +19,17 @@ const formatDate = (date) => {
 };
 exports.formatDate = formatDate;
 const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    // First, get the main bookings with user and tour info
+    // First, get the main bookings with user, tour schedule, and tour info
     const mainBookings = yield db_1.db
         .select({
         id: schema_1.bookings.id,
         status: schema_1.bookings.status,
         createdAt: schema_1.bookings.createdAt,
-        userName: schema_1.users.name,
+        discountNumber: schema_1.bookings.discountNumber,
+        location: schema_1.bookings.location,
+        address: schema_1.bookings.address,
+        // Tour info (via tourSchedule -> tour relationship)
+        tourId: schema_1.tours.id,
         tourName: schema_1.tours.title,
         tourMainImage: schema_1.tours.mainImage,
         tourStatus: schema_1.tours.status,
@@ -45,7 +49,8 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     })
         .from(schema_1.bookings)
         .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.bookings.userId, schema_1.users.id))
-        .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tours.id));
+        .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id))
+        .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id));
     // Get booking IDs for batch querying
     const bookingIds = mainBookings.map(booking => booking.id);
     // Get all booking details in one query

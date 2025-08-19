@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MedicalImages = exports.medicalCategories = exports.Medicals = exports.categoryMedical = exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookingExtras = exports.bookingDetails = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
+exports.MedicalImages = exports.medicalCategories = exports.Medicals = exports.categoryMedical = exports.cites = exports.countries = exports.homePageFAQ = exports.homePageCover = exports.manualPaymentTypes = exports.manualPaymentMethod = exports.payments = exports.bookingExtras = exports.bookingDetails = exports.bookings = exports.tourExtras = exports.extras = exports.emailVerifications = exports.promoCodeUsers = exports.tourPromoCode = exports.promoCode = exports.currencies = exports.tourFAQ = exports.tourItinerary = exports.tourExcludes = exports.tourIncludes = exports.tourHighlight = exports.tourPrice = exports.tourSchedules = exports.tourDaysOfWeek = exports.tourDiscounts = exports.tourImages = exports.tours = exports.users = exports.categories = exports.adminPrivileges = exports.privileges = exports.admins = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 const timeZone_1 = require("../utils/timeZone");
 exports.admins = (0, mysql_core_1.mysqlTable)("admins", {
@@ -48,8 +48,8 @@ exports.tours = (0, mysql_core_1.mysqlTable)("tours", {
     meetingPointLocation: (0, mysql_core_1.text)("meetingPointLocation"),
     meetingPointAddress: (0, mysql_core_1.text)("meetingPointAddress"),
     points: (0, mysql_core_1.int)("points").default(0),
-    startDate: (0, mysql_core_1.timestamp)("startDate").notNull(),
-    endDate: (0, mysql_core_1.timestamp)("endDate").notNull(),
+    startDate: (0, mysql_core_1.date)("startDate").notNull(),
+    endDate: (0, mysql_core_1.date)("endDate").notNull(),
     durationDays: (0, mysql_core_1.int)("duration_days").notNull(),
     durationHours: (0, mysql_core_1.int)("duration_hours").notNull(),
     country: (0, mysql_core_1.int)("country").references(() => exports.countries.id),
@@ -99,7 +99,7 @@ exports.tourSchedules = (0, mysql_core_1.mysqlTable)("tour_schedules", {
         .references(() => exports.tours.id, { onDelete: "cascade" }),
     date: (0, mysql_core_1.date)("date").notNull(),
     availableSeats: (0, mysql_core_1.int)("available_seats").notNull(),
-    startDate: (0, mysql_core_1.timestamp)("start_date").notNull(), // Optional if your logic needs range per schedule
+    startDate: (0, mysql_core_1.timestamp)("start_date").notNull(),
     endDate: (0, mysql_core_1.timestamp)("end_date").notNull(),
 });
 exports.tourPrice = (0, mysql_core_1.mysqlTable)("tour_price", {
@@ -155,8 +155,13 @@ exports.promoCode = (0, mysql_core_1.mysqlTable)("promo_code", {
     discountValue: (0, mysql_core_1.int)("discount_value").notNull(),
     usageLimit: (0, mysql_core_1.int)("usade_limit").notNull(),
     status: (0, mysql_core_1.boolean)("status").default(false),
-    startDate: (0, mysql_core_1.date)("startDate").notNull(),
-    endDate: (0, mysql_core_1.date)("endDate").notNull(),
+    startDate: (0, mysql_core_1.timestamp)("startDate").notNull(),
+    endDate: (0, mysql_core_1.timestamp)("endDate").notNull(),
+});
+exports.tourPromoCode = (0, mysql_core_1.mysqlTable)("tour_promo_code", {
+    id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
+    tourId: (0, mysql_core_1.int)("tour_id").notNull().references(() => exports.tours.id),
+    promoCodeId: (0, mysql_core_1.int)("promo_code_id").notNull().references(() => exports.promoCode.id),
 });
 exports.promoCodeUsers = (0, mysql_core_1.mysqlTable)("promo_code_users", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
