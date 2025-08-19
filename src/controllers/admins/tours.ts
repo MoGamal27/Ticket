@@ -105,6 +105,7 @@ export const getTourById = async (req: Request, res: Response) => {
     daysOfWeek,
     extrasWithPrices,
     images,
+    promoCodes
   ] = await Promise.all([
     db.select().from(tourHighlight).where(eq(tourHighlight.tourId, tourId)),
     db.select().from(tourIncludes).where(eq(tourIncludes.tourId, tourId)),
@@ -112,7 +113,7 @@ export const getTourById = async (req: Request, res: Response) => {
     db.select().from(tourItinerary).where(eq(tourItinerary.tourId, tourId)),
     db.select().from(tourFAQ).where(eq(tourFAQ.tourId, tourId)),
     db.select().from(tourDiscounts).where(eq(tourDiscounts.tourId, tourId)),
-
+    
     db
       .select({ dayOfWeek: tourDaysOfWeek.dayOfWeek })
       .from(tourDaysOfWeek)
@@ -126,7 +127,7 @@ export const getTourById = async (req: Request, res: Response) => {
           child: tourPrice.child,
           infant: tourPrice.infant,
           currency: tourPrice.currencyId,
-           currencyName: currencies.name,
+          currencyName: currencies.name,
         },
       })
       .from(tourExtras)
@@ -137,9 +138,18 @@ export const getTourById = async (req: Request, res: Response) => {
     db
       .select({ 
         id: tourImages.id,
-        imagePath: tourImages.imagePath })
+        imagePath: tourImages.imagePath 
+      })
       .from(tourImages)
       .where(eq(tourImages.tourId, tourId)),
+    db
+      .select({ 
+        id: promoCode.id,
+        code: promoCode.code 
+      })
+      .from(tourPromoCode) 
+      .leftJoin(promoCode, eq(tourPromoCode.promoCodeId, promoCode.id))
+      .where(eq(tourPromoCode.tourId, tourId)),
   ]);
 
   SuccessResponse(
@@ -158,13 +168,17 @@ export const getTourById = async (req: Request, res: Response) => {
         description: i.describtion,
       })),
       faq: faq.map((f) => ({ question: f.question, answer: f.answer })),
+      promoCode: promoCodes.map((p) => ({
+       id: p.id,
+      code: p.code
+})), // Use the query result variable
       discounts,
       daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek),
       extras: extrasWithPrices,
-     images: images.map((img) => ({
-     id: img.id,
-     url: img.imagePath
-})),
+      images: images.map((img) => ({
+        id: img.id,
+        url: img.imagePath
+      })),
     },
     200
   );
@@ -685,6 +699,47 @@ export const updateTour = async (req: Request, res: Response) => {
     
     await db.insert(tourItinerary).values(newItems);
   }
+}
+
+  if (data.promoCodeIds !== undefined) {
+    
+  const existingPromoCodes = await db
+    .select({ 
+      id: promoCode.id
+    })
+    .from(promoCode)
+    .where(inArray(promoCode.id, data.promoCodeIds));
+
+  const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
+  const invalidPromoCodeIds = data.promoCodeIds.filter((id: number) => 
+    !existingPromoCodeIds.includes(id)
+  );
+
+  // Handle invalid promo codes
+  if (invalidPromoCodeIds.length > 0) {
+    throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+  }
+
+  // Check which promo codes are already associated with this tour
+  const existingAssociations = await db
+    .select({ promoCodeId: tourPromoCode.promoCodeId })
+    .from(tourPromoCode)
+    .where(
+      and(
+        eq(tourPromoCode.tourId, tourId),
+        inArray(tourPromoCode.promoCodeId, data.promoCodeIds)
+      )
+    );
+
+  const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
+  const newAssociations = data.promoCodeIds.filter((id: number) => 
+    !alreadyAssociatedIds.includes(id)
+  );
+
+   await db
+    .update(promoCode)
+    .set({ tourId })
+    .where(inArray(promoCode.id, data.promoCodeIds));
 }
 
   if (data.faq !== undefined) {

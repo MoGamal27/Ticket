@@ -78,7 +78,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
     if (!mainTour)
         throw new Errors_1.NotFound("tour not found");
-    const [highlights, includes, excludes, itinerary, faq, discounts, daysOfWeek, extrasWithPrices, images,] = yield Promise.all([
+    const [highlights, includes, excludes, itinerary, faq, discounts, daysOfWeek, extrasWithPrices, images, promoCodes] = yield Promise.all([
         db_1.db.select().from(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, tourId)),
         db_1.db.select().from(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, tourId)),
         db_1.db.select().from(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, tourId)),
@@ -113,13 +113,25 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         })
             .from(schema_1.tourImages)
             .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId)),
+        db_1.db
+            .select({
+            id: schema_1.promoCode.id,
+            code: schema_1.promoCode.code
+        })
+            .from(schema_1.tourPromoCode)
+            .leftJoin(schema_1.promoCode, (0, drizzle_orm_1.eq)(schema_1.tourPromoCode.promoCodeId, schema_1.promoCode.id))
+            .where((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId)),
     ]);
     (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
             id: i.id,
             title: i.title,
             imagePath: i.imagePath,
             description: i.describtion,
-        })), faq: faq.map((f) => ({ question: f.question, answer: f.answer })), discounts, daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek), extras: extrasWithPrices, images: images.map((img) => ({
+        })), faq: faq.map((f) => ({ question: f.question, answer: f.answer })), promoCode: promoCodes.map((p) => ({
+            id: p.id,
+            code: p.code
+        })), // Use the query result variable
+        discounts, daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek), extras: extrasWithPrices, images: images.map((img) => ({
             id: img.id,
             url: img.imagePath
         })) }), 200);
@@ -562,6 +574,31 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 })));
                 yield db_1.db.insert(schema_1.tourItinerary).values(newItems);
             }
+        }
+        if (data.promoCodeIds !== undefined) {
+            const existingPromoCodes = yield db_1.db
+                .select({
+                id: schema_1.promoCode.id
+            })
+                .from(schema_1.promoCode)
+                .where((0, drizzle_orm_1.inArray)(schema_1.promoCode.id, data.promoCodeIds));
+            const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
+            const invalidPromoCodeIds = data.promoCodeIds.filter((id) => !existingPromoCodeIds.includes(id));
+            // Handle invalid promo codes
+            if (invalidPromoCodeIds.length > 0) {
+                throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+            }
+            // Check which promo codes are already associated with this tour
+            const existingAssociations = yield db_1.db
+                .select({ promoCodeId: schema_1.tourPromoCode.promoCodeId })
+                .from(schema_1.tourPromoCode)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourPromoCode.promoCodeId, data.promoCodeIds)));
+            const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
+            const newAssociations = data.promoCodeIds.filter((id) => !alreadyAssociatedIds.includes(id));
+            yield db_1.db
+                .update(schema_1.promoCode)
+                .set({ tourId })
+                .where((0, drizzle_orm_1.inArray)(schema_1.promoCode.id, data.promoCodeIds));
         }
         if (data.faq !== undefined) {
             yield db_1.db.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId));
