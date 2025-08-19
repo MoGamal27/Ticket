@@ -9,6 +9,7 @@ export const formatDate = (date: Date) => {
   return date.toISOString().split('T')[0]; 
 };
 
+
 export const getBookings = async (req: Request, res: Response) => {
   const rows = await db
     .select({
@@ -35,16 +36,14 @@ export const getBookings = async (req: Request, res: Response) => {
 
       // User data
       userId: users.id,
+      userName: users.name,
 
-      // BookingDetails
+       // BookingDetails
       bookingDetailsId: bookingDetails.id,
       bookingDetailsNotes: bookingDetails.notes,
       bookingDetailsAdults: bookingDetails.adultsCount,
       bookingDetailsChildren: bookingDetails.childrenCount,
-      UserFullName: bookingDetails.fullName,
-      UserEmail: bookingDetails.email,
-      UserPhone: bookingDetails.phone,
-     
+
       // BookingExtras
       bookingExtrasId: bookingExtras.id,
       bookingExtrasAdultCount: bookingExtras.adultCount,
@@ -59,13 +58,17 @@ export const getBookings = async (req: Request, res: Response) => {
     .leftJoin(bookingExtras, eq(bookingExtras.bookingId, bookings.id))
     .leftJoin(extras, eq(extras.id, bookingExtras.extraId));
 
+
   // Group bookings
   const grouped = rows.reduce((acc, row: any) => {
-    let booking = acc.find((b) => b.id === row.bookingId);
+    let booking = acc.find((b) => b.id === row.booking.id);
 
     if (!booking) {
       booking = {
         ...row.booking,
+
+
+
         user: {
           id: row.userId,
           name: row.userName,
@@ -82,7 +85,6 @@ export const getBookings = async (req: Request, res: Response) => {
           meetingPointAddress: row.tourMeetingPointAddress,
           meetingPointLocation: row.tourMeetingPointLocation,
           points: row.tourPoints,
-          // Keep as Date objects for comparison
           startDate: row.tourStartDate,
           endDate: row.tourEndDate,
           durationDays: row.tourDurationDays,
@@ -92,18 +94,19 @@ export const getBookings = async (req: Request, res: Response) => {
           maxUsers: row.tourMaxUser,
         },
 
-        bookingDetails: {
-          id: row.bookingDetailsId,
-          notes: row.bookingDetailsNotes,
-          adultsCount: row.bookingDetailsAdults,
-          childrenCount: row.bookingDetailsChildren,
-          UserFullName: row.UserFullName,
-          UserEmail: row.UserEmail,
-          UserPhone: row.UserPhone,
-        },
+        bookingDetails: [],
         bookingExtras: [],
       };
       acc.push(booking);
+    }
+
+    if (row.bookingDetailsId) {
+      booking.bookingDetails.push({
+        id: row.bookingDetailsId,
+        notes: row.bookingDetailsNotes,
+        adultsCount: row.bookingDetailsAdults,
+        childrenCount: row.bookingDetailsChildren,
+      });
     }
 
     if (row.bookingExtrasId) {
@@ -119,38 +122,14 @@ export const getBookings = async (req: Request, res: Response) => {
     return acc;
   }, [] as any[]);
 
+  // Split into upcoming / current / history
   const now = new Date();
- 
 
-  // Filter with Date objects, then format for response
-  const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now).map(b => ({
-    ...b,
-    tour: {
-      ...b.tour,
-      startDate: formatDate(b.tour.startDate),
-      endDate: formatDate(b.tour.endDate)
-    }
-  }));
-
-  const current = grouped.filter((b) => 
-    new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now
-  ).map(b => ({
-    ...b,
-    tour: {
-      ...b.tour,
-      startDate: formatDate(b.tour.startDate),
-      endDate: formatDate(b.tour.endDate)
-    }
-  }));
-
-  const history = grouped.filter((b) => new Date(b.tour.endDate) < now).map(b => ({
-    ...b,
-    tour: {
-      ...b.tour,
-      startDate: formatDate(b.tour.startDate),
-      endDate: formatDate(b.tour.endDate)
-    }
-  }));
+  const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now);
+  const current = grouped.filter(
+    (b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now
+  );
+  const history = grouped.filter((b) => new Date(b.tour.endDate) < now);
 
   SuccessResponse(
     res,

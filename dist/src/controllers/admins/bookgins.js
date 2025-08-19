@@ -42,14 +42,12 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         tourMaxUser: schema_1.tours.maxUsers,
         // User data
         userId: schema_1.users.id,
+        userName: schema_1.users.name,
         // BookingDetails
         bookingDetailsId: schema_1.bookingDetails.id,
         bookingDetailsNotes: schema_1.bookingDetails.notes,
         bookingDetailsAdults: schema_1.bookingDetails.adultsCount,
         bookingDetailsChildren: schema_1.bookingDetails.childrenCount,
-        UserFullName: schema_1.bookingDetails.fullName,
-        UserEmail: schema_1.bookingDetails.email,
-        UserPhone: schema_1.bookingDetails.phone,
         // BookingExtras
         bookingExtrasId: schema_1.bookingExtras.id,
         bookingExtrasAdultCount: schema_1.bookingExtras.adultCount,
@@ -65,7 +63,7 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId));
     // Group bookings
     const grouped = rows.reduce((acc, row) => {
-        let booking = acc.find((b) => b.id === row.bookingId);
+        let booking = acc.find((b) => b.id === row.booking.id);
         if (!booking) {
             booking = Object.assign(Object.assign({}, row.booking), { user: {
                     id: row.userId,
@@ -81,7 +79,6 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                     meetingPointAddress: row.tourMeetingPointAddress,
                     meetingPointLocation: row.tourMeetingPointLocation,
                     points: row.tourPoints,
-                    // Keep as Date objects for comparison
                     startDate: row.tourStartDate,
                     endDate: row.tourEndDate,
                     durationDays: row.tourDurationDays,
@@ -89,16 +86,16 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                     country: row.tourCountry,
                     city: row.tourCity,
                     maxUsers: row.tourMaxUser,
-                }, bookingDetails: {
-                    id: row.bookingDetailsId,
-                    notes: row.bookingDetailsNotes,
-                    adultsCount: row.bookingDetailsAdults,
-                    childrenCount: row.bookingDetailsChildren,
-                    UserFullName: row.UserFullName,
-                    UserEmail: row.UserEmail,
-                    UserPhone: row.UserPhone,
-                }, bookingExtras: [] });
+                }, bookingDetails: [], bookingExtras: [] });
             acc.push(booking);
+        }
+        if (row.bookingDetailsId) {
+            booking.bookingDetails.push({
+                id: row.bookingDetailsId,
+                notes: row.bookingDetailsNotes,
+                adultsCount: row.bookingDetailsAdults,
+                childrenCount: row.bookingDetailsChildren,
+            });
         }
         if (row.bookingExtrasId) {
             booking.bookingExtras.push({
@@ -111,11 +108,11 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         }
         return acc;
     }, []);
+    // Split into upcoming / current / history
     const now = new Date();
-    // Filter with Date objects, then format for response
-    const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now).map(b => (Object.assign(Object.assign({}, b), { tour: Object.assign(Object.assign({}, b.tour), { startDate: (0, exports.formatDate)(b.tour.startDate), endDate: (0, exports.formatDate)(b.tour.endDate) }) })));
-    const current = grouped.filter((b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now).map(b => (Object.assign(Object.assign({}, b), { tour: Object.assign(Object.assign({}, b.tour), { startDate: (0, exports.formatDate)(b.tour.startDate), endDate: (0, exports.formatDate)(b.tour.endDate) }) })));
-    const history = grouped.filter((b) => new Date(b.tour.endDate) < now).map(b => (Object.assign(Object.assign({}, b), { tour: Object.assign(Object.assign({}, b.tour), { startDate: (0, exports.formatDate)(b.tour.startDate), endDate: (0, exports.formatDate)(b.tour.endDate) }) })));
+    const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now);
+    const current = grouped.filter((b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now);
+    const history = grouped.filter((b) => new Date(b.tour.endDate) < now);
     (0, response_1.SuccessResponse)(res, { upcoming, current, history }, 200);
 });
 exports.getBookings = getBookings;
