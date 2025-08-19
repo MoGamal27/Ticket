@@ -19,12 +19,8 @@ const db_1 = require("../models/db");
 const schema_1 = require("../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
 const dotenv_1 = __importDefault(require("dotenv"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const auth_1 = require("../utils/auth");
 dotenv_1.default.config();
-// Helper لتوليد JWT
-const generateToken = (userId) => {
-    return jsonwebtoken_1.default.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
-};
 passport_1.default.use(new passport_google_oauth20_1.Strategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -35,27 +31,26 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
         const email = (_b = (_a = profile.emails) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.value;
         if (!email)
             return done(new Error("No email found in Google profile"));
-        // جلب المستخدم لو موجود
-        let [user] = yield db_1.db
-            .select()
-            .from(schema_1.users)
-            .where((0, drizzle_orm_1.eq)(schema_1.users.email, email));
-        // إنشاء مستخدم جديد لو مش موجود
+        // check if user exists
+        let [user] = yield db_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.email, email));
+        // if not, create new
         if (!user) {
-            const [insertedId] = yield db_1.db.insert(schema_1.users).values({
+            const [insertedId] = yield db_1.db
+                .insert(schema_1.users)
+                .values({
                 email,
-                name: ((_c = profile.name) === null || _c === void 0 ? void 0 : _c.givenName) || "",
+                name: profile.displayName || ((_c = profile.name) === null || _c === void 0 ? void 0 : _c.givenName) || "",
                 password: null,
                 phoneNumber: null,
-            }).$returningId();
+            })
+                .$returningId();
             [user] = yield db_1.db
                 .select()
                 .from(schema_1.users)
                 .where((0, drizzle_orm_1.eq)(schema_1.users.id, insertedId.id));
         }
-        // توليد JWT
-        const token = generateToken(user.id);
-        // إعادة المستخدم و الـ token
+        // generate JWT
+        const token = (0, auth_1.generateToken)(user.id);
         return done(null, { user, token });
     }
     catch (error) {
