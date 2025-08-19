@@ -9,33 +9,6 @@ export const formatDate = (date: Date) => {
   return date.toISOString().split('T')[0]; 
 };
 
-export const formatDateMyPhp = (dateString: string) => {
-  if (!dateString) return ''; // Handle empty/null cases
-  
-  // Parse the PHPMyAdmin datetime string (format: "YYYY-MM-DD HH:MM:SS")
-  const [datePart, timePart] = dateString.split(' ');
-  const [year, month, day] = datePart.split('-').map(Number);
-  
-  // Create a Date object (time part is optional if you only want date)
-  const dateObj = new Date(year, month - 1, day);
-  
-  // Format as desired (here are some options)
-  
-  // Option 1: ISO format (YYYY-MM-DD)
-  // return dateObj.toISOString().split('T')[0];
-  
-  // Option 2: Locale-specific format
-  // return dateObj.toLocaleDateString(); // System locale
-  // return dateObj.toLocaleDateString('en-US'); // US format (MM/DD/YYYY)
-  // return dateObj.toLocaleDateString('en-GB'); // UK format (DD/MM/YYYY)
-  
-  // Option 3: Custom formatted string (DD-MM-YYYY)
-  return `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
-  
-  // Option 4: Keep just the date part as is (YYYY-MM-DD)
-  // return datePart;
-};
-
 export const getBookings = async (req: Request, res: Response) => {
   const rows = await db
     .select({
@@ -72,7 +45,6 @@ export const getBookings = async (req: Request, res: Response) => {
       UserEmail: bookingDetails.email,
       UserPhone: bookingDetails.phone,
      
-
       // BookingExtras
       bookingExtrasId: bookingExtras.id,
       bookingExtrasAdultCount: bookingExtras.adultCount,
@@ -86,6 +58,7 @@ export const getBookings = async (req: Request, res: Response) => {
     .leftJoin(bookingDetails, eq(bookingDetails.bookingId, bookings.id))
     .leftJoin(bookingExtras, eq(bookingExtras.bookingId, bookings.id))
     .leftJoin(extras, eq(extras.id, bookingExtras.extraId));
+
   // Group bookings
   const grouped = rows.reduce((acc, row: any) => {
     let booking = acc.find((b) => b.id === row.bookingId);
@@ -109,8 +82,9 @@ export const getBookings = async (req: Request, res: Response) => {
           meetingPointAddress: row.tourMeetingPointAddress,
           meetingPointLocation: row.tourMeetingPointLocation,
           points: row.tourPoints,
-          startDate: formatDate(row.tourStartDate),
-          endDate: formatDate(row.tourEndDate),
+          // Keep as Date objects for comparison
+          startDate: row.tourStartDate,
+          endDate: row.tourEndDate,
           durationDays: row.tourDurationDays,
           hours: row.tourHours,
           country: row.tourCountry,
@@ -119,30 +93,18 @@ export const getBookings = async (req: Request, res: Response) => {
         },
 
         bookingDetails: {
-        id: row.bookingDetailsId,
-        notes: row.bookingDetailsNotes,
-        adultsCount: row.bookingDetailsAdults,
-        childrenCount: row.bookingDetailsChildren,
-        UserFullName: row.UserFullName,
-        UserEmail: row.UserEmail,
-        UserPhone: row.UserPhone,
-      },
+          id: row.bookingDetailsId,
+          notes: row.bookingDetailsNotes,
+          adultsCount: row.bookingDetailsAdults,
+          childrenCount: row.bookingDetailsChildren,
+          UserFullName: row.UserFullName,
+          UserEmail: row.UserEmail,
+          UserPhone: row.UserPhone,
+        },
         bookingExtras: [],
       };
       acc.push(booking);
     }
-
-    /*if (row.bookingDetailsId) {
-      booking.bookingDetails.push({
-        id: row.bookingDetailsId,
-        notes: row.bookingDetailsNotes,
-        adultsCount: row.bookingDetailsAdults,
-        childrenCount: row.bookingDetailsChildren,
-        UserFullName: row.UserFullName,
-        UserEmail: row.UserEmail,
-        UserPhone: row.UserPhone,
-      });
-    }*/
 
     if (row.bookingExtrasId) {
       booking.bookingExtras.push({
@@ -157,39 +119,38 @@ export const getBookings = async (req: Request, res: Response) => {
     return acc;
   }, [] as any[]);
 
-  // Split into upcoming / current / history
-// Fix the date comparison logic
-const now = formatDate(new Date()); 
-//console.log(now);
+  const now = new Date();
+ 
 
- grouped.forEach((b) => {
-    // Convert to Date objects
-    const startDateObj = new Date(b.tour.startDate);
-    const endDateObj = new Date(b.tour.endDate);
+  // Filter with Date objects, then format for response
+  const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now).map(b => ({
+    ...b,
+    tour: {
+      ...b.tour,
+      startDate: formatDate(b.tour.startDate),
+      endDate: formatDate(b.tour.endDate)
+    }
+  }));
 
-    // Format for display (keep original format)
-    b.tour.startDate = formatDate(startDateObj);
-    b.tour.endDate = formatDate(endDateObj);
-
-    // Store Date objects for comparison
-    b.tour.startDateObj = startDateObj;
-    b.tour.endDateObj = endDateObj;
-  });
-
-
-  // Filter using Date objects
-  const upcoming = grouped.filter((b) => b.tour.startDate > now);
   const current = grouped.filter((b) => 
-    b.tour.startDate <= now && b.tour.endDate >= now
-  );
-  const history = grouped.filter((b) => b.tour.endDate < now);
+    new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now
+  ).map(b => ({
+    ...b,
+    tour: {
+      ...b.tour,
+      startDate: formatDate(b.tour.startDate),
+      endDate: formatDate(b.tour.endDate)
+    }
+  }));
 
-
-/*const now = new Date()
-  grouped.forEach((b) => {
-    b.tour.startDate = formatDate(new Date(b.tour.startDate));
-    b.tour.endDate = formatDate(new Date(b.tour.endDate));
-  });*/
+  const history = grouped.filter((b) => new Date(b.tour.endDate) < now).map(b => ({
+    ...b,
+    tour: {
+      ...b.tour,
+      startDate: formatDate(b.tour.startDate),
+      endDate: formatDate(b.tour.endDate)
+    }
+  }));
 
   SuccessResponse(
     res,
@@ -197,7 +158,6 @@ const now = formatDate(new Date());
     200
   );
 };
-
 
 export const getBookingsStats = async (req: Request, res: Response) => {
   const [{ bookingCount }] = await db

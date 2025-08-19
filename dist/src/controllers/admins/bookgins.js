@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createBooking = exports.getBookingsStats = exports.getBookings = exports.formatDateMyPhp = exports.formatDate = void 0;
+exports.createBooking = exports.getBookingsStats = exports.getBookings = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const drizzle_orm_1 = require("drizzle-orm");
 const schema_1 = require("../../models/schema");
@@ -18,27 +18,6 @@ const formatDate = (date) => {
     return date.toISOString().split('T')[0];
 };
 exports.formatDate = formatDate;
-const formatDateMyPhp = (dateString) => {
-    if (!dateString)
-        return ''; // Handle empty/null cases
-    // Parse the PHPMyAdmin datetime string (format: "YYYY-MM-DD HH:MM:SS")
-    const [datePart, timePart] = dateString.split(' ');
-    const [year, month, day] = datePart.split('-').map(Number);
-    // Create a Date object (time part is optional if you only want date)
-    const dateObj = new Date(year, month - 1, day);
-    // Format as desired (here are some options)
-    // Option 1: ISO format (YYYY-MM-DD)
-    // return dateObj.toISOString().split('T')[0];
-    // Option 2: Locale-specific format
-    // return dateObj.toLocaleDateString(); // System locale
-    // return dateObj.toLocaleDateString('en-US'); // US format (MM/DD/YYYY)
-    // return dateObj.toLocaleDateString('en-GB'); // UK format (DD/MM/YYYY)
-    // Option 3: Custom formatted string (DD-MM-YYYY)
-    return `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
-    // Option 4: Keep just the date part as is (YYYY-MM-DD)
-    // return datePart;
-};
-exports.formatDateMyPhp = formatDateMyPhp;
 const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const rows = yield db_1.db
         .select({
@@ -102,8 +81,9 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                     meetingPointAddress: row.tourMeetingPointAddress,
                     meetingPointLocation: row.tourMeetingPointLocation,
                     points: row.tourPoints,
-                    startDate: (0, exports.formatDate)(row.tourStartDate),
-                    endDate: (0, exports.formatDate)(row.tourEndDate),
+                    // Keep as Date objects for comparison
+                    startDate: row.tourStartDate,
+                    endDate: row.tourEndDate,
                     durationDays: row.tourDurationDays,
                     hours: row.tourHours,
                     country: row.tourCountry,
@@ -120,17 +100,6 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 }, bookingExtras: [] });
             acc.push(booking);
         }
-        /*if (row.bookingDetailsId) {
-          booking.bookingDetails.push({
-            id: row.bookingDetailsId,
-            notes: row.bookingDetailsNotes,
-            adultsCount: row.bookingDetailsAdults,
-            childrenCount: row.bookingDetailsChildren,
-            UserFullName: row.UserFullName,
-            UserEmail: row.UserEmail,
-            UserPhone: row.UserPhone,
-          });
-        }*/
         if (row.bookingExtrasId) {
             booking.bookingExtras.push({
                 id: row.bookingExtrasId,
@@ -142,30 +111,11 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         }
         return acc;
     }, []);
-    // Split into upcoming / current / history
-    // Fix the date comparison logic
-    const now = (0, exports.formatDate)(new Date());
-    //console.log(now);
-    grouped.forEach((b) => {
-        // Convert to Date objects
-        const startDateObj = new Date(b.tour.startDate);
-        const endDateObj = new Date(b.tour.endDate);
-        // Format for display (keep original format)
-        b.tour.startDate = (0, exports.formatDate)(startDateObj);
-        b.tour.endDate = (0, exports.formatDate)(endDateObj);
-        // Store Date objects for comparison
-        b.tour.startDateObj = startDateObj;
-        b.tour.endDateObj = endDateObj;
-    });
-    // Filter using Date objects
-    const upcoming = grouped.filter((b) => b.tour.startDate > now);
-    const current = grouped.filter((b) => b.tour.startDate <= now && b.tour.endDate >= now);
-    const history = grouped.filter((b) => b.tour.endDate < now);
-    /*const now = new Date()
-      grouped.forEach((b) => {
-        b.tour.startDate = formatDate(new Date(b.tour.startDate));
-        b.tour.endDate = formatDate(new Date(b.tour.endDate));
-      });*/
+    const now = new Date();
+    // Filter with Date objects, then format for response
+    const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now).map(b => (Object.assign(Object.assign({}, b), { tour: Object.assign(Object.assign({}, b.tour), { startDate: (0, exports.formatDate)(b.tour.startDate), endDate: (0, exports.formatDate)(b.tour.endDate) }) })));
+    const current = grouped.filter((b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now).map(b => (Object.assign(Object.assign({}, b), { tour: Object.assign(Object.assign({}, b.tour), { startDate: (0, exports.formatDate)(b.tour.startDate), endDate: (0, exports.formatDate)(b.tour.endDate) }) })));
+    const history = grouped.filter((b) => new Date(b.tour.endDate) < now).map(b => (Object.assign(Object.assign({}, b), { tour: Object.assign(Object.assign({}, b.tour), { startDate: (0, exports.formatDate)(b.tour.startDate), endDate: (0, exports.formatDate)(b.tour.endDate) }) })));
     (0, response_1.SuccessResponse)(res, { upcoming, current, history }, 200);
 });
 exports.getBookings = getBookings;
