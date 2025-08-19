@@ -1,6 +1,9 @@
 import express from "express";
 import passport from "passport";
-import "../../config/passport"; // load google strategy
+import "../../../config/passport"; // load google strategy
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const router = express.Router();
 
@@ -19,8 +22,9 @@ router.get(
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-  const redirectUrl = ${process.env.FRONTEND_URL}/?token=${token};
-  return res.redirect(redirectUrl);
+    const redirectUrl = `${process.env.FRONTEND_URL}/?token=${token}`;
+
+    return res.redirect(redirectUrl);
   }
 );
 
