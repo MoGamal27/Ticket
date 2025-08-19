@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../../models/db";
-import { sql, eq, and, lt } from "drizzle-orm";
+import { sql, eq, and, lt, inArray } from "drizzle-orm";
 import { bookings, tours, tourSchedules, users,extras,bookingDetails,bookingExtras } from "../../models/schema";
 import { SuccessResponse } from "../../utils/response";
 
@@ -9,19 +9,19 @@ export const formatDate = (date: Date) => {
   return date.toISOString().split('T')[0]; 
 };
 
-
 export const getBookings = async (req: Request, res: Response) => {
-  const rows = await db
+  // First, get the main bookings with user and tour info
+  const mainBookings = await db
     .select({
-      booking: bookings,
-
-      // Tour data
-      tourId: tours.id,
+      id: bookings.id,
+      status: bookings.status,
+      createdAt: bookings.createdAt,
+      userName: users.name,
       tourName: tours.title,
       tourMainImage: tours.mainImage,
       tourStatus: tours.status,
       tourFeatured: tours.featured,
-      tourDescription: tours.describtion,    
+      tourDescription: tours.describtion,
       tourMeetingPoint: tours.meetingPoint,
       tourMeetingPointAddress: tours.meetingPointAddress,
       tourMeetingPointLocation: tours.meetingPointLocation,
@@ -33,109 +33,39 @@ export const getBookings = async (req: Request, res: Response) => {
       tourCountry: tours.country,
       tourCity: tours.city,
       tourMaxUser: tours.maxUsers,
-
-      // User data
-      userId: users.id,
-      userName: users.name,
-
-       // BookingDetails
-      bookingDetailsId: bookingDetails.id,
-      bookingDetailsNotes: bookingDetails.notes,
-      bookingDetailsAdults: bookingDetails.adultsCount,
-      bookingDetailsChildren: bookingDetails.childrenCount,
-
-      // BookingExtras
-      bookingExtrasId: bookingExtras.id,
-      bookingExtrasAdultCount: bookingExtras.adultCount,
-      bookingExtrasChildCount: bookingExtras.childCount,
-      bookingExtrasInfantCount: bookingExtras.infantCount,
-      extraName: extras.name,
     })
     .from(bookings)
-    .innerJoin(users, eq(bookings.userId, users.id))
-    .innerJoin(tours, eq(bookings.tourId, tours.id))
-    .leftJoin(bookingDetails, eq(bookingDetails.bookingId, bookings.id))
-    .leftJoin(bookingExtras, eq(bookingExtras.bookingId, bookings.id))
-    .leftJoin(extras, eq(extras.id, bookingExtras.extraId));
+    .leftJoin(users, eq(bookings.userId, users.id))
+    .leftJoin(tours, eq(bookings.tourId, tours.id));
 
+  // Get booking IDs for batch querying
+  const bookingIds = mainBookings.map(booking => booking.id);
 
-  // Group bookings
-  const grouped = rows.reduce((acc, row: any) => {
-    let booking = acc.find((b) => b.id === row.booking.id);
+  // Get all booking details in one query
+  const allBookingDetails = await db
+    .select()
+    .from(bookingDetails)
+    .where(inArray(bookingDetails.bookingId, bookingIds));
 
-    if (!booking) {
-      booking = {
-        ...row.booking,
+  // Get all booking extras in one query
+  const allBookingExtras = await db
+    .select()
+    .from(bookingExtras)
+    .where(inArray(bookingExtras.bookingId, bookingIds));
 
+  // Combine the data
+  const bookingsWithDetails = mainBookings.map(booking => {
+    const details = allBookingDetails.find(detail => detail.bookingId === booking.id);
+    const extras = allBookingExtras.filter(extra => extra.bookingId === booking.id);
 
+    return {
+      ...booking,
+      bookingDetails: details || null,
+      bookingExtras: extras
+    };
+  });
 
-        user: {
-          id: row.userId,
-          name: row.userName,
-        },
-
-        tour: {
-          id: row.tourId,
-          name: row.tourName,
-          mainImage: row.tourMainImage,
-          status: row.tourStatus,
-          featured: row.tourFeatured,
-          description: row.tourDescription,
-          meetingPoint: row.tourMeetingPoint,
-          meetingPointAddress: row.tourMeetingPointAddress,
-          meetingPointLocation: row.tourMeetingPointLocation,
-          points: row.tourPoints,
-          startDate: row.tourStartDate,
-          endDate: row.tourEndDate,
-          durationDays: row.tourDurationDays,
-          hours: row.tourHours,
-          country: row.tourCountry,
-          city: row.tourCity,
-          maxUsers: row.tourMaxUser,
-        },
-
-        bookingDetails: [],
-        bookingExtras: [],
-      };
-      acc.push(booking);
-    }
-
-    if (row.bookingDetailsId) {
-      booking.bookingDetails.push({
-        id: row.bookingDetailsId,
-        notes: row.bookingDetailsNotes,
-        adultsCount: row.bookingDetailsAdults,
-        childrenCount: row.bookingDetailsChildren,
-      });
-    }
-
-    if (row.bookingExtrasId) {
-      booking.bookingExtras.push({
-        id: row.bookingExtrasId,
-        adultCount: row.bookingExtrasAdultCount,
-        childCount: row.bookingExtrasChildCount,
-        infantCount: row.bookingExtrasInfantCount,
-        extraName: row.extraName,
-      });
-    }
-
-    return acc;
-  }, [] as any[]);
-
-  // Split into upcoming / current / history
-  const now = new Date();
-
-  const upcoming = grouped.filter((b) => new Date(b.tour.startDate) > now);
-  const current = grouped.filter(
-    (b) => new Date(b.tour.startDate) <= now && new Date(b.tour.endDate) >= now
-  );
-  const history = grouped.filter((b) => new Date(b.tour.endDate) < now);
-
-  SuccessResponse(
-    res,
-    { upcoming, current, history },
-    200
-  );
+  SuccessResponse(res, { bookings: bookingsWithDetails }, 200);
 };
 
 export const getBookingsStats = async (req: Request, res: Response) => {
