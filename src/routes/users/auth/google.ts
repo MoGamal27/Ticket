@@ -1,62 +1,30 @@
 import express from "express";
 import passport from "passport";
-import "../../../config/passport";
+import "../../../config/passport"; // passport config
 import { generateToken } from "../../../utils/auth";
-import { UnauthorizedError } from "../../../Errors";
-import { users } from "../../../models/schema";
-import { db } from "../../../models/db";
-import { eq } from "drizzle-orm";
+
 const router = express.Router();
+router.get(
+  "/",
+  passport.authenticate("google", { scope: ["profile", "email"], session: false })
+);
 
-router.get("/callback", (req, res, next) => {
-  passport.authenticate("google", { session: false }, async (err, user, info) => {
-    if (err) {
-      console.error("Google auth error:", err);
-      return res.status(500).json({ message: "Internal server error" });
+router.get(
+  "/callback",
+  passport.authenticate("google", { session: false }),
+  (req, res) => {
+
+    const { user, token } = req.user as { user: any; token: string };
+
+    if (!user || !token) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    try {
-      let finalUser = user;
-
-      // لو المستخدم مش موجود بالفعل، يبقى نعمله signup
-      if (!user) {
-        const email = info?.emails?.[0]?.value ?? "";
-        const name = info?.name?.givenName ?? "";
-
-        // اتأكد ان مفيش duplicate
-        const [existingUser] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, email));
-
-        if (existingUser) {
-          finalUser = existingUser;
-        } else {
-          const [newUserId] = await db.insert(users).values({
-            email,
-            name,
-            password: null,
-            phoneNumber: null,
-          }).$returningId();
-
-          const [newUser] = await db
-            .select()
-            .from(users)
-            .where(eq(users.id, newUserId.id));
-          finalUser = newUser;
-        }
-      }
-
-      // توليد token سواء المستخدم جديد أو موجود
-      const token = generateToken({ id: finalUser.id, roles: ["user"] });
-
-      return res.json({ token, user: { id: finalUser.id, email: finalUser.email, name: finalUser.name } });
-
-    } catch (e) {
-      console.error("Error processing user:", e);
-      return res.status(500).json({ message: "Processing failed" });
-    }
-  })(req, res, next);
-});
+    return res.json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name },
+    });
+  }
+);
 
 export default router;

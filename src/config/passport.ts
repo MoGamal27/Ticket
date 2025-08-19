@@ -1,60 +1,62 @@
+// src/config/passport.ts
 import passport from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { Strategy as FacebookStrategy } from "passport-facebook";
-import { users } from "../models/schema";
+import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
 import { db } from "../models/db";
+import { users } from "../models/schema";
 import { eq } from "drizzle-orm";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
+
 dotenv.config();
+
+// Helper لتوليد JWT
+const generateToken = (userId: number) => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET!, { expiresIn: "7d" });
+};
 
 passport.use(
   new GoogleStrategy(
     {
-     clientID: "13659139511-ufbmiruhec9ihmctnd1e041mpfjvbhal.apps.googleusercontent.com",
-     clientSecret: "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",
-      callbackURL: "https://tickethub-tours.com/api/user/auth/google/callback",
+      clientID: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL!,
     },
-    async (_accessToken, _refreshToken, profile, done) => {
-      let [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, profile.emails?.[0]?.value || " "));
+    async (_accessToken: string, _refreshToken: string, profile: Profile, done) => {
+      try {
+        const email = profile.emails?.[0]?.value;
+        if (!email) return done(new Error("No email found in Google profile"));
 
-      if (user) return done(null, user);
+        // جلب المستخدم لو موجود
+        let [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email));
 
-      const newUserd = {
-        email: profile.emails?.[0]?.value ?? "",
-        name: profile.name?.givenName ?? "",
-        password: null,
-        phoneNumber: null,
-      };
+        // إنشاء مستخدم جديد لو مش موجود
+        if (!user) {
+          const [insertedId] = await db.insert(users).values({
+            email,
+            name: profile.name?.givenName || "",
+            password: null,
+            phoneNumber: null,
+          }).$returningId();
 
-      const [nUser] = await db.insert(users).values(newUserd).$returningId();
+          [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, insertedId.id));
+        }
 
-      const [newUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, nUser.id));
+        // توليد JWT
+        const token = generateToken(user.id);
 
-      return done(null, newUser);
+        // إعادة المستخدم و الـ token
+        return done(null, { user, token });
+      } catch (error) {
+        return done(error as Error);
+      }
     }
   )
 );
-
-
-// passport.use(
-//   new FacebookStrategy(
-//     {
-//       clientID: process.env.FACEBOOK_APP_ID!,
-//       clientSecret: process.env.FACEBOOK_APP_SECRET!,
-//       callbackURL: "/auth/facebook/callback",
-//       profileFields: ["id", "emails", "name"],
-//     },
-//     async (_accessToken, _refreshToken, profile, done) => {
-//       // TODO: find or create user in your DB here
-//       return done(null, profile);
-//     }
-//   )
-// );
 
 export default passport;
