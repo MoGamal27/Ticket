@@ -753,28 +753,53 @@ export const getAcceptMedicalRequests = async (req: AuthenticatedRequest, res: R
 
   const userId = Number(req.user.id);
 
-  const data = await db
+  // Get medical records
+  const medicalRecords = await db
     .select({
       id: Medicals.id,
       userId: Medicals.userId,
       fullName: Medicals.fullName,
       phoneNumber: Medicals.phoneNumber,
-      title: categoryMedical.title,
       describtion: Medicals.describtion,
       documentUrl: Medicals.documentUrl,
       price: Medicals.price,
       status: Medicals.status,
     })
     .from(Medicals)
-    .leftJoin(medicalCategories, eq(medicalCategories.medicalId, Medicals.id))
-    .leftJoin(categoryMedical, eq(categoryMedical.id, medicalCategories.categoryId))
     .where(and(
       eq(Medicals.status, "accepted"),
       eq(Medicals.userId, userId)
     ));
 
+  // Get categories for all medical records in one query
+  const medicalIds = medicalRecords.map(record => record.id);
+  
+  const categories = medicalIds.length > 0 ? await db
+    .select({
+      medicalId: medicalCategories.medicalId,
+      title: categoryMedical.title,
+    })
+    .from(medicalCategories)
+    .innerJoin(categoryMedical, eq(categoryMedical.id, medicalCategories.categoryId))
+    .where(inArray(medicalCategories.medicalId, medicalIds)) : [];
+
+  // Group categories by medicalId
+  const categoriesMap = categories.reduce((acc, category) => {
+    if (!acc[category.medicalId!]) {
+      acc[category.medicalId!] = [];
+    }
+    acc[category.medicalId!].push(category.title);
+    return acc;
+  }, {} as Record<number, string[]>);
+
+  // Combine medical records with their categories
+  const data = medicalRecords.map(record => ({
+    ...record,
+    titles: categoriesMap[record.id] || []
+  }));
+
   SuccessResponse(res, { medicalRequests: data }, 200);
-}
+};
 
 export const getRejectedMedicalRequests = async (req: AuthenticatedRequest, res: Response) => {
   if (!req.user || !req.user.id) {
