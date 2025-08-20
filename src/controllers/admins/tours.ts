@@ -701,8 +701,8 @@ export const updateTour = async (req: Request, res: Response) => {
   }
 }
 
-  if (data.promoCodeIds !== undefined) {
-    
+    if (data.promoCodeIds && data.promoCodeIds.length > 0) {
+  // Validate that the promo codes exist
   const existingPromoCodes = await db
     .select({ 
       id: promoCode.id
@@ -736,10 +736,15 @@ export const updateTour = async (req: Request, res: Response) => {
     !alreadyAssociatedIds.includes(id)
   );
 
-   await db
-    .update(promoCode)
-    .set({ tourId })
-    .where(inArray(promoCode.id, data.promoCodeIds));
+  // Insert new associations only
+  if (newAssociations.length > 0) {
+    await db.insert(tourPromoCode).values(
+      newAssociations.map((promoCodeId: number) => ({
+        tourId,
+        promoCodeId
+      }))
+    );
+  }
 }
 
   if (data.faq !== undefined) {

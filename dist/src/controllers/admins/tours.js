@@ -575,7 +575,8 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 yield db_1.db.insert(schema_1.tourItinerary).values(newItems);
             }
         }
-        if (data.promoCodeIds !== undefined) {
+        if (data.promoCodeIds && data.promoCodeIds.length > 0) {
+            // Validate that the promo codes exist
             const existingPromoCodes = yield db_1.db
                 .select({
                 id: schema_1.promoCode.id
@@ -595,10 +596,13 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourPromoCode.promoCodeId, data.promoCodeIds)));
             const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
             const newAssociations = data.promoCodeIds.filter((id) => !alreadyAssociatedIds.includes(id));
-            yield db_1.db
-                .update(schema_1.promoCode)
-                .set({ tourId })
-                .where((0, drizzle_orm_1.inArray)(schema_1.promoCode.id, data.promoCodeIds));
+            // Insert new associations only
+            if (newAssociations.length > 0) {
+                yield db_1.db.insert(schema_1.tourPromoCode).values(newAssociations.map((promoCodeId) => ({
+                    tourId,
+                    promoCodeId
+                })));
+            }
         }
         if (data.faq !== undefined) {
             yield db_1.db.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId));
