@@ -168,7 +168,7 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
         .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.bookingId))
         .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId))
         .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, schema_1.payments.id))
-        .leftJoin(schema_1.manualPaymentTypes, (0, drizzle_orm_1.eq)(schema_1.manualPaymentTypes.id, schema_1.manualPaymentMethod.manualPaymentTypeId)); // Added this join
+        .leftJoin(schema_1.manualPaymentTypes, (0, drizzle_orm_1.eq)(schema_1.manualPaymentTypes.id, schema_1.manualPaymentMethod.manualPaymentTypeId));
     // Group by payment.id
     const grouped = Object.values(rows.reduce((acc, row) => {
         var _a;
@@ -183,8 +183,12 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
                  }) : null,
             };
         }
+        // Add booking extras if they exist and haven't been added already
         if (row.bookingExtras && row.bookingExtras.id) {
-            acc[paymentId].bookingExtras.push(row.bookingExtras);
+            const existingExtra = acc[paymentId].bookingExtras.find((extra) => extra.id === row.bookingExtras.id);
+            if (!existingExtra) {
+                acc[paymentId].bookingExtras.push(row.bookingExtras);
+            }
         }
         return acc;
     }, {}));

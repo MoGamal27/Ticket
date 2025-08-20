@@ -136,6 +136,8 @@ export const getAutoPayments = async (req: Request, res: Response) => {
   SuccessResponse(res, { payments: paymentsData }, 200);
 };
 
+
+
 export const getAllPayments = async(req: Request, res: Response) => {
   const rows = await db
     .select({
@@ -184,7 +186,7 @@ export const getAllPayments = async(req: Request, res: Response) => {
     .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.bookingId))
     .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
     .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id))
-    .leftJoin(manualPaymentTypes, eq(manualPaymentTypes.id, manualPaymentMethod.manualPaymentTypeId)); // Added this join
+    .leftJoin(manualPaymentTypes, eq(manualPaymentTypes.id, manualPaymentMethod.manualPaymentTypeId));
 
   // Group by payment.id
   const grouped = Object.values(
@@ -208,8 +210,14 @@ export const getAllPayments = async(req: Request, res: Response) => {
         };
       }
 
+      // Add booking extras if they exist and haven't been added already
       if (row.bookingExtras && row.bookingExtras.id) {
-        acc[paymentId].bookingExtras.push(row.bookingExtras);
+        const existingExtra = acc[paymentId].bookingExtras.find(
+          (extra: any) => extra.id === row.bookingExtras.id
+        );
+        if (!existingExtra) {
+          acc[paymentId].bookingExtras.push(row.bookingExtras);
+        }
       }
 
       return acc;
@@ -217,7 +225,7 @@ export const getAllPayments = async(req: Request, res: Response) => {
   );
 
   SuccessResponse(res, { payments: grouped }, 200);
-}
+};
 
 // Initialize Payment
 /*
