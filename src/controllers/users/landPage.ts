@@ -30,12 +30,14 @@ import {
   Medicals,
   categoryMedical,
   MedicalImages,
-  medicalCategories
+  medicalCategories,
+  tourPromoCode,
+  promoCode
   
 } from "../../models/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
-import { NotFound, UnauthorizedError } from "../../Errors";
+import { NotFound, UnauthorizedError, ValidationError } from "../../Errors";
 import { saveBase64Image } from "../../utils/handleImages";
 import { v4 as uuid } from "uuid";
 import { AuthenticatedRequest } from "../../types/custom";
@@ -325,7 +327,9 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     extras,
     discount,
     location,
-    address
+    address,
+    // promoCode
+    promoCodeId
   } = req.body;
 
   // Parse tourId to ensure it's a number
@@ -337,18 +341,28 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 
-  // check if tourId exist in tourSchedule
-  const tourSchedule = await db
-    .select()
+   const tourSchedule = await db
+    .select({
+      id: tourSchedules.id,
+      tourId: tourSchedules.tourId
+    })
     .from(tourSchedules)
-    .where(eq(tourSchedules.tourId, tourIdNum))
+    .where(eq(tourSchedules.id, tourIdNum)) 
+    .limit(1);
     
-  if (!tourSchedule) {
+  if (!tourSchedule || tourSchedule.length === 0) {
     return res.status(404).json({
       success: false,
-      message: "Tour not found"
+      message: "Tour schedule not found"
     });
   }
+
+  // Extract the actual tourId from the schedule
+  const actualTourId = tourSchedule[0].tourId;
+
+    console.log("DEBUG - tourScheduleId:", tourIdNum);
+  console.log("DEBUG - actualTourId:", actualTourId);
+  console.log("DEBUG - promoCodeId:", promoCodeId);
   
   try {
     // Check if user exists by email and get userId
@@ -366,9 +380,49 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     }
 
     const userId = existingUser[0].id;
+    
+  
+     const promoCodeData = await db
+      .select({
+        id: promoCode.id,
+        code: promoCode.code,
+        usageLimit: promoCode.usageLimit,
+        status: promoCode.status,
+        startDate: promoCode.startDate,
+        endDate: promoCode.endDate,
+        tourPromoCodeId: tourPromoCode.id,
+        tourId: tourPromoCode.tourId
+      })
+      .from(tourPromoCode)
+      .leftJoin(promoCode, eq(promoCode.id, tourPromoCode.promoCodeId))
+      .where(and(
+        eq(tourPromoCode.tourId, actualTourId),
+        eq(promoCode.code, promoCodeId)
+      ));
+
+     // Decrement the usage limit
+    // Decrement the usage limit if promo code exists and is valid
+if (promoCodeData && promoCodeData.length > 0) {
+  const promo = promoCodeData[0];
+  
+     // Check usage limit - add null check
+    if (promo.usageLimit === null || promo.usageLimit === undefined) {
+      throw new ValidationError("Promo code usage limit is invalid");
+    }
+  // Check if usage limit is still available
+  if (promo.usageLimit > 0) {
+    await db.update(promoCode)
+      .set({ usageLimit: promo.usageLimit - 1 })
+      .where(eq(promoCode.id, promo.id));
+  } else {
+    console.warn("Promo code usage limit reached or exceeded");
+  }
+}
+     
 
     // Start transaction
     await db.transaction(async (trx) => {
+    
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
         tourId: tourIdNum,
@@ -737,9 +791,6 @@ export const createMedical = async (req: Request, res: Response) => {
 };
 
 
-
-
-
 export const getMedicalCategories = async (req: Request, res: Response) => {
     const data = await db.select().from(categoryMedical);
     SuccessResponse(res, { categoriesMedical: data }, 200);
@@ -830,3 +881,118 @@ export const getRejectedMedicalRequests = async (req: AuthenticatedRequest, res:
 
   SuccessResponse(res, { medicalRequests: data }, 200);
 }
+
+
+/*export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+  const { tourId, code } = req.body;
+
+  const data = await db
+     .select({
+      id: tourPromoCode.id,
+      tourId: tourPromoCode.tourId,
+      code: promoCode.code,
+     })
+     .from(tourPromoCode)
+     .leftJoin(promoCode, eq(promoCode.id, tourPromoCode.promoCodeId))
+     .where(and(
+      eq(tourPromoCode.tourId, tourId),
+      eq(promoCode.code, code)
+     ));
+
+     // check if code exist with tourid
+     if (data.length === 0) {
+      throw new NotFound("Promo Code Not Found");
+    }
+
+    // check usage limit
+
+    // update usage limit
+    
+
+  SuccessResponse(res, { tourPromoCode: data }, 200);
+}*/
+
+
+export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+  const { tourId, code } = req.body;
+
+  // Start a transaction to ensure data consistency
+  await db.transaction(async (tx) => {
+    // Get promo code details
+    const promoCodeData = await tx
+      .select({
+        id: promoCode.id,
+        code: promoCode.code,
+        discountType: promoCode.discountType,
+        discountValue: promoCode.discountValue,
+        usageLimit: promoCode.usageLimit,
+        status: promoCode.status,
+        startDate: promoCode.startDate,
+        endDate: promoCode.endDate,
+        tourPromoCodeId: tourPromoCode.id
+      })
+      .from(tourPromoCode)
+      .leftJoin(promoCode, eq(promoCode.id, tourPromoCode.promoCodeId))
+      .where(and(
+        eq(tourPromoCode.tourId, tourId),
+        eq(promoCode.code, code)
+      ));
+
+    // Check if promo code exists for this tour
+    if (promoCodeData.length === 0) {
+      throw new NotFound("Promo Code Not Found for this tour");
+    }
+
+    const promo = promoCodeData[0];
+
+    // Check if promo code is active
+    if (!promo.status) {
+      throw new ValidationError("Promo code is not active");
+    }
+
+    // Check validity dates - add null checks
+    const currentDate = new Date();
+    if (!promo.startDate || !promo.endDate) {
+      throw new ValidationError("Promo code dates are invalid");
+    }
+
+    if (currentDate < promo.startDate) {
+      throw new ValidationError("Promo code is not yet valid");
+    }
+
+    if (currentDate > promo.endDate) {
+      throw new ValidationError("Promo code has expired");
+    }
+
+    // Check usage limit - add null check
+    if (promo.usageLimit === null || promo.usageLimit === undefined) {
+      throw new ValidationError("Promo code usage limit is invalid");
+    }
+
+    if (promo.usageLimit <= 0) {
+      throw new ValidationError("Promo code usage limit exceeded");
+    }
+
+    SuccessResponse(res, { 
+      success: true,
+      promoCodeData: {
+        promoCode: promo.code,
+        discountType: promo.discountType,
+        discountValue: promo.discountValue,
+        status: promo.status, 
+        usageLimit: promo.usageLimit,
+      }
+    }, 200);
+  });
+};
+

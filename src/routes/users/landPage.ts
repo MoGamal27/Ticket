@@ -9,7 +9,8 @@ import {
   createMedical,
   getMedicalCategories,
   getAcceptMedicalRequests,
-  getRejectedMedicalRequests 
+  getRejectedMedicalRequests,
+  applyPromoCode 
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
 import { AuthenticatedRequest } from "../../types/custom";
@@ -37,6 +38,10 @@ router.get("/rejected-medical-requests", authenticated, catchAsync((req, res) =>
   return getRejectedMedicalRequests(req as AuthenticatedRequest, res);
 }))
 
+
+router.post("/apply-promo-code", authenticated, catchAsync((req, res) => {
+  return applyPromoCode(req as AuthenticatedRequest, res);
+}))
 
 router.get("/images", catchAsync(getImages));
 router.get("/featured-tours", catchAsync(getFeaturedTours));

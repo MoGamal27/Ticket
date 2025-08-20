@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getRejectedMedicalRequests = exports.getAcceptMedicalRequests = exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
+exports.applyPromoCode = exports.getRejectedMedicalRequests = exports.getAcceptMedicalRequests = exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -254,7 +254,9 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
     // Payment method as ID
     paymentMethodId, proofImage, // This is now expected as base64 string
     // Extras array
-    extras, discount, location, address } = req.body;
+    extras, discount, location, address, 
+    // promoCode
+    promoCodeId } = req.body;
     // Parse tourId to ensure it's a number
     const tourIdNum = parseInt(tourId, 10);
     if (isNaN(tourIdNum)) {
@@ -263,17 +265,25 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             message: "Invalid tourId provided"
         });
     }
-    // check if tourId exist in tourSchedule
     const tourSchedule = yield db_1.db
-        .select()
+        .select({
+        id: schema_1.tourSchedules.id,
+        tourId: schema_1.tourSchedules.tourId
+    })
         .from(schema_1.tourSchedules)
-        .where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourIdNum));
-    if (!tourSchedule) {
+        .where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.id, tourIdNum))
+        .limit(1);
+    if (!tourSchedule || tourSchedule.length === 0) {
         return res.status(404).json({
             success: false,
-            message: "Tour not found"
+            message: "Tour schedule not found"
         });
     }
+    // Extract the actual tourId from the schedule
+    const actualTourId = tourSchedule[0].tourId;
+    console.log("DEBUG - tourScheduleId:", tourIdNum);
+    console.log("DEBUG - actualTourId:", actualTourId);
+    console.log("DEBUG - promoCodeId:", promoCodeId);
     try {
         // Check if user exists by email and get userId
         const existingUser = yield db_1.db
@@ -288,6 +298,38 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             });
         }
         const userId = existingUser[0].id;
+        const promoCodeData = yield db_1.db
+            .select({
+            id: schema_1.promoCode.id,
+            code: schema_1.promoCode.code,
+            usageLimit: schema_1.promoCode.usageLimit,
+            status: schema_1.promoCode.status,
+            startDate: schema_1.promoCode.startDate,
+            endDate: schema_1.promoCode.endDate,
+            tourPromoCodeId: schema_1.tourPromoCode.id,
+            tourId: schema_1.tourPromoCode.tourId
+        })
+            .from(schema_1.tourPromoCode)
+            .leftJoin(schema_1.promoCode, (0, drizzle_orm_1.eq)(schema_1.promoCode.id, schema_1.tourPromoCode.promoCodeId))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, actualTourId), (0, drizzle_orm_1.eq)(schema_1.promoCode.code, promoCodeId)));
+        // Decrement the usage limit
+        // Decrement the usage limit if promo code exists and is valid
+        if (promoCodeData && promoCodeData.length > 0) {
+            const promo = promoCodeData[0];
+            // Check usage limit - add null check
+            if (promo.usageLimit === null || promo.usageLimit === undefined) {
+                throw new Errors_1.ValidationError("Promo code usage limit is invalid");
+            }
+            // Check if usage limit is still available
+            if (promo.usageLimit > 0) {
+                yield db_1.db.update(schema_1.promoCode)
+                    .set({ usageLimit: promo.usageLimit - 1 })
+                    .where((0, drizzle_orm_1.eq)(schema_1.promoCode.id, promo.id));
+            }
+            else {
+                console.warn("Promo code usage limit reached or exceeded");
+            }
+        }
         // Start transaction
         yield db_1.db.transaction((trx) => __awaiter(void 0, void 0, void 0, function* () {
             // Create main booking record
@@ -694,3 +736,100 @@ const getRejectedMedicalRequests = (req, res) => __awaiter(void 0, void 0, void 
     (0, response_1.SuccessResponse)(res, { medicalRequests: data }, 200);
 });
 exports.getRejectedMedicalRequests = getRejectedMedicalRequests;
+/*export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user || !req.user.id) {
+    throw new UnauthorizedError("User not authenticated");
+  }
+
+  const userId = Number(req.user.id);
+  const { tourId, code } = req.body;
+
+  const data = await db
+     .select({
+      id: tourPromoCode.id,
+      tourId: tourPromoCode.tourId,
+      code: promoCode.code,
+     })
+     .from(tourPromoCode)
+     .leftJoin(promoCode, eq(promoCode.id, tourPromoCode.promoCodeId))
+     .where(and(
+      eq(tourPromoCode.tourId, tourId),
+      eq(promoCode.code, code)
+     ));
+
+     // check if code exist with tourid
+     if (data.length === 0) {
+      throw new NotFound("Promo Code Not Found");
+    }
+
+    // check usage limit
+
+    // update usage limit
+    
+
+  SuccessResponse(res, { tourPromoCode: data }, 200);
+}*/
+const applyPromoCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!req.user || !req.user.id) {
+        throw new Errors_1.UnauthorizedError("User not authenticated");
+    }
+    const userId = Number(req.user.id);
+    const { tourId, code } = req.body;
+    // Start a transaction to ensure data consistency
+    yield db_1.db.transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        // Get promo code details
+        const promoCodeData = yield tx
+            .select({
+            id: schema_1.promoCode.id,
+            code: schema_1.promoCode.code,
+            discountType: schema_1.promoCode.discountType,
+            discountValue: schema_1.promoCode.discountValue,
+            usageLimit: schema_1.promoCode.usageLimit,
+            status: schema_1.promoCode.status,
+            startDate: schema_1.promoCode.startDate,
+            endDate: schema_1.promoCode.endDate,
+            tourPromoCodeId: schema_1.tourPromoCode.id
+        })
+            .from(schema_1.tourPromoCode)
+            .leftJoin(schema_1.promoCode, (0, drizzle_orm_1.eq)(schema_1.promoCode.id, schema_1.tourPromoCode.promoCodeId))
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId), (0, drizzle_orm_1.eq)(schema_1.promoCode.code, code)));
+        // Check if promo code exists for this tour
+        if (promoCodeData.length === 0) {
+            throw new Errors_1.NotFound("Promo Code Not Found for this tour");
+        }
+        const promo = promoCodeData[0];
+        // Check if promo code is active
+        if (!promo.status) {
+            throw new Errors_1.ValidationError("Promo code is not active");
+        }
+        // Check validity dates - add null checks
+        const currentDate = new Date();
+        if (!promo.startDate || !promo.endDate) {
+            throw new Errors_1.ValidationError("Promo code dates are invalid");
+        }
+        if (currentDate < promo.startDate) {
+            throw new Errors_1.ValidationError("Promo code is not yet valid");
+        }
+        if (currentDate > promo.endDate) {
+            throw new Errors_1.ValidationError("Promo code has expired");
+        }
+        // Check usage limit - add null check
+        if (promo.usageLimit === null || promo.usageLimit === undefined) {
+            throw new Errors_1.ValidationError("Promo code usage limit is invalid");
+        }
+        if (promo.usageLimit <= 0) {
+            throw new Errors_1.ValidationError("Promo code usage limit exceeded");
+        }
+        (0, response_1.SuccessResponse)(res, {
+            success: true,
+            promoCodeData: {
+                promoCode: promo.code,
+                discountType: promo.discountType,
+                discountValue: promo.discountValue,
+                status: promo.status,
+                usageLimit: promo.usageLimit,
+            }
+        }, 200);
+    }));
+});
+exports.applyPromoCode = applyPromoCode;
