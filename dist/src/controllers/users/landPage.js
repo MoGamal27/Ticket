@@ -244,25 +244,21 @@ const getActivePaymentMethods = (req, res) => __awaiter(void 0, void 0, void 0, 
 });
 exports.getActivePaymentMethods = getActivePaymentMethods;
 const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { tourId, 
-    // User information
-    fullName, email, phone, notes, 
-    // Passenger counts
-    adultsCount, childrenCount, infantsCount, 
-    //
-    totalAmount, 
-    // Payment method as ID
-    paymentMethodId, proofImage, // This is now expected as base64 string
-    // Extras array
-    extras, discount, location, address, 
-    // promoCode
-    promoCodeId } = req.body;
+    const { tourId, fullName, email, phone, notes, adultsCount, childrenCount, infantsCount, totalAmount, paymentMethodId, proofImage, extras, discount, location, address, promoCodeId } = req.body;
     // Parse tourId to ensure it's a number
     const tourIdNum = parseInt(tourId, 10);
     if (isNaN(tourIdNum)) {
         return res.status(400).json({
             success: false,
             message: "Invalid tourId provided"
+        });
+    }
+    // Parse promoCodeId to ensure it's a number
+    const promoCodeIdNum = parseInt(promoCodeId, 10);
+    if (isNaN(promoCodeIdNum)) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid promoCodeId provided"
         });
     }
     const tourSchedule = yield db_1.db
@@ -283,7 +279,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
     const actualTourId = tourSchedule[0].tourId;
     console.log("DEBUG - tourScheduleId:", tourIdNum);
     console.log("DEBUG - actualTourId:", actualTourId);
-    console.log("DEBUG - promoCodeId:", promoCodeId);
+    console.log("DEBUG - promoCodeId:", promoCodeIdNum);
     try {
         // Check if user exists by email and get userId
         const existingUser = yield db_1.db
@@ -311,14 +307,12 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
         })
             .from(schema_1.tourPromoCode)
             .leftJoin(schema_1.promoCode, (0, drizzle_orm_1.eq)(schema_1.promoCode.id, schema_1.tourPromoCode.promoCodeId))
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, actualTourId), (0, drizzle_orm_1.eq)(schema_1.promoCode.code, promoCodeId)));
-        // Decrement the usage limit
-        // Decrement the usage limit if promo code exists and is valid
+            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, actualTourId), (0, drizzle_orm_1.eq)(schema_1.promoCode.id, promoCodeIdNum)));
         if (promoCodeData && promoCodeData.length > 0) {
             const promo = promoCodeData[0];
             // Check usage limit - add null check
             if (promo.usageLimit === null || promo.usageLimit === undefined) {
-                throw new Errors_1.ValidationError("Promo code usage limit is invalid");
+                throw new Error("Promo code usage limit is invalid");
             }
             // Check if usage limit is still available
             if (promo.usageLimit > 0) {
@@ -380,7 +374,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                     savedImageUrl = yield (0, handleImages_1.saveBase64Image)(proofImage, userId.toString(), req, "payment-proofs");
                     yield trx.insert(schema_1.manualPaymentMethod).values({
                         paymentId: payment.id,
-                        proofImage: savedImageUrl, // Now storing the URL
+                        proofImage: savedImageUrl,
                         manualPaymentTypeId: paymentMethodId,
                         prooftext: null,
                         uploadedAt: new Date()
@@ -408,7 +402,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                     method: "manual",
                     status: "pending",
                     amount: totalAmount,
-                    proofImageUrl: savedImageUrl // Include the image URL in response
+                    proofImageUrl: savedImageUrl
                 },
                 details: {
                     fullName,
@@ -823,6 +817,7 @@ const applyPromoCode = (req, res) => __awaiter(void 0, void 0, void 0, function*
         (0, response_1.SuccessResponse)(res, {
             success: true,
             promoCodeData: {
+                id: promo.id,
                 promoCode: promo.code,
                 discountType: promo.discountType,
                 discountValue: promo.discountValue,

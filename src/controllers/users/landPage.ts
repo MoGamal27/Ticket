@@ -309,26 +309,20 @@ export const getActivePaymentMethods = async (req: Request, res: Response) => {
 export const createBookingWithPayment = async (req: Request, res: Response) => {
   const { 
     tourId,
-    // User information
     fullName,
     email,
     phone,
     notes,
-    // Passenger counts
     adultsCount,
     childrenCount,
     infantsCount,
-    //
     totalAmount,
-    // Payment method as ID
     paymentMethodId,
-    proofImage, // This is now expected as base64 string
-    // Extras array
+    proofImage,
     extras,
     discount,
     location,
     address,
-    // promoCode
     promoCodeId
   } = req.body;
 
@@ -341,7 +335,16 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 
-   const tourSchedule = await db
+  // Parse promoCodeId to ensure it's a number
+  const promoCodeIdNum = parseInt(promoCodeId, 10);
+  if (isNaN(promoCodeIdNum)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid promoCodeId provided"
+    });
+  }
+
+  const tourSchedule = await db
     .select({
       id: tourSchedules.id,
       tourId: tourSchedules.tourId
@@ -360,9 +363,9 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
   // Extract the actual tourId from the schedule
   const actualTourId = tourSchedule[0].tourId;
 
-    console.log("DEBUG - tourScheduleId:", tourIdNum);
+  console.log("DEBUG - tourScheduleId:", tourIdNum);
   console.log("DEBUG - actualTourId:", actualTourId);
-  console.log("DEBUG - promoCodeId:", promoCodeId);
+  console.log("DEBUG - promoCodeId:", promoCodeIdNum);
   
   try {
     // Check if user exists by email and get userId
@@ -381,8 +384,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     const userId = existingUser[0].id;
     
-  
-     const promoCodeData = await db
+    const promoCodeData = await db
       .select({
         id: promoCode.id,
         code: promoCode.code,
@@ -397,32 +399,28 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
       .leftJoin(promoCode, eq(promoCode.id, tourPromoCode.promoCodeId))
       .where(and(
         eq(tourPromoCode.tourId, actualTourId),
-        eq(promoCode.code, promoCodeId)
+        eq(promoCode.id, promoCodeIdNum)
       ));
 
-     // Decrement the usage limit
-    // Decrement the usage limit if promo code exists and is valid
-if (promoCodeData && promoCodeData.length > 0) {
-  const promo = promoCodeData[0];
-  
-     // Check usage limit - add null check
-    if (promo.usageLimit === null || promo.usageLimit === undefined) {
-      throw new ValidationError("Promo code usage limit is invalid");
+    if (promoCodeData && promoCodeData.length > 0) {
+      const promo = promoCodeData[0];
+      
+      // Check usage limit - add null check
+      if (promo.usageLimit === null || promo.usageLimit === undefined) {
+        throw new Error("Promo code usage limit is invalid");
+      }
+      // Check if usage limit is still available
+      if (promo.usageLimit > 0) {
+        await db.update(promoCode)
+          .set({ usageLimit: promo.usageLimit - 1 })
+          .where(eq(promoCode.id, promo.id));
+      } else {
+        console.warn("Promo code usage limit reached or exceeded");
+      }
     }
-  // Check if usage limit is still available
-  if (promo.usageLimit > 0) {
-    await db.update(promoCode)
-      .set({ usageLimit: promo.usageLimit - 1 })
-      .where(eq(promoCode.id, promo.id));
-  } else {
-    console.warn("Promo code usage limit reached or exceeded");
-  }
-}
-     
 
     // Start transaction
     await db.transaction(async (trx) => {
-    
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
         tourId: tourIdNum,
@@ -477,7 +475,7 @@ if (promoCodeData && promoCodeData.length > 0) {
           
           await trx.insert(manualPaymentMethod).values({
             paymentId: payment.id,
-            proofImage: savedImageUrl, // Now storing the URL
+            proofImage: savedImageUrl,
             manualPaymentTypeId: paymentMethodId,
             prooftext: null, 
             uploadedAt: new Date()
@@ -505,7 +503,7 @@ if (promoCodeData && promoCodeData.length > 0) {
           method: "manual",
           status: "pending",
           amount: totalAmount,
-          proofImageUrl: savedImageUrl // Include the image URL in response
+          proofImageUrl: savedImageUrl
         },
         details: {
           fullName,
@@ -529,7 +527,6 @@ if (promoCodeData && promoCodeData.length > 0) {
     });
   }
 };
-
 
 // function to get booking with details
 export const getBookingWithDetails = async (req: Request, res: Response) => {
@@ -986,6 +983,7 @@ export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) =
     SuccessResponse(res, { 
       success: true,
       promoCodeData: {
+        id: promo.id,
         promoCode: promo.code,
         discountType: promo.discountType,
         discountValue: promo.discountValue,
