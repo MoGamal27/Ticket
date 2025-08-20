@@ -254,12 +254,16 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
         });
     }
     // Parse promoCodeId to ensure it's a number
-    const promoCodeIdNum = parseInt(promoCodeId, 10);
-    if (isNaN(promoCodeIdNum)) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid promoCodeId provided"
-        });
+    // Parse promoCodeId only if it's provided and not null/undefined
+    let promoCodeIdNum = null;
+    if (promoCodeId !== undefined && promoCodeId !== null && promoCodeId !== '') {
+        promoCodeIdNum = parseInt(promoCodeId, 10);
+        if (isNaN(promoCodeIdNum)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid promoCodeId provided"
+            });
+        }
     }
     const tourSchedule = yield db_1.db
         .select({
@@ -402,7 +406,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                     method: "manual",
                     status: "pending",
                     amount: totalAmount,
-                    proofImageUrl: savedImageUrl
+                    proofImage: savedImageUrl
                 },
                 details: {
                     fullName,

@@ -336,13 +336,18 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
   }
 
   // Parse promoCodeId to ensure it's a number
-  const promoCodeIdNum = parseInt(promoCodeId, 10);
-  if (isNaN(promoCodeIdNum)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid promoCodeId provided"
-    });
+   // Parse promoCodeId only if it's provided and not null/undefined
+  let promoCodeIdNum: number | null = null;
+  if (promoCodeId !== undefined && promoCodeId !== null && promoCodeId !== '') {
+    promoCodeIdNum = parseInt(promoCodeId, 10);
+    if (isNaN(promoCodeIdNum)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid promoCodeId provided"
+      });
+    }
   }
+
 
   const tourSchedule = await db
     .select({
@@ -384,6 +389,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     const userId = existingUser[0].id;
     
+   
     const promoCodeData = await db
       .select({
         id: promoCode.id,
@@ -418,7 +424,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
         console.warn("Promo code usage limit reached or exceeded");
       }
     }
-
+  
     // Start transaction
     await db.transaction(async (trx) => {
       // Create main booking record
@@ -503,7 +509,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
           method: "manual",
           status: "pending",
           amount: totalAmount,
-          proofImageUrl: savedImageUrl
+          proofImage: savedImageUrl
         },
         details: {
           fullName,

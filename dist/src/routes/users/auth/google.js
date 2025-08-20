@@ -3,19 +3,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+// routes/auth/google.ts
 const express_1 = __importDefault(require("express"));
 const passport_1 = __importDefault(require("passport"));
 require("../../../config/passport"); // load google strategy
-const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
 const router = express_1.default.Router();
+// بدء تسجيل الدخول مع جوجل
 router.get("/", passport_1.default.authenticate("google", { scope: ["profile", "email"], session: false }));
-router.get("/callback", passport_1.default.authenticate("google", { session: false }), (req, res) => {
+// callback بعد تسجيل الدخول
+router.get("/callback", passport_1.default.authenticate("google", {
+    session: false,
+    failureRedirect: `${process.env.FRONTEND_URL}/login-error `
+}), (req, res) => {
     const { user, token } = req.user;
     if (!user || !token) {
-        return res.status(401).json({ message: "Unauthorized" });
+        // مجرد احتياط، لو فشل توليد التوكن
+        return res.redirect(`${process.env.FRONTEND_URL}/login-error)`);
     }
-    const redirectUrl = `${process.env.FRONTEND_URL}/?token=${token}`;
-    return res.redirect(redirectUrl);
+    // تحويل المستخدم للـ Frontend مع التوكن
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
 });
 exports.default = router;

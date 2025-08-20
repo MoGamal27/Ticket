@@ -1,30 +1,33 @@
+// routes/auth/google.ts
 import express from "express";
 import passport from "passport";
 import "../../../config/passport"; // load google strategy
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const router = express.Router();
 
+// بدء تسجيل الدخول مع جوجل
 router.get(
   "/",
   passport.authenticate("google", { scope: ["profile", "email"], session: false })
 );
 
+// callback بعد تسجيل الدخول
 router.get(
   "/callback",
-  passport.authenticate("google", { session: false }),
+  passport.authenticate("google", { 
+    session: false, 
+    failureRedirect: `${process.env.FRONTEND_URL}/login-error `
+  }),
   (req, res) => {
     const { user, token } = req.user as { user: any; token: string };
 
     if (!user || !token) {
-      return res.status(401).json({ message: "Unauthorized" });
+      // مجرد احتياط، لو فشل توليد التوكن
+      return res.redirect(`${process.env.FRONTEND_URL}/login-error)`);
     }
 
-    const redirectUrl = `${process.env.FRONTEND_URL}/?token=${token}`;
-
-    return res.redirect(redirectUrl);
+    // تحويل المستخدم للـ Frontend مع التوكن
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
   }
 );
 
