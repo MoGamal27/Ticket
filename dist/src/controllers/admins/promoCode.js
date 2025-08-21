@@ -17,8 +17,7 @@ const drizzle_orm_1 = require("drizzle-orm");
 const Errors_1 = require("../../Errors");
 const getAllPromoCodes = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const codes = yield db_1.db.select().from(schema_1.promoCode);
-    const formattedCodes = codes.map(code => (Object.assign(Object.assign({}, code), { startDate: code.startDate.toISOString().split('T')[0], endDate: code.endDate.toISOString().split('T')[0] // "2025-07-26"
-     })));
+    const formattedCodes = codes.map(code => (Object.assign(Object.assign({}, code), { startDate: code.startDate.toISOString().split('T')[0], endDate: code.endDate.toISOString().split('T')[0] })));
     (0, response_1.SuccessResponse)(res, { codes: formattedCodes });
 });
 exports.getAllPromoCodes = getAllPromoCodes;
@@ -36,7 +35,9 @@ const getCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.getCode = getCode;
 const createCode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = req.body;
-    yield db_1.db.insert(schema_1.promoCode).values(data);
+    // Convert date strings to Date objects
+    const processedData = Object.assign(Object.assign({}, data), { startDate: new Date(data.startDate), endDate: new Date(data.endDate) });
+    yield db_1.db.insert(schema_1.promoCode).values(processedData);
     (0, response_1.SuccessResponse)(res, { message: "Code created Successfully" }, 201);
 });
 exports.createCode = createCode;

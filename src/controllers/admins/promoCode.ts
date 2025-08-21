@@ -8,12 +8,11 @@ import { NotFound } from "../../Errors";
 export const getAllPromoCodes = async (req: Request, res: Response) => {
   const codes = await db.select().from(promoCode);
   
-const formattedCodes = codes.map(code => ({
+  const formattedCodes = codes.map(code => ({
     ...code,
-    startDate: code.startDate.toISOString().split('T')[0], // "2025-07-24"
-    endDate: code.endDate.toISOString().split('T')[0]     // "2025-07-26"
-  }));
-  
+   startDate: code.startDate.toISOString().split('T')[0],
+  endDate: code.endDate.toISOString().split('T')[0]
+  })); 
   SuccessResponse(res, { codes: formattedCodes });
 };
 
@@ -30,7 +29,15 @@ export const getCode = async (req: Request, res: Response) => {
 
 export const createCode = async (req: Request, res: Response) => {
   const data = req.body;
-  await db.insert(promoCode).values(data);
+  
+  // Convert date strings to Date objects
+  const processedData = {
+    ...data,
+    startDate: new Date(data.startDate),
+    endDate: new Date(data.endDate)
+  };
+  
+  await db.insert(promoCode).values(processedData);
   SuccessResponse(res, { message: "Code created Successfully" }, 201);
 };
 

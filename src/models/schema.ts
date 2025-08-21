@@ -184,8 +184,8 @@ export const promoCode = mysqlTable("promo_code", {
   discountValue: int("discount_value").notNull(),
   usageLimit: int("usade_limit").notNull(),
   status: boolean("status").default(false),
-  startDate: timestamp("startDate").notNull(),
-  endDate: timestamp("endDate").notNull(),
+  startDate: date("startDate").notNull(),
+  endDate: date("endDate").notNull(),
 });
 
 export const tourPromoCode = mysqlTable("tour_promo_code", {

@@ -155,8 +155,8 @@ exports.promoCode = (0, mysql_core_1.mysqlTable)("promo_code", {
     discountValue: (0, mysql_core_1.int)("discount_value").notNull(),
     usageLimit: (0, mysql_core_1.int)("usade_limit").notNull(),
     status: (0, mysql_core_1.boolean)("status").default(false),
-    startDate: (0, mysql_core_1.timestamp)("startDate").notNull(),
-    endDate: (0, mysql_core_1.timestamp)("endDate").notNull(),
+    startDate: (0, mysql_core_1.date)("startDate").notNull(),
+    endDate: (0, mysql_core_1.date)("endDate").notNull(),
 });
 exports.tourPromoCode = (0, mysql_core_1.mysqlTable)("tour_promo_code", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
