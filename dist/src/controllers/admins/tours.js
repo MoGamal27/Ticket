@@ -318,26 +318,46 @@ const addData = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.addData = addData;
 const deleteTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const id = Number(req.params.id);
+    // Check if tour exists
     const [tour] = yield db_1.db.select().from(schema_1.tours).where((0, drizzle_orm_1.eq)(schema_1.tours.id, id));
     if (!tour)
         throw new Errors_1.NotFound("Tour Not Found");
-    yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tour.mainImage).pathname);
-    const tourImagesList = yield db_1.db
-        .select()
-        .from(schema_1.tourImages)
-        .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, id));
-    tourImagesList.forEach((tourIamge) => __awaiter(void 0, void 0, void 0, function* () {
-        yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tourIamge.imagePath).pathname);
-    }));
-    const tourItineraryImages = yield db_1.db
-        .select()
-        .from(schema_1.tourItinerary)
-        .where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, id));
-    tourItineraryImages.forEach((tourIamge) => __awaiter(void 0, void 0, void 0, function* () {
-        yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tourIamge.imagePath).pathname);
-    }));
-    yield db_1.db.delete(schema_1.tours).where((0, drizzle_orm_1.eq)(schema_1.tours.id, id));
-    (0, response_1.SuccessResponse)(res, { message: "Tour Deleted Successfully" }, 200);
+    try {
+        // Delete main tour image from server
+        yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tour.mainImage).pathname);
+        // Get and delete tour images
+        const tourImagesList = yield db_1.db
+            .select()
+            .from(schema_1.tourImages)
+            .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, id));
+        // Delete tour images from server
+        yield Promise.all(tourImagesList.map((tourImage) => __awaiter(void 0, void 0, void 0, function* () {
+            if (tourImage.imagePath) {
+                yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tourImage.imagePath).pathname);
+            }
+        })));
+        // Get and delete tour itinerary images
+        const tourItineraryList = yield db_1.db
+            .select()
+            .from(schema_1.tourItinerary)
+            .where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, id));
+        // Delete tour itinerary images from server
+        yield Promise.all(tourItineraryList.map((itinerary) => __awaiter(void 0, void 0, void 0, function* () {
+            if (itinerary.imagePath) {
+                yield (0, deleteImage_1.deletePhotoFromServer)(new URL(itinerary.imagePath).pathname);
+            }
+        })));
+        // Delete related records first (to avoid foreign key constraint errors)
+        yield db_1.db.delete(schema_1.tourImages).where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, id));
+        yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, id));
+        // Finally delete the tour itself
+        yield db_1.db.delete(schema_1.tours).where((0, drizzle_orm_1.eq)(schema_1.tours.id, id));
+        (0, response_1.SuccessResponse)(res, { message: "Tour Deleted Successfully" }, 200);
+    }
+    catch (error) {
+        console.error("Error deleting tour:", error);
+        throw error; // Re-throw to be handled by your error middleware
+    }
 });
 exports.deleteTour = deleteTour;
 const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () {

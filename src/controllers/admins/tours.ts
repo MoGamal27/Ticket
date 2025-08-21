@@ -412,25 +412,58 @@ export const addData = async (req: Request, res: Response) => {
 
 export const deleteTour = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  
+  // Check if tour exists
   const [tour] = await db.select().from(tours).where(eq(tours.id, id));
   if (!tour) throw new NotFound("Tour Not Found");
-  await deletePhotoFromServer(new URL(tour.mainImage).pathname);
-  const tourImagesList = await db
-    .select()
-    .from(tourImages)
-    .where(eq(tourImages.tourId, id));
-  tourImagesList.forEach(async (tourIamge) => {
-    await deletePhotoFromServer(new URL(tourIamge.imagePath!).pathname);
-  });
-  const tourItineraryImages = await db
-    .select()
-    .from(tourItinerary)
-    .where(eq(tourItinerary.tourId, id));
-  tourItineraryImages.forEach(async (tourIamge) => {
-    await deletePhotoFromServer(new URL(tourIamge.imagePath!).pathname);
-  });
-  await db.delete(tours).where(eq(tours.id, id));
-  SuccessResponse(res, { message: "Tour Deleted Successfully" }, 200);
+  
+  try {
+    // Delete main tour image from server
+    await deletePhotoFromServer(new URL(tour.mainImage).pathname);
+    
+    // Get and delete tour images
+    const tourImagesList = await db
+      .select()
+      .from(tourImages)
+      .where(eq(tourImages.tourId, id));
+    
+    // Delete tour images from server
+    await Promise.all(
+      tourImagesList.map(async (tourImage) => {
+        if (tourImage.imagePath) {
+          await deletePhotoFromServer(new URL(tourImage.imagePath).pathname);
+        }
+      })
+    );
+    
+    // Get and delete tour itinerary images
+    const tourItineraryList = await db
+      .select()
+      .from(tourItinerary)
+      .where(eq(tourItinerary.tourId, id));
+    
+    // Delete tour itinerary images from server
+    await Promise.all(
+      tourItineraryList.map(async (itinerary) => {
+        if (itinerary.imagePath) {
+          await deletePhotoFromServer(new URL(itinerary.imagePath).pathname);
+        }
+      })
+    );
+    
+    // Delete related records first (to avoid foreign key constraint errors)
+    await db.delete(tourImages).where(eq(tourImages.tourId, id));
+    await db.delete(tourItinerary).where(eq(tourItinerary.tourId, id));
+    
+    // Finally delete the tour itself
+    await db.delete(tours).where(eq(tours.id, id));
+    
+    SuccessResponse(res, { message: "Tour Deleted Successfully" }, 200);
+    
+  } catch (error) {
+    console.error("Error deleting tour:", error);
+    throw error; // Re-throw to be handled by your error middleware
+  }
 };
 
 
