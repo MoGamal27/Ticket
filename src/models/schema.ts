@@ -248,7 +248,7 @@ export const bookingDetails = mysqlTable("booking_details", {
 export const bookingExtras = mysqlTable("booking_extras", {
   id: int("id").autoincrement().primaryKey(),
   bookingId: int("booking_id").references(() => bookings.id),
-  extraId: int("extra_id"), 
+  extraId: int("extra_id").references(() => extras.id),
   adultCount: int("adult_count").default(0),
   childCount: int("child_count").default(0),
   infantCount: int("infant_count").default(0),

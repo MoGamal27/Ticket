@@ -57,8 +57,16 @@ export const getBookings = async (req: Request, res: Response) => {
 
   // Get all booking extras in one query
   const allBookingExtras = await db
-    .select()
+    .select({
+      bookingId: bookingExtras.bookingId,
+      extraId: bookingExtras.extraId,
+      extraName: extras.name,
+      adultCount: bookingExtras.adultCount,
+      childCount: bookingExtras.childCount,
+      infantCount: bookingExtras.infantCount,
+    })
     .from(bookingExtras)
+    .leftJoin(extras, eq(bookingExtras.extraId, extras.id))
     .where(inArray(bookingExtras.bookingId, bookingIds));
 
   // Combine the data

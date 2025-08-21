@@ -60,8 +60,16 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .where((0, drizzle_orm_1.inArray)(schema_1.bookingDetails.bookingId, bookingIds));
     // Get all booking extras in one query
     const allBookingExtras = yield db_1.db
-        .select()
+        .select({
+        bookingId: schema_1.bookingExtras.bookingId,
+        extraId: schema_1.bookingExtras.extraId,
+        extraName: schema_1.extras.name,
+        adultCount: schema_1.bookingExtras.adultCount,
+        childCount: schema_1.bookingExtras.childCount,
+        infantCount: schema_1.bookingExtras.infantCount,
+    })
         .from(schema_1.bookingExtras)
+        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.extraId, schema_1.extras.id))
         .where((0, drizzle_orm_1.inArray)(schema_1.bookingExtras.bookingId, bookingIds));
     // Combine the data
     const bookingsWithDetails = mainBookings.map(booking => {

@@ -210,7 +210,7 @@ exports.bookingDetails = (0, mysql_core_1.mysqlTable)("booking_details", {
 exports.bookingExtras = (0, mysql_core_1.mysqlTable)("booking_extras", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),
     bookingId: (0, mysql_core_1.int)("booking_id").references(() => exports.bookings.id),
-    extraId: (0, mysql_core_1.int)("extra_id"),
+    extraId: (0, mysql_core_1.int)("extra_id").references(() => exports.extras.id),
     adultCount: (0, mysql_core_1.int)("adult_count").default(0),
     childCount: (0, mysql_core_1.int)("child_count").default(0),
     infantCount: (0, mysql_core_1.int)("infant_count").default(0),
