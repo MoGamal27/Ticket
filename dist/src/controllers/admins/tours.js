@@ -664,8 +664,6 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         // Generate schedules if needed using transaction
         if (data.startDate || data.endDate || data.daysOfWeek) {
             yield tx.delete(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId));
-            // Note: You'll need to modify generateTourSchedules to accept transaction parameter
-            // or handle schedules generation within this transaction
             yield (0, generateSchedules_1.generateTourSchedules)({
                 tourId,
                 startDate: (data.startDate ? new Date(data.startDate) : existingTour.startDate).toISOString(),
@@ -674,7 +672,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 maxUsers: data.maxUsers || existingTour.maxUsers,
                 durationDays: data.durationDays || existingTour.durationDays,
                 durationHours: data.durationHours || existingTour.durationHours,
-            }, tx); // Pass transaction to generateTourSchedules
+            });
         }
         // If we reach here, all operations succeeded
         console.log('All tour update operations completed successfully');

@@ -26,6 +26,7 @@ import {
   bookingExtras,
   payments,
   manualPaymentMethod,
+
 } from "../../models/schema";
 import { SuccessResponse } from "../../utils/response";
 import { eq, and, inArray } from "drizzle-orm";
@@ -840,10 +841,9 @@ export const updateTour = async (req: Request, res: Response) => {
 
     // Generate schedules if needed using transaction
     if (data.startDate || data.endDate || data.daysOfWeek) {
+  
       await tx.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
       
-      // Note: You'll need to modify generateTourSchedules to accept transaction parameter
-      // or handle schedules generation within this transaction
       await generateTourSchedules({
         tourId,
         startDate: (data.startDate ? new Date(data.startDate) : existingTour.startDate).toISOString(),
@@ -852,7 +852,7 @@ export const updateTour = async (req: Request, res: Response) => {
         maxUsers: data.maxUsers || existingTour.maxUsers,
         durationDays: data.durationDays || existingTour.durationDays,
         durationHours: data.durationHours || existingTour.durationHours,
-      }, tx); // Pass transaction to generateTourSchedules
+      });
     }
 
     // If we reach here, all operations succeeded
