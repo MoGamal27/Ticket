@@ -30,7 +30,7 @@ passport.use(
             .insert(users)
             .values({
               email,
-              name: profile.displayName || profile.name?.givenName ||  "",
+              name: profile.displayName || profile.name?.givenName || "",
               password: null,
               phoneNumber: null,
             })
