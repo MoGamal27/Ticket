@@ -20,7 +20,12 @@ import {
   tourSchedules,
   promoCode,
   promoCodeUsers,
-  tourPromoCode
+  tourPromoCode,
+  bookings,
+  bookingDetails,
+  bookingExtras,
+  payments,
+  manualPaymentMethod,
 } from "../../models/schema";
 import { SuccessResponse } from "../../utils/response";
 import { eq, and, inArray } from "drizzle-orm";
@@ -418,6 +423,39 @@ export const deleteTour = async (req: Request, res: Response) => {
   if (!tour) throw new NotFound("Tour Not Found");
   
   try {
+    // Check for existing bookings through tour schedules
+    const existingSchedules = await db
+      .select({ id: tourSchedules.id })
+      .from(tourSchedules)
+      .where(eq(tourSchedules.tourId, id));
+    
+    if (existingSchedules.length > 0) {
+      const scheduleIds = existingSchedules.map(s => s.id);
+      
+      // Check for confirmed bookings
+      const confirmedBookings = await db
+        .select()
+        .from(bookings)
+        .where(
+          and(
+            inArray(bookings.tourId, scheduleIds),
+            eq(bookings.status, 'confirmed')
+          )
+        );
+      
+      if (confirmedBookings.length > 0) {
+        throw new Error("Cannot delete tour with confirmed bookings");
+      }
+      
+      // Delete all bookings and related data for this tour
+      for (const booking of await db.select().from(bookings).where(inArray(bookings.tourId, scheduleIds))) {
+        await db.delete(bookingDetails).where(eq(bookingDetails.bookingId, booking.id));
+        await db.delete(bookingExtras).where(eq(bookingExtras.bookingId, booking.id));
+        await db.delete(payments).where(eq(payments.bookingId, booking.id));
+        await db.delete(manualPaymentMethod).where(eq(manualPaymentMethod.paymentId, booking.id));
+      }
+      await db.delete(bookings).where(inArray(bookings.tourId, scheduleIds));
+    }
     // Delete main tour image from server
     await deletePhotoFromServer(new URL(tour.mainImage).pathname);
     
@@ -451,9 +489,22 @@ export const deleteTour = async (req: Request, res: Response) => {
       })
     );
     
-    // Delete related records first (to avoid foreign key constraint errors)
+    // Delete all related records first (to avoid foreign key constraint errors)
+    // Note: Some tables have cascade delete, but we'll delete explicitly for consistency
     await db.delete(tourImages).where(eq(tourImages.tourId, id));
     await db.delete(tourItinerary).where(eq(tourItinerary.tourId, id));
+    await db.delete(tourPrice).where(eq(tourPrice.tourId, id));
+    await db.delete(tourHighlight).where(eq(tourHighlight.tourId, id));
+    await db.delete(tourIncludes).where(eq(tourIncludes.tourId, id));
+    await db.delete(tourExcludes).where(eq(tourExcludes.tourId, id));
+    await db.delete(tourFAQ).where(eq(tourFAQ.tourId, id));
+    await db.delete(tourPromoCode).where(eq(tourPromoCode.tourId, id));
+    await db.delete(tourExtras).where(eq(tourExtras.tourId, id));
+    
+    // These should cascade automatically but delete explicitly to be safe
+    await db.delete(tourDiscounts).where(eq(tourDiscounts.tourId, id));
+    await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, id));
+    await db.delete(tourSchedules).where(eq(tourSchedules.tourId, id));
     
     // Finally delete the tour itself
     await db.delete(tours).where(eq(tours.id, id));

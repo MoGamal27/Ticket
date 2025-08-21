@@ -323,6 +323,30 @@ const deleteTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     if (!tour)
         throw new Errors_1.NotFound("Tour Not Found");
     try {
+        // Check for existing bookings through tour schedules
+        const existingSchedules = yield db_1.db
+            .select({ id: schema_1.tourSchedules.id })
+            .from(schema_1.tourSchedules)
+            .where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, id));
+        if (existingSchedules.length > 0) {
+            const scheduleIds = existingSchedules.map(s => s.id);
+            // Check for confirmed bookings
+            const confirmedBookings = yield db_1.db
+                .select()
+                .from(schema_1.bookings)
+                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.inArray)(schema_1.bookings.tourId, scheduleIds), (0, drizzle_orm_1.eq)(schema_1.bookings.status, 'confirmed')));
+            if (confirmedBookings.length > 0) {
+                throw new Error("Cannot delete tour with confirmed bookings");
+            }
+            // Delete all bookings and related data for this tour
+            for (const booking of yield db_1.db.select().from(schema_1.bookings).where((0, drizzle_orm_1.inArray)(schema_1.bookings.tourId, scheduleIds))) {
+                yield db_1.db.delete(schema_1.bookingDetails).where((0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, booking.id));
+                yield db_1.db.delete(schema_1.bookingExtras).where((0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, booking.id));
+                yield db_1.db.delete(schema_1.payments).where((0, drizzle_orm_1.eq)(schema_1.payments.bookingId, booking.id));
+                yield db_1.db.delete(schema_1.manualPaymentMethod).where((0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, booking.id));
+            }
+            yield db_1.db.delete(schema_1.bookings).where((0, drizzle_orm_1.inArray)(schema_1.bookings.tourId, scheduleIds));
+        }
         // Delete main tour image from server
         yield (0, deleteImage_1.deletePhotoFromServer)(new URL(tour.mainImage).pathname);
         // Get and delete tour images
@@ -347,9 +371,21 @@ const deleteTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 yield (0, deleteImage_1.deletePhotoFromServer)(new URL(itinerary.imagePath).pathname);
             }
         })));
-        // Delete related records first (to avoid foreign key constraint errors)
+        // Delete all related records first (to avoid foreign key constraint errors)
+        // Note: Some tables have cascade delete, but we'll delete explicitly for consistency
         yield db_1.db.delete(schema_1.tourImages).where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, id));
         yield db_1.db.delete(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, id));
+        yield db_1.db.delete(schema_1.tourPrice).where((0, drizzle_orm_1.eq)(schema_1.tourPrice.tourId, id));
+        yield db_1.db.delete(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, id));
+        yield db_1.db.delete(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, id));
+        yield db_1.db.delete(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, id));
+        yield db_1.db.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, id));
+        yield db_1.db.delete(schema_1.tourPromoCode).where((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, id));
+        yield db_1.db.delete(schema_1.tourExtras).where((0, drizzle_orm_1.eq)(schema_1.tourExtras.tourId, id));
+        // These should cascade automatically but delete explicitly to be safe
+        yield db_1.db.delete(schema_1.tourDiscounts).where((0, drizzle_orm_1.eq)(schema_1.tourDiscounts.tourId, id));
+        yield db_1.db.delete(schema_1.tourDaysOfWeek).where((0, drizzle_orm_1.eq)(schema_1.tourDaysOfWeek.tourId, id));
+        yield db_1.db.delete(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, id));
         // Finally delete the tour itself
         yield db_1.db.delete(schema_1.tours).where((0, drizzle_orm_1.eq)(schema_1.tours.id, id));
         (0, response_1.SuccessResponse)(res, { message: "Tour Deleted Successfully" }, 200);
