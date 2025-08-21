@@ -35,6 +35,7 @@ exports.users = (0, mysql_core_1.mysqlTable)("users", {
     password: (0, mysql_core_1.varchar)("password", { length: 255 }),
     phoneNumber: (0, mysql_core_1.varchar)("phoneNumber", { length: 255 }),
     isVerified: (0, mysql_core_1.boolean)("is_verified").default(false),
+    googleId: (0, mysql_core_1.varchar)("google_id", { length: 255 }).$type(),
 });
 exports.tours = (0, mysql_core_1.mysqlTable)("tours", {
     id: (0, mysql_core_1.int)("id").autoincrement().primaryKey(),

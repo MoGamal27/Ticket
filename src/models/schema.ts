@@ -49,6 +49,7 @@ export const users = mysqlTable("users", {
   password: varchar("password", { length: 255 }),
   phoneNumber: varchar("phoneNumber", { length: 255 }),
   isVerified: boolean("is_verified").default(false),
+  googleId: varchar("google_id", { length: 255 }).$type<string | null>(),
 });
 
 export const tours = mysqlTable("tours", {

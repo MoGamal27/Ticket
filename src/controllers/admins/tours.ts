@@ -438,379 +438,344 @@ export const updateTour = async (req: Request, res: Response) => {
   const tourId = Number(req.params.id);
   const data = req.body;
 
-   // Start transaction
-    await db.transaction(async (tx) => {
-  const [existingTour] = await db.select().from(tours).where(eq(tours.id, tourId));
-  if (!existingTour) throw new NotFound("Tour not found");
+  // Start transaction - ALL operations must be inside this transaction
+  await db.transaction(async (tx) => {
+    // Check if tour exists
+    const [existingTour] = await tx.select().from(tours).where(eq(tours.id, tourId));
+    if (!existingTour) throw new NotFound("Tour not found");
 
-  // Update main tour details
-  const updateData: any = {};
-  
-  if (data.title) updateData.title = data.title;
-  if (data.mainImage) {
-    updateData.mainImage = await saveBase64Image(data.mainImage, uuid(), req, "tours");
-  }
-  if (data.categoryId) updateData.categoryId = data.categoryId;
-  if (data.description) updateData.describtion = data.description;
-  if (data.status !== undefined) updateData.status = data.status;
-  if (data.featured !== undefined) updateData.featured = data.featured;
-  if (data.meetingPoint !== undefined) updateData.meetingPoint = data.meetingPoint;
-  if (data.meetingPointLocation) updateData.meetingPointLocation = data.meetingPointLocation;
-  if (data.meetingPointAddress) updateData.meetingPointAddress = data.meetingPointAddress;
-  if (data.points !== undefined) updateData.points = data.points;
-  if (data.startDate) updateData.startDate = new Date(data.startDate);
-  if (data.endDate) updateData.endDate = new Date(data.endDate);
-  if (data.durationDays) updateData.durationDays = data.durationDays;
-  if (data.durationHours) updateData.durationHours = data.durationHours;
-  if (data.country) updateData.country = data.country;
-  if (data.city) updateData.city = data.city;
-  if (data.maxUsers) updateData.maxUsers = data.maxUsers;
-
-  await tx.update(tours).set(updateData).where(eq(tours.id, tourId));
-
-  // Update related content if provided (check for existence, not just length)
-  if (data.prices !== undefined) {
-    await db.delete(tourPrice).where(eq(tourPrice.tourId, tourId));
-    if (data.prices.length > 0) {
-      await db.insert(tourPrice).values(
-        data.prices.map((price: any) => ({
-          adult: price.adult,
-          child: price.child,
-          infant: price.infant,
-          currencyId: price.currencyId,
-          tourId,
-        }))
-      );
-    }
-  }
-
-  if (data.discounts !== undefined) {
-    await db.delete(tourDiscounts).where(eq(tourDiscounts.tourId, tourId));
-    if (data.discounts.length > 0) {
-      await db.insert(tourDiscounts).values(
-        data.discounts.map((discount: any) => ({
-          tourId,
-          targetGroup: discount.targetGroup,
-          type: discount.type,
-          value: discount.value,
-          minPeople: discount.minPeople ?? 0,
-          maxPeople: discount.maxPeople,
-          kindBy: discount.kindBy,
-        }))
-      );
-    }
-  }
-
-  /*if (data.images !== undefined) {
-    const existingImages = await db
-      .select()
-      .from(tourImages)
-      .where(eq(tourImages.tourId, tourId));
-
-    // Delete old images from server
-    for (const img of existingImages) {
-      await deletePhotoFromServer(new URL(img.imagePath!).pathname);
-    }
-
-    // Delete old image records from database
-    await db.delete(tourImages).where(eq(tourImages.tourId, tourId));
-
-    // Insert new images if any
-    if (data.images.length > 0) {
-      const imageRecords = await Promise.all(
-        data.images.map(async (imagePath: any) => ({
-          tourId,
-          imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
-        }))
-      );
-      await db.insert(tourImages).values(imageRecords);
-    }
-  }*/
-
-
-    if (data.images !== undefined) {
-  const { added = [], deleted = [] } = data.images;
-  
-  // Handle deleted images
-  if (deleted.length > 0) {
-    // Get the images to delete
-    const imagesToDelete = await db
-      .select()
-      .from(tourImages)
-      .where(and(
-        eq(tourImages.tourId, tourId),
-        inArray(tourImages.id, deleted) 
-      ));
-
-    // Delete physical files from server
-    for (const img of imagesToDelete) {
-      await deletePhotoFromServer(new URL(img.imagePath!).pathname);
-    }
-
-    // Delete records from database
-    await db.delete(tourImages).where(
-      and(
-        eq(tourImages.tourId, tourId),
-        inArray(tourImages.id, deleted)
-      )
-    );
-  }
-
-  // Handle added images
-  if (added.length > 0) {
-    const imageRecords = await Promise.all(
-      added.map(async (imagePath: any) => ({
-        tourId,
-        imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
-      }))
-    );
-    await db.insert(tourImages).values(imageRecords);
-  }
-}
-
-  if (data.highlights !== undefined) {
-    await db.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
-    if (data.highlights.length > 0) {
-      await db
-        .insert(tourHighlight)
-        .values(data.highlights.map((content: string) => ({ content, tourId })));
-    }
-  }
-
-  if (data.includes !== undefined) {
-    await db.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
-    if (data.includes.length > 0) {
-      await db
-        .insert(tourIncludes)
-        .values(data.includes.map((content: string) => ({ content, tourId })));
-    }
-  }
-
-  if (data.excludes !== undefined) {
-    await db.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
-    if (data.excludes.length > 0) {
-      await db
-        .insert(tourExcludes)
-        .values(data.excludes.map((content: string) => ({ content, tourId })));
-    }
-  }
-
- /* if (data.itinerary !== undefined) {
-    await db.delete(tourItinerary).where(eq(tourItinerary.tourId, tourId));
-    if (data.itinerary.length > 0) {
-      // First process all async operations in parallel
-      const itineraryItems = await Promise.all(
-        data.itinerary.map(async (item: any) => ({
-          title: item.title,
-          imagePath: await saveBase64Image(
-            item.imagePath,
-            uuid(),
-            req,
-            "itineraryImages"
-          ),
-          describtion: item.description, // Keep as 'describtion' to match DB schema
-          tourId,
-        }))
-      );
-      
-      // Then insert all processed items
-      await db.insert(tourItinerary).values(itineraryItems);
-    }
-  }*/
-
-          if (data.itinerary !== undefined) {
-  const { added = [], deleted = [], updated = [] } = data.itinerary;
-  
-  // Handle deletions first
-  if (deleted.length > 0) {
-    // Get existing itinerary items to delete their images
-    const itemsToDelete = await db
-      .select()
-      .from(tourItinerary)
-      .where(and(
-        eq(tourItinerary.tourId, tourId),
-        inArray(tourItinerary.id, deleted)
-      ));
-
-    // Delete physical image files
-    for (const item of itemsToDelete) {
-      if (item.imagePath) {
-        try {
-          await deletePhotoFromServer(new URL(item.imagePath).pathname);
-        } catch (error) {
-          console.error(`Failed to delete image: ${item.imagePath}`, error);
-        }
-      }
-    }
-
-    // Delete from database
-    await db.delete(tourItinerary).where(
-      and(
-        eq(tourItinerary.tourId, tourId),
-        inArray(tourItinerary.id, deleted)
-    ));
-  }
-
-  // Handle updates to existing items
-  if (updated.length > 0) {
-    await Promise.all(updated.map(async (item: any) => {
-      const updateData: any = {
-        title: item.title,
-        describtion: item.description
-      };
-      
-      // Only update image if a new one is provided
-      if (item.imagePath) {
-        // Delete old image if it exists
-        const [existingItem] = await db.select()
-          .from(tourItinerary)
-          .where(eq(tourItinerary.id, item.id));
-        
-        if (existingItem?.imagePath) {
-          await deletePhotoFromServer(new URL(existingItem.imagePath).pathname);
-        }
-        
-        updateData.imagePath = await saveBase64Image(
-          item.imagePath, 
-          uuid(), 
-          req, 
-          "itineraryImages"
-        );
-      }
-      
-      await db.update(tourItinerary)
-        .set(updateData)
-        .where(eq(tourItinerary.id, item.id));
-    }));
-  }
-
-  // Handle additions of new items
-  if (added.length > 0) {
-    const newItems = await Promise.all(
-      added.map(async (item: any) => ({
-        title: item.title,
-        describtion: item.description,
-        imagePath: item.imagePath ? 
-          await saveBase64Image(item.imagePath, uuid(), req, "itineraryImages") : 
-          null,
-        tourId,
-      }))
-    );
+    // Update main tour details
+    const updateData: any = {};
     
-    await db.insert(tourItinerary).values(newItems);
-  }
-}
-
-    if (data.promoCodeIds && data.promoCodeIds.length > 0) {
-  // Validate that the promo codes exist
-  const existingPromoCodes = await db
-    .select({ 
-      id: promoCode.id
-    })
-    .from(promoCode)
-    .where(inArray(promoCode.id, data.promoCodeIds));
-
-  const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
-  const invalidPromoCodeIds = data.promoCodeIds.filter((id: number) => 
-    !existingPromoCodeIds.includes(id)
-  );
-
-  // Handle invalid promo codes
-  if (invalidPromoCodeIds.length > 0) {
-    throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
-  }
-
-  // Check which promo codes are already associated with this tour
-  const existingAssociations = await db
-    .select({ promoCodeId: tourPromoCode.promoCodeId })
-    .from(tourPromoCode)
-    .where(
-      and(
-        eq(tourPromoCode.tourId, tourId),
-        inArray(tourPromoCode.promoCodeId, data.promoCodeIds)
-      )
-    );
-
-  const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
-  const newAssociations = data.promoCodeIds.filter((id: number) => 
-    !alreadyAssociatedIds.includes(id)
-  );
-
-  // Insert new associations only
-  if (newAssociations.length > 0) {
-    await db.insert(tourPromoCode).values(
-      newAssociations.map((promoCodeId: number) => ({
-        tourId,
-        promoCodeId
-      }))
-    );
-  }
-}
-
-  if (data.faq !== undefined) {
-    await db.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
-    if (data.faq.length > 0) {
-      await db.insert(tourFAQ).values(
-        data.faq.map((item: any) => ({
-          question: item.question,
-          answer: item.answer,
-          tourId,
-        }))
-      );
+    if (data.title) updateData.title = data.title;
+    if (data.mainImage) {
+      updateData.mainImage = await saveBase64Image(data.mainImage, uuid(), req, "tours");
     }
-  }
+    if (data.categoryId) updateData.categoryId = data.categoryId;
+    if (data.description) updateData.describtion = data.description;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.featured !== undefined) updateData.featured = data.featured;
+    if (data.meetingPoint !== undefined) updateData.meetingPoint = data.meetingPoint;
+    if (data.meetingPointLocation) updateData.meetingPointLocation = data.meetingPointLocation;
+    if (data.meetingPointAddress) updateData.meetingPointAddress = data.meetingPointAddress;
+    if (data.points !== undefined) updateData.points = data.points;
+    if (data.startDate) updateData.startDate = new Date(data.startDate);
+    if (data.endDate) updateData.endDate = new Date(data.endDate);
+    if (data.durationDays) updateData.durationDays = data.durationDays;
+    if (data.durationHours) updateData.durationHours = data.durationHours;
+    if (data.country) updateData.country = data.country;
+    if (data.city) updateData.city = data.city;
+    if (data.maxUsers) updateData.maxUsers = data.maxUsers;
 
-  if (data.daysOfWeek !== undefined) {
-    await db.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
-    if (data.daysOfWeek.length > 0) {
-      await db
-        .insert(tourDaysOfWeek)
-        .values(
-          data.daysOfWeek.map((day: string) => ({ dayOfWeek: day, tourId }))
-        );
-    }
-  }
+    // Update tour using transaction
+    await tx.update(tours).set(updateData).where(eq(tours.id, tourId));
 
-  if (data.extras !== undefined) {
-    await db.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
-    if (data.extras.length > 0) {
-      for (const extra of data.extras) {
-        const [extraPrice] = await db
-          .insert(tourPrice)
-          .values({
-            adult: extra.price.adult,
-            child: extra.price.child,
-            infant: extra.price.infant,
-            currencyId: extra.price.currencyId,
+    // Update related content if provided (ALL using tx instead of db)
+    if (data.prices !== undefined) {
+      await tx.delete(tourPrice).where(eq(tourPrice.tourId, tourId));
+      if (data.prices.length > 0) {
+        await tx.insert(tourPrice).values(
+          data.prices.map((price: any) => ({
+            adult: price.adult,
+            child: price.child,
+            infant: price.infant,
+            currencyId: price.currencyId,
             tourId,
-          })
-          .$returningId();
-
-        await db.insert(tourExtras).values({
-          tourId,
-          extraId: extra.extraId,
-          priceId: extraPrice.id,
-        });
+          }))
+        );
       }
     }
-  }
 
-  // Generate schedules if needed (similar to create)
-  if (data.startDate || data.endDate || data.daysOfWeek) {
-    await db.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
-    await generateTourSchedules({
-      tourId,
-      startDate: (data.startDate ? new Date(data.startDate) : existingTour.startDate).toISOString(),
-      endDate: (data.endDate ? new Date(data.endDate) : existingTour.endDate).toISOString(),
-      daysOfWeek: data.daysOfWeek || [], // You might need to fetch existing daysOfWeek if not provided
-      maxUsers: data.maxUsers || existingTour.maxUsers,
-      durationDays: data.durationDays || existingTour.durationDays,
-      durationHours: data.durationHours || existingTour.durationHours,
-    });
-  }
+    if (data.discounts !== undefined) {
+      await tx.delete(tourDiscounts).where(eq(tourDiscounts.tourId, tourId));
+      if (data.discounts.length > 0) {
+        await tx.insert(tourDiscounts).values(
+          data.discounts.map((discount: any) => ({
+            tourId,
+            targetGroup: discount.targetGroup,
+            type: discount.type,
+            value: discount.value,
+            minPeople: discount.minPeople ?? 0,
+            maxPeople: discount.maxPeople,
+            kindBy: discount.kindBy,
+          }))
+        );
+      }
+    }
 
-     });
-     
+    // Handle images with transaction
+    if (data.images !== undefined) {
+      const { added = [], deleted = [] } = data.images;
+      
+      // Handle deleted images
+      if (deleted.length > 0) {
+        // Get the images to delete using transaction
+        const imagesToDelete = await tx
+          .select()
+          .from(tourImages)
+          .where(and(
+            eq(tourImages.tourId, tourId),
+            inArray(tourImages.id, deleted) 
+          ));
+
+        // Delete physical files from server
+        for (const img of imagesToDelete) {
+          await deletePhotoFromServer(new URL(img.imagePath!).pathname);
+        }
+
+        // Delete records from database using transaction
+        await tx.delete(tourImages).where(
+          and(
+            eq(tourImages.tourId, tourId),
+            inArray(tourImages.id, deleted)
+          )
+        );
+      }
+
+      // Handle added images
+      if (added.length > 0) {
+        const imageRecords = await Promise.all(
+          added.map(async (imagePath: any) => ({
+            tourId,
+            imagePath: await saveBase64Image(imagePath, uuid(), req, "tourImages"),
+          }))
+        );
+        await tx.insert(tourImages).values(imageRecords);
+      }
+    }
+
+    if (data.highlights !== undefined) {
+      await tx.delete(tourHighlight).where(eq(tourHighlight.tourId, tourId));
+      if (data.highlights.length > 0) {
+        await tx
+          .insert(tourHighlight)
+          .values(data.highlights.map((content: string) => ({ content, tourId })));
+      }
+    }
+
+    if (data.includes !== undefined) {
+      await tx.delete(tourIncludes).where(eq(tourIncludes.tourId, tourId));
+      if (data.includes.length > 0) {
+        await tx
+          .insert(tourIncludes)
+          .values(data.includes.map((content: string) => ({ content, tourId })));
+      }
+    }
+
+    if (data.excludes !== undefined) {
+      await tx.delete(tourExcludes).where(eq(tourExcludes.tourId, tourId));
+      if (data.excludes.length > 0) {
+        await tx
+          .insert(tourExcludes)
+          .values(data.excludes.map((content: string) => ({ content, tourId })));
+      }
+    }
+
+    // Handle itinerary with transaction
+    if (data.itinerary !== undefined) {
+      const { added = [], deleted = [], updated = [] } = data.itinerary;
+      
+      // Handle deletions first
+      if (deleted.length > 0) {
+        // Get existing itinerary items to delete their images using transaction
+        const itemsToDelete = await tx
+          .select()
+          .from(tourItinerary)
+          .where(and(
+            eq(tourItinerary.tourId, tourId),
+            inArray(tourItinerary.id, deleted)
+          ));
+
+        // Delete physical image files
+        for (const item of itemsToDelete) {
+          if (item.imagePath) {
+            try {
+              await deletePhotoFromServer(new URL(item.imagePath).pathname);
+            } catch (error) {
+              console.error(`Failed to delete image: ${item.imagePath}`, error);
+            }
+          }
+        }
+
+        // Delete from database using transaction
+        await tx.delete(tourItinerary).where(
+          and(
+            eq(tourItinerary.tourId, tourId),
+            inArray(tourItinerary.id, deleted)
+          )
+        );
+      }
+
+      // Handle updates to existing items
+      if (updated.length > 0) {
+        await Promise.all(updated.map(async (item: any) => {
+          const updateData: any = {
+            title: item.title,
+            describtion: item.description
+          };
+          
+          // Only update image if a new one is provided
+          if (item.imagePath) {
+            // Delete old image if it exists using transaction
+            const [existingItem] = await tx.select()
+              .from(tourItinerary)
+              .where(eq(tourItinerary.id, item.id));
+            
+            if (existingItem?.imagePath) {
+              await deletePhotoFromServer(new URL(existingItem.imagePath).pathname);
+            }
+            
+            updateData.imagePath = await saveBase64Image(
+              item.imagePath, 
+              uuid(), 
+              req, 
+              "itineraryImages"
+            );
+          }
+          
+          // Update using transaction
+          await tx.update(tourItinerary)
+            .set(updateData)
+            .where(eq(tourItinerary.id, item.id));
+        }));
+      }
+
+      // Handle additions of new items
+      if (added.length > 0) {
+        const newItems = await Promise.all(
+          added.map(async (item: any) => ({
+            title: item.title,
+            describtion: item.description,
+            imagePath: item.imagePath ? 
+              await saveBase64Image(item.imagePath, uuid(), req, "itineraryImages") : 
+              null,
+            tourId,
+          }))
+        );
+        
+        await tx.insert(tourItinerary).values(newItems);
+      }
+    }
+
+    // Handle promo codes with transaction
+    if (data.promoCodeIds && data.promoCodeIds.length > 0) {
+      // Validate that the promo codes exist using transaction
+      const existingPromoCodes = await tx
+        .select({ 
+          id: promoCode.id
+        })
+        .from(promoCode)
+        .where(inArray(promoCode.id, data.promoCodeIds));
+
+      const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
+      const invalidPromoCodeIds = data.promoCodeIds.filter((id: number) => 
+        !existingPromoCodeIds.includes(id)
+      );
+
+      // Handle invalid promo codes
+      if (invalidPromoCodeIds.length > 0) {
+        throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+      }
+
+      // Check which promo codes are already associated with this tour using transaction
+      const existingAssociations = await tx
+        .select({ promoCodeId: tourPromoCode.promoCodeId })
+        .from(tourPromoCode)
+        .where(
+          and(
+            eq(tourPromoCode.tourId, tourId),
+            inArray(tourPromoCode.promoCodeId, data.promoCodeIds)
+          )
+        );
+
+      const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
+      const newAssociations = data.promoCodeIds.filter((id: number) => 
+        !alreadyAssociatedIds.includes(id)
+      );
+
+      // Insert new associations only using transaction
+      if (newAssociations.length > 0) {
+        await tx.insert(tourPromoCode).values(
+          newAssociations.map((promoCodeId: number) => ({
+            tourId,
+            promoCodeId
+          }))
+        );
+      }
+    }
+
+    if (data.faq !== undefined) {
+      await tx.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));
+      if (data.faq.length > 0) {
+        await tx.insert(tourFAQ).values(
+          data.faq.map((item: any) => ({
+            question: item.question,
+            answer: item.answer,
+            tourId,
+          }))
+        );
+      }
+    }
+
+    if (data.daysOfWeek !== undefined) {
+      await tx.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
+      if (data.daysOfWeek.length > 0) {
+        await tx
+          .insert(tourDaysOfWeek)
+          .values(
+            data.daysOfWeek.map((day: string) => ({ dayOfWeek: day, tourId }))
+          );
+      }
+    }
+
+    if (data.extras !== undefined) {
+      await tx.delete(tourExtras).where(eq(tourExtras.tourId, tourId));
+      if (data.extras.length > 0) {
+        for (const extra of data.extras) {
+          // Use transaction for tour price insertion
+          const [extraPrice] = await tx
+            .insert(tourPrice)
+            .values({
+              adult: extra.price.adult,
+              child: extra.price.child,
+              infant: extra.price.infant,
+              currencyId: extra.price.currencyId,
+              tourId,
+            })
+            .$returningId();
+
+          // Use transaction for tour extras insertion
+          await tx.insert(tourExtras).values({
+            tourId,
+            extraId: extra.extraId,
+            priceId: extraPrice.id,
+          });
+        }
+      }
+    }
+
+    // Generate schedules if needed using transaction
+    if (data.startDate || data.endDate || data.daysOfWeek) {
+      await tx.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
+      
+      // Note: You'll need to modify generateTourSchedules to accept transaction parameter
+      // or handle schedules generation within this transaction
+      await generateTourSchedules({
+        tourId,
+        startDate: (data.startDate ? new Date(data.startDate) : existingTour.startDate).toISOString(),
+        endDate: (data.endDate ? new Date(data.endDate) : existingTour.endDate).toISOString(),
+        daysOfWeek: data.daysOfWeek || [], // You might need to fetch existing daysOfWeek if not provided
+        maxUsers: data.maxUsers || existingTour.maxUsers,
+        durationDays: data.durationDays || existingTour.durationDays,
+        durationHours: data.durationHours || existingTour.durationHours,
+      }, tx); // Pass transaction to generateTourSchedules
+    }
+
+    // If we reach here, all operations succeeded
+    console.log('All tour update operations completed successfully');
+  });
+
+  // Only send response if transaction succeeded
   SuccessResponse(res, { message: "Tour Updated Successfully" }, 200);
 };
 
