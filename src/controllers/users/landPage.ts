@@ -33,7 +33,7 @@ import {
   medicalCategories,
   tourPromoCode,
   promoCode
-  
+
 } from "../../models/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -963,17 +963,31 @@ export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) =
       throw new ValidationError("Promo code is not active");
     }
 
-    // Check validity dates - add null checks
-    const currentDate = new Date();
+    // Check validity dates - add null checks  
     if (!promo.startDate || !promo.endDate) {
       throw new ValidationError("Promo code dates are invalid");
     }
 
-    if (currentDate < promo.startDate) {
+   const currentDate = new Date();
+    const currentDateUTC = new Date(currentDate.getTime() + currentDate.getTimezoneOffset() * 60000);
+    
+    const startDate = new Date(promo.startDate);
+    const endDate = new Date(promo.endDate);
+    
+    // Set time to start/end of day for fair comparison
+    const currentDateOnly = new Date(currentDateUTC.getFullYear(), currentDateUTC.getMonth(), currentDateUTC.getDate());
+    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999);
+
+    console.log('Current date (UTC):', currentDateOnly);
+    console.log('Start date:', startDateOnly);
+    console.log('End date:', endDateOnly);
+
+    if (currentDateOnly < startDateOnly) {
       throw new ValidationError("Promo code is not yet valid");
     }
 
-    if (currentDate > promo.endDate) {
+    if (currentDateOnly > endDateOnly) {
       throw new ValidationError("Promo code has expired");
     }
 
@@ -1000,3 +1014,50 @@ export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) =
   });
 };
 
+
+/* 
+const categorizeBookings = (bookings) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const upcoming = [];
+    const current = [];
+    const history = [];
+
+    bookings.forEach((booking) => {
+      // console.log(Booking ID: ${booking.id});
+      // console.log(Start Date: ${booking.originalStartDate});
+      // console.log(End Date: ${booking.originalEndDate});
+      
+      if (!booking.originalStartDate || !booking.originalEndDate) {
+        console.log("No dates - moving to history");
+        history.push(booking);
+        return;
+      }
+
+      const startDate = new Date(booking.originalStartDate);
+      const endDate = new Date(booking.originalEndDate);
+      const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
+      // console.log(Today: ${today.toDateString()});
+      // console.log(Start Date Only: ${startDateOnly.toDateString()});
+      // console.log(End Date Only: ${endDateOnly.toDateString()});
+
+      if (startDateOnly > today) {
+        console.log("Moving to upcoming");
+        upcoming.push(booking);
+      } else if (startDateOnly <= today && endDateOnly >= today) {
+        console.log("Moving to current");
+        current.push(booking);
+      } else {
+        console.log("Moving to history");
+        history.push(booking);
+      }
+      console.log("---");
+    });
+
+    console.log(Final counts - Upcoming: ${upcoming.length}, Current: ${current.length}, History: ${history.length});
+    return { upcoming, current, history };
+  };
+*/
