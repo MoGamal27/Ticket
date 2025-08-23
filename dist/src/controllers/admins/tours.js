@@ -19,6 +19,7 @@ const generateSchedules_1 = require("../../utils/generateSchedules");
 const handleImages_1 = require("../../utils/handleImages");
 const uuid_1 = require("uuid");
 const deleteImage_1 = require("../../utils/deleteImage");
+const date_fns_1 = require("date-fns");
 const formatDate = (date) => {
     return date.toISOString().split('T')[0];
 };
@@ -630,11 +631,16 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             }
         }
         if (data.daysOfWeek !== undefined) {
+            // Delete existing days
             yield tx.delete(schema_1.tourDaysOfWeek).where((0, drizzle_orm_1.eq)(schema_1.tourDaysOfWeek.tourId, tourId));
+            // Insert new days if provided
             if (data.daysOfWeek.length > 0) {
-                yield tx
-                    .insert(schema_1.tourDaysOfWeek)
-                    .values(data.daysOfWeek.map((day) => ({ dayOfWeek: day, tourId })));
+                // Convert to lowercase to match enum values
+                const formattedDays = data.daysOfWeek.map((day) => day.toLowerCase().trim());
+                yield tx.insert(schema_1.tourDaysOfWeek).values(formattedDays.map((day) => ({
+                    dayOfWeek: day,
+                    tourId
+                })));
             }
         }
         if (data.extras !== undefined) {
@@ -662,15 +668,22 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             }
         }
         // Generate schedules if needed using transaction
+        // In your updateTour function, before calling generateTourSchedules:
         if (data.startDate || data.endDate || data.daysOfWeek) {
             yield tx.delete(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId));
+            // Convert dates to proper SQL format
+            const formatDateForSQL = (date) => {
+                const d = new Date(date);
+                return (0, date_fns_1.format)(d, 'yyyy-MM-dd HH:mm:ss'); // Use date-fns format
+            };
             const startDateFormatted = data.startDate
-                ? new Date(data.startDate).toISOString().split('T')[0]
-                : existingTour.startDate.toISOString().split('T')[0];
+                ? formatDateForSQL(data.startDate)
+                : formatDateForSQL(existingTour.startDate);
             const endDateFormatted = data.endDate
-                ? new Date(data.endDate).toISOString().split('T')[0]
-                : existingTour.endDate.toISOString().split('T')[0];
-            yield (0, generateSchedules_1.generateTourSchedules)({
+                ? formatDateForSQL(data.endDate)
+                : formatDateForSQL(existingTour.endDate);
+            // Call the modified generateTourSchedules function with tx parameter
+            yield (0, generateSchedules_1.generateTourSchedulesInTransaction)(tx, {
                 tourId,
                 startDate: startDateFormatted,
                 endDate: endDateFormatted,

@@ -31,10 +31,11 @@ import {
 import { SuccessResponse } from "../../utils/response";
 import { eq, and, inArray } from "drizzle-orm";
 import { NotFound } from "../../Errors";
-import { generateTourSchedules } from "../../utils/generateSchedules";
+import { generateTourSchedules, generateTourSchedulesInTransaction } from "../../utils/generateSchedules";
 import { saveBase64Image } from "../../utils/handleImages";
 import { v4 as uuid } from "uuid";
 import { deletePhotoFromServer } from "../../utils/deleteImage";
+import { format } from 'date-fns';
 
 export const formatDate = (date: Date) => {
   return date.toISOString().split('T')[0]; 
@@ -803,13 +804,22 @@ export const updateTour = async (req: Request, res: Response) => {
     }
 
     if (data.daysOfWeek !== undefined) {
+      // Delete existing days
       await tx.delete(tourDaysOfWeek).where(eq(tourDaysOfWeek.tourId, tourId));
+      
+      // Insert new days if provided
       if (data.daysOfWeek.length > 0) {
-        await tx
-          .insert(tourDaysOfWeek)
-          .values(
-            data.daysOfWeek.map((day: string) => ({ dayOfWeek: day, tourId }))
-          );
+        // Convert to lowercase to match enum values
+        const formattedDays = data.daysOfWeek.map((day: string) => 
+          day.toLowerCase().trim()
+        );
+        
+        await tx.insert(tourDaysOfWeek).values(
+          formattedDays.map((day: string) => ({ 
+            dayOfWeek: day, 
+            tourId 
+          }))
+        );
       }
     }
 
@@ -840,19 +850,26 @@ export const updateTour = async (req: Request, res: Response) => {
     }
 
      // Generate schedules if needed using transaction
-if (data.startDate || data.endDate || data.daysOfWeek) {
+   // In your updateTour function, before calling generateTourSchedules:
+   if (data.startDate || data.endDate || data.daysOfWeek) {
   await tx.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
   
-  
+  // Convert dates to proper SQL format
+  const formatDateForSQL = (date: Date | string) => {
+    const d = new Date(date);
+    return format(d, 'yyyy-MM-dd HH:mm:ss'); // Use date-fns format
+  };
+
   const startDateFormatted = data.startDate 
-    ? new Date(data.startDate).toISOString().split('T')[0]
-    : existingTour.startDate.toISOString().split('T')[0];
+    ? formatDateForSQL(data.startDate)
+    : formatDateForSQL(existingTour.startDate);
   
   const endDateFormatted = data.endDate 
-    ? new Date(data.endDate).toISOString().split('T')[0]
-    : existingTour.endDate.toISOString().split('T')[0];
+    ? formatDateForSQL(data.endDate)
+    : formatDateForSQL(existingTour.endDate);
 
-  await generateTourSchedules({
+  // Call the modified generateTourSchedules function with tx parameter
+  await generateTourSchedulesInTransaction(tx, {
     tourId,
     startDate: startDateFormatted,
     endDate: endDateFormatted,
@@ -862,7 +879,6 @@ if (data.startDate || data.endDate || data.daysOfWeek) {
     durationHours: data.durationHours || existingTour.durationHours,
   });
 }
-
     // If we reach here, all operations succeeded
     console.log('All tour update operations completed successfully');
   });
