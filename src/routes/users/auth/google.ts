@@ -13,7 +13,7 @@ router.get(
   "/callback",
   passport.authenticate("google", { 
     session: false, 
-    failureRedirect: /login 
+    failureRedirect: "/login" 
   }),
   (req, res) => {
     const {user,token} = req.user as unknown as  { user: any; token: string };

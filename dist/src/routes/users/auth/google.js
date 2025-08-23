@@ -10,7 +10,7 @@ const router = express_1.default.Router();
 router.get("/", passport_1.default.authenticate("google", { scope: ["profile", "email"], session: false }));
 router.get("/callback", passport_1.default.authenticate("google", {
     session: false,
-    failureRedirect: /login
+    failureRedirect: "/login"
 }), (req, res) => {
     const { user, token } = req.user;
     if (!user || !token) {
