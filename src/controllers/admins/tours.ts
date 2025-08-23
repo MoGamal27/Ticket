@@ -385,8 +385,8 @@ export const createTour = async (req: Request, res: Response) => {
 
   await generateTourSchedules({
     tourId,
-    startDate: new Date(data.startDate).toISOString(),
-    endDate: new Date(data.endDate).toISOString(),
+    startDate: data.startDate,
+    endDate: data.endDate,
     daysOfWeek: data.daysOfWeek,
     maxUsers: data.maxUsers,
     durationDays: data.durationDays,

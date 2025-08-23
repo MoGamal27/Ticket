@@ -290,8 +290,8 @@ const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
     yield (0, generateSchedules_1.generateTourSchedules)({
         tourId,
-        startDate: new Date(data.startDate).toISOString(),
-        endDate: new Date(data.endDate).toISOString(),
+        startDate: data.startDate,
+        endDate: data.endDate,
         daysOfWeek: data.daysOfWeek,
         maxUsers: data.maxUsers,
         durationDays: data.durationDays,
