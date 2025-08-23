@@ -839,25 +839,35 @@ export const updateTour = async (req: Request, res: Response) => {
       }
     }
 
-    // Generate schedules if needed using transaction
-    if (data.startDate || data.endDate || data.daysOfWeek) {
+     // Generate schedules if needed using transaction
+if (data.startDate || data.endDate || data.daysOfWeek) {
+  await tx.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
   
-      await tx.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
-      
-      await generateTourSchedules({
-        tourId,
-        startDate: (data.startDate ? new Date(data.startDate) : existingTour.startDate).toISOString(),
-        endDate: (data.endDate ? new Date(data.endDate) : existingTour.endDate).toISOString(),
-        daysOfWeek: data.daysOfWeek || [], // You might need to fetch existing daysOfWeek if not provided
-        maxUsers: data.maxUsers || existingTour.maxUsers,
-        durationDays: data.durationDays || existingTour.durationDays,
-        durationHours: data.durationHours || existingTour.durationHours,
-      });
-    }
+  
+  const startDateFormatted = data.startDate 
+    ? new Date(data.startDate).toISOString().split('T')[0]
+    : existingTour.startDate.toISOString().split('T')[0];
+  
+  const endDateFormatted = data.endDate 
+    ? new Date(data.endDate).toISOString().split('T')[0]
+    : existingTour.endDate.toISOString().split('T')[0];
+
+  await generateTourSchedules({
+    tourId,
+    startDate: startDateFormatted,
+    endDate: endDateFormatted,
+    daysOfWeek: data.daysOfWeek || [], 
+    maxUsers: data.maxUsers || existingTour.maxUsers,
+    durationDays: data.durationDays || existingTour.durationDays,
+    durationHours: data.durationHours || existingTour.durationHours,
+  });
+}
 
     // If we reach here, all operations succeeded
     console.log('All tour update operations completed successfully');
   });
+
+  
 
   // Only send response if transaction succeeded
   SuccessResponse(res, { message: "Tour Updated Successfully" }, 200);

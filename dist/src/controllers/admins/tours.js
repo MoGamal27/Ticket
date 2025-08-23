@@ -664,11 +664,17 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         // Generate schedules if needed using transaction
         if (data.startDate || data.endDate || data.daysOfWeek) {
             yield tx.delete(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId));
+            const startDateFormatted = data.startDate
+                ? new Date(data.startDate).toISOString().split('T')[0]
+                : existingTour.startDate.toISOString().split('T')[0];
+            const endDateFormatted = data.endDate
+                ? new Date(data.endDate).toISOString().split('T')[0]
+                : existingTour.endDate.toISOString().split('T')[0];
             yield (0, generateSchedules_1.generateTourSchedules)({
                 tourId,
-                startDate: (data.startDate ? new Date(data.startDate) : existingTour.startDate).toISOString(),
-                endDate: (data.endDate ? new Date(data.endDate) : existingTour.endDate).toISOString(),
-                daysOfWeek: data.daysOfWeek || [], // You might need to fetch existing daysOfWeek if not provided
+                startDate: startDateFormatted,
+                endDate: endDateFormatted,
+                daysOfWeek: data.daysOfWeek || [],
                 maxUsers: data.maxUsers || existingTour.maxUsers,
                 durationDays: data.durationDays || existingTour.durationDays,
                 durationHours: data.durationHours || existingTour.durationHours,
