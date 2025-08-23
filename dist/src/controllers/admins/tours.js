@@ -139,164 +139,161 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
 });
 exports.getTourById = getTourById;
 const createTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
     const data = req.body;
-    console.log("before add");
-    const [newTour] = yield db_1.db
-        .insert(schema_1.tours)
-        .values({
-        title: data.title,
-        mainImage: yield (0, handleImages_1.saveBase64Image)(data.mainImage, (0, uuid_1.v4)(), req, "tours"),
-        categoryId: data.categoryId,
-        describtion: data.description,
-        status: true,
-        featured: (_a = data.featured) !== null && _a !== void 0 ? _a : false,
-        meetingPoint: (_b = data.meetingPoint) !== null && _b !== void 0 ? _b : false,
-        meetingPointLocation: data.meetingPoint
-            ? data.meetingPointLocation
-            : null,
-        meetingPointAddress: data.meetingPoint ? data.meetingPointAddress : null,
-        points: (_c = data.points) !== null && _c !== void 0 ? _c : 0,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        durationDays: data.durationDays,
-        durationHours: data.durationHours,
-        country: data.country,
-        city: data.city,
-        maxUsers: data.maxUsers,
-    })
-        .$returningId();
-    console.log("tour added success");
-    const tourId = newTour.id;
-    // Insert related content if provided
-    if (data.prices && data.prices.length > 0) {
-        yield db_1.db.insert(schema_1.tourPrice).values(data.prices.map((price) => ({
-            adult: price.adult,
-            child: price.child,
-            infant: price.infant,
-            currencyId: price.currencyId,
-            tourId,
-        })));
-    }
-    if (data.discounts && data.discounts.length > 0) {
-        yield db_1.db.insert(schema_1.tourDiscounts).values(data.discounts.map((discount) => {
-            var _a;
-            return ({
-                tourId,
-                targetGroup: discount.targetGroup,
-                type: discount.type,
-                value: discount.value,
-                minPeople: (_a = discount.minPeople) !== null && _a !== void 0 ? _a : 0,
-                maxPeople: discount.maxPeople,
-                kindBy: discount.kindBy,
-            });
-        }));
-    }
-    if (data.images && data.images.length > 0) {
-        const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
-            return ({
-                tourId,
-                imagePath: yield (0, handleImages_1.saveBase64Image)(imagePath, (0, uuid_1.v4)(), req, "tourImages"),
-            });
-        })));
-        yield db_1.db.insert(schema_1.tourImages).values(imageRecords);
-    }
-    if ((_d = data.highlights) === null || _d === void 0 ? void 0 : _d.length) {
-        yield db_1.db
-            .insert(schema_1.tourHighlight)
-            .values(data.highlights.map((content) => ({ content, tourId })));
-    }
-    if ((_e = data.includes) === null || _e === void 0 ? void 0 : _e.length) {
-        yield db_1.db
-            .insert(schema_1.tourIncludes)
-            .values(data.includes.map((content) => ({ content, tourId })));
-    }
-    if ((_f = data.excludes) === null || _f === void 0 ? void 0 : _f.length) {
-        yield db_1.db
-            .insert(schema_1.tourExcludes)
-            .values(data.excludes.map((content) => ({ content, tourId })));
-    }
-    if ((_g = data.itinerary) === null || _g === void 0 ? void 0 : _g.length) {
-        const itineraryItems = yield Promise.all(data.itinerary.map((item) => __awaiter(void 0, void 0, void 0, function* () {
-            return ({
-                title: item.title,
-                imagePath: yield (0, handleImages_1.saveBase64Image)(item.imagePath, (0, uuid_1.v4)(), req, "itineraryImages"),
-                describtion: item.description,
-                tourId,
-            });
-        })));
-        yield db_1.db.insert(schema_1.tourItinerary).values(itineraryItems);
-    }
-    if ((_h = data.faq) === null || _h === void 0 ? void 0 : _h.length) {
-        yield db_1.db.insert(schema_1.tourFAQ).values(data.faq.map((item) => ({
-            question: item.question,
-            answer: item.answer,
-            tourId,
-        })));
-    }
-    if ((_j = data.daysOfWeek) === null || _j === void 0 ? void 0 : _j.length) {
-        yield db_1.db
-            .insert(schema_1.tourDaysOfWeek)
-            .values(data.daysOfWeek.map((day) => ({ dayOfWeek: day, tourId })));
-    }
-    if ((_k = data.extras) === null || _k === void 0 ? void 0 : _k.length) {
-        for (const extra of data.extras) {
-            const [extraPrice] = yield db_1.db
-                .insert(schema_1.tourPrice)
-                .values({
-                adult: extra.price.adult,
-                child: extra.price.child,
-                infant: extra.price.infant,
-                currencyId: extra.price.currencyId,
-                tourId,
-            })
-                .$returningId();
-            yield db_1.db.insert(schema_1.tourExtras).values({
-                tourId,
-                extraId: extra.extraId,
-                priceId: extraPrice.id,
-            });
-        }
-    }
-    if (data.promoCodeIds && data.promoCodeIds.length > 0) {
-        // Validate that the promo codes exist
-        const existingPromoCodes = yield db_1.db
-            .select({
-            id: schema_1.promoCode.id
+    // Start transaction - ALL operations must be inside this transaction
+    yield db_1.db.transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        console.log("before add");
+        // Insert main tour using transaction
+        const [newTour] = yield tx
+            .insert(schema_1.tours)
+            .values({
+            title: data.title,
+            mainImage: yield (0, handleImages_1.saveBase64Image)(data.mainImage, (0, uuid_1.v4)(), req, "tours"),
+            categoryId: data.categoryId,
+            describtion: data.description,
+            status: true,
+            featured: (_a = data.featured) !== null && _a !== void 0 ? _a : false,
+            meetingPoint: (_b = data.meetingPoint) !== null && _b !== void 0 ? _b : false,
+            meetingPointLocation: data.meetingPoint
+                ? data.meetingPointLocation
+                : null,
+            meetingPointAddress: data.meetingPoint ? data.meetingPointAddress : null,
+            points: (_c = data.points) !== null && _c !== void 0 ? _c : 0,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            durationDays: data.durationDays,
+            durationHours: data.durationHours,
+            country: data.country,
+            city: data.city,
+            maxUsers: data.maxUsers,
         })
-            .from(schema_1.promoCode)
-            .where((0, drizzle_orm_1.inArray)(schema_1.promoCode.id, data.promoCodeIds));
-        const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
-        const invalidPromoCodeIds = data.promoCodeIds.filter((id) => !existingPromoCodeIds.includes(id));
-        // Handle invalid promo codes
-        if (invalidPromoCodeIds.length > 0) {
-            throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+            .$returningId();
+        console.log("tour added success");
+        const tourId = newTour.id;
+        // Insert related content if provided (ALL using tx instead of db)
+        if (data.prices && data.prices.length > 0) {
+            yield tx.insert(schema_1.tourPrice).values(data.prices.map((price) => ({
+                adult: price.adult,
+                child: price.child,
+                infant: price.infant,
+                currencyId: price.currencyId,
+                tourId,
+            })));
         }
-        // Check which promo codes are already associated with this tour
-        const existingAssociations = yield db_1.db
-            .select({ promoCodeId: schema_1.tourPromoCode.promoCodeId })
-            .from(schema_1.tourPromoCode)
-            .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourPromoCode.promoCodeId, data.promoCodeIds)));
-        const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
-        const newAssociations = data.promoCodeIds.filter((id) => !alreadyAssociatedIds.includes(id));
-        // Insert new associations only
-        if (newAssociations.length > 0) {
-            yield db_1.db.insert(schema_1.tourPromoCode).values(newAssociations.map((promoCodeId) => ({
+        if (data.discounts && data.discounts.length > 0) {
+            yield tx.insert(schema_1.tourDiscounts).values(data.discounts.map((discount) => {
+                var _a;
+                return ({
+                    tourId,
+                    targetGroup: discount.targetGroup,
+                    type: discount.type,
+                    value: discount.value,
+                    minPeople: (_a = discount.minPeople) !== null && _a !== void 0 ? _a : 0,
+                    maxPeople: discount.maxPeople,
+                    kindBy: discount.kindBy,
+                });
+            }));
+        }
+        if (data.images && data.images.length > 0) {
+            const imageRecords = yield Promise.all(data.images.map((imagePath) => __awaiter(void 0, void 0, void 0, function* () {
+                return ({
+                    tourId,
+                    imagePath: yield (0, handleImages_1.saveBase64Image)(imagePath, (0, uuid_1.v4)(), req, "tourImages"),
+                });
+            })));
+            yield tx.insert(schema_1.tourImages).values(imageRecords);
+        }
+        if ((_d = data.highlights) === null || _d === void 0 ? void 0 : _d.length) {
+            yield tx
+                .insert(schema_1.tourHighlight)
+                .values(data.highlights.map((content) => ({ content, tourId })));
+        }
+        if ((_e = data.includes) === null || _e === void 0 ? void 0 : _e.length) {
+            yield tx
+                .insert(schema_1.tourIncludes)
+                .values(data.includes.map((content) => ({ content, tourId })));
+        }
+        if ((_f = data.excludes) === null || _f === void 0 ? void 0 : _f.length) {
+            yield tx
+                .insert(schema_1.tourExcludes)
+                .values(data.excludes.map((content) => ({ content, tourId })));
+        }
+        if ((_g = data.itinerary) === null || _g === void 0 ? void 0 : _g.length) {
+            const itineraryItems = yield Promise.all(data.itinerary.map((item) => __awaiter(void 0, void 0, void 0, function* () {
+                return ({
+                    title: item.title,
+                    imagePath: yield (0, handleImages_1.saveBase64Image)(item.imagePath, (0, uuid_1.v4)(), req, "itineraryImages"),
+                    describtion: item.description,
+                    tourId,
+                });
+            })));
+            yield tx.insert(schema_1.tourItinerary).values(itineraryItems);
+        }
+        if ((_h = data.faq) === null || _h === void 0 ? void 0 : _h.length) {
+            yield tx.insert(schema_1.tourFAQ).values(data.faq.map((item) => ({
+                question: item.question,
+                answer: item.answer,
+                tourId,
+            })));
+        }
+        if ((_j = data.daysOfWeek) === null || _j === void 0 ? void 0 : _j.length) {
+            yield tx
+                .insert(schema_1.tourDaysOfWeek)
+                .values(data.daysOfWeek.map((day) => ({ dayOfWeek: day, tourId })));
+        }
+        if ((_k = data.extras) === null || _k === void 0 ? void 0 : _k.length) {
+            for (const extra of data.extras) {
+                const [extraPrice] = yield tx
+                    .insert(schema_1.tourPrice)
+                    .values({
+                    adult: extra.price.adult,
+                    child: extra.price.child,
+                    infant: extra.price.infant,
+                    currencyId: extra.price.currencyId,
+                    tourId,
+                })
+                    .$returningId();
+                yield tx.insert(schema_1.tourExtras).values({
+                    tourId,
+                    extraId: extra.extraId,
+                    priceId: extraPrice.id,
+                });
+            }
+        }
+        if (data.promoCodeIds && data.promoCodeIds.length > 0) {
+            // Validate that the promo codes exist using transaction
+            const existingPromoCodes = yield tx
+                .select({
+                id: schema_1.promoCode.id
+            })
+                .from(schema_1.promoCode)
+                .where((0, drizzle_orm_1.inArray)(schema_1.promoCode.id, data.promoCodeIds));
+            const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
+            const invalidPromoCodeIds = data.promoCodeIds.filter((id) => !existingPromoCodeIds.includes(id));
+            // Handle invalid promo codes
+            if (invalidPromoCodeIds.length > 0) {
+                throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+            }
+            // Insert new associations using transaction
+            yield tx.insert(schema_1.tourPromoCode).values(data.promoCodeIds.map((promoCodeId) => ({
                 tourId,
                 promoCodeId
             })));
-            console.log(`Associated ${newAssociations.length} new promo codes with tour ${tourId}`);
         }
-    }
-    yield (0, generateSchedules_1.generateTourSchedules)({
-        tourId,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        daysOfWeek: data.daysOfWeek,
-        maxUsers: data.maxUsers,
-        durationDays: data.durationDays,
-        durationHours: data.durationHours,
-    });
+        // Generate schedules using transaction
+        yield (0, generateSchedules_1.generateTourSchedulesInTransaction)(tx, {
+            tourId,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            daysOfWeek: data.daysOfWeek,
+            maxUsers: data.maxUsers,
+            durationDays: data.durationDays,
+            durationHours: data.durationHours,
+        });
+        // If we reach here, all operations succeeded
+        console.log('All tour creation operations completed successfully');
+    }));
     (0, response_1.SuccessResponse)(res, { message: "Tour Created Successfully" }, 201);
 });
 exports.createTour = createTour;
