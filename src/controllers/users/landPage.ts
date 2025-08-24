@@ -167,6 +167,7 @@ export const getTourById = async (req: Request, res: Response) => {
     itinerary,
     faq,
     discounts,
+    schedules,
     daysOfWeek,
     extrasWithPrices,
     images,
@@ -177,6 +178,8 @@ export const getTourById = async (req: Request, res: Response) => {
     db.select().from(tourItinerary).where(eq(tourItinerary.tourId, tourId)),
     db.select().from(tourFAQ).where(eq(tourFAQ.tourId, tourId)),
     db.select().from(tourDiscounts).where(eq(tourDiscounts.tourId, tourId)),
+    db.select().from(tourSchedules).where(eq(tourSchedules.tourId, tourId)),
+
     db
       .select({ dayOfWeek: tourDaysOfWeek.dayOfWeek })
       .from(tourDaysOfWeek)
@@ -213,6 +216,13 @@ export const getTourById = async (req: Request, res: Response) => {
       highlights: highlights.map((h) => h.content),
       includes: includes.map((i) => i.content),
       excludes: excludes.map((e) => e.content),
+      schedules: schedules.map((s: any) => ({
+              id: s.id,
+              date: formatDate(s.date),
+              availableSeats: s.availableSeats,
+              startDate: formatDate(s.startDate),
+              endDate: formatDate(s.endDate)
+            })),
       itinerary: itinerary.map((i) => ({
         title: i.title,
         imagePath: i.imagePath,
@@ -335,8 +345,13 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 
-  // Parse promoCodeId to ensure it's a number
-   // Parse promoCodeId only if it's provided and not null/undefined
+  // Parse counts to ensure they're numbers
+  const adults = parseInt(adultsCount, 10) || 0;
+  const children = parseInt(childrenCount, 10) || 0;
+
+  const totalPeople = adults + children;
+
+  // Parse promoCodeId only if it's provided and not null/undefined
   let promoCodeIdNum: number | null = null;
   if (promoCodeId !== undefined && promoCodeId !== null && promoCodeId !== '') {
     promoCodeIdNum = parseInt(promoCodeId, 10);
@@ -348,11 +363,12 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     }
   }
 
-
+  // Get tour schedule and check available seats
   const tourSchedule = await db
     .select({
       id: tourSchedules.id,
-      tourId: tourSchedules.tourId
+      tourId: tourSchedules.tourId,
+      availableSeats: tourSchedules.availableSeats 
     })
     .from(tourSchedules)
     .where(eq(tourSchedules.id, tourIdNum)) 
@@ -365,12 +381,22 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     });
   }
 
-  // Extract the actual tourId from the schedule
-  const actualTourId = tourSchedule[0].tourId;
+  const schedule = tourSchedule[0];
+  const actualTourId = schedule.tourId;
+
+  // Check if there are enough available seats
+  if (schedule.availableSeats < totalPeople) {
+    return res.status(400).json({
+      success: false,
+      message: `Not enough available seats. Requested: ${totalPeople}, Available: ${schedule.availableSeats}`
+    });
+  }
 
   console.log("DEBUG - tourScheduleId:", tourIdNum);
   console.log("DEBUG - actualTourId:", actualTourId);
   console.log("DEBUG - promoCodeId:", promoCodeIdNum);
+  console.log("DEBUG - totalPeople:", totalPeople);
+  console.log("DEBUG - currentAvailableSeats:", schedule.availableSeats);
   
   try {
     // Check if user exists by email and get userId
@@ -389,7 +415,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
 
     const userId = existingUser[0].id;
     
-   
+    // Promo code logic (unchanged)
     const promoCodeData = await db
       .select({
         id: promoCode.id,
@@ -411,11 +437,10 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
     if (promoCodeData && promoCodeData.length > 0) {
       const promo = promoCodeData[0];
       
-      // Check usage limit - add null check
       if (promo.usageLimit === null || promo.usageLimit === undefined) {
         throw new Error("Promo code usage limit is invalid");
       }
-      // Check if usage limit is still available
+      
       if (promo.usageLimit > 0) {
         await db.update(promoCode)
           .set({ usageLimit: promo.usageLimit - 1 })
@@ -427,6 +452,13 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
   
     // Start transaction
     await db.transaction(async (trx) => {
+      // Update available seats first
+      await trx.update(tourSchedules)
+        .set({ 
+          availableSeats: schedule.availableSeats - totalPeople 
+        })
+        .where(eq(tourSchedules.id, tourIdNum));
+
       // Create main booking record
       const [newBooking] = await trx.insert(bookings).values({
         tourId: tourIdNum,
@@ -444,9 +476,9 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
         email,
         phone,
         notes: notes || null,
-        adultsCount: adultsCount || 0,
-        childrenCount: childrenCount || 0,
-        infantsCount: infantsCount || 0,
+        adultsCount: adults,
+        childrenCount: children,
+        infantsCount: infantsCount,
         totalAmount: totalAmount
       });
 
@@ -516,13 +548,14 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
           email,
           phone,
           notes,
-          adultsCount,
-          childrenCount,
-          infantsCount,
+          adultsCount: adults,
+          childrenCount: children,
+          infantsCount: infantsCount,
           totalAmount
         },
         extras: extras || [],
-        userId: userId
+        userId: userId,
+        availableSeats: schedule.availableSeats - totalPeople 
       }, 201);
     });
   } catch (error) {
@@ -1015,49 +1048,3 @@ export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) =
 };
 
 
-/* 
-const categorizeBookings = (bookings) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const upcoming = [];
-    const current = [];
-    const history = [];
-
-    bookings.forEach((booking) => {
-      // console.log(Booking ID: ${booking.id});
-      // console.log(Start Date: ${booking.originalStartDate});
-      // console.log(End Date: ${booking.originalEndDate});
-      
-      if (!booking.originalStartDate || !booking.originalEndDate) {
-        console.log("No dates - moving to history");
-        history.push(booking);
-        return;
-      }
-
-      const startDate = new Date(booking.originalStartDate);
-      const endDate = new Date(booking.originalEndDate);
-      const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-
-      // console.log(Today: ${today.toDateString()});
-      // console.log(Start Date Only: ${startDateOnly.toDateString()});
-      // console.log(End Date Only: ${endDateOnly.toDateString()});
-
-      if (startDateOnly > today) {
-        console.log("Moving to upcoming");
-        upcoming.push(booking);
-      } else if (startDateOnly <= today && endDateOnly >= today) {
-        console.log("Moving to current");
-        current.push(booking);
-      } else {
-        console.log("Moving to history");
-        history.push(booking);
-      }
-      console.log("---");
-    });
-
-    console.log(Final counts - Upcoming: ${upcoming.length}, Current: ${current.length}, History: ${history.length});
-    return { upcoming, current, history };
-  };
-*/

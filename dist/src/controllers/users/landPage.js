@@ -129,13 +129,14 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
     if (!mainTour)
         throw new Errors_1.NotFound("tour not found");
-    const [highlights, includes, excludes, itinerary, faq, discounts, daysOfWeek, extrasWithPrices, images,] = yield Promise.all([
+    const [highlights, includes, excludes, itinerary, faq, discounts, schedules, daysOfWeek, extrasWithPrices, images,] = yield Promise.all([
         db_1.db.select().from(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, tourId)),
         db_1.db.select().from(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, tourId)),
         db_1.db.select().from(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, tourId)),
         db_1.db.select().from(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId)),
         db_1.db.select().from(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId)),
         db_1.db.select().from(schema_1.tourDiscounts).where((0, drizzle_orm_1.eq)(schema_1.tourDiscounts.tourId, tourId)),
+        db_1.db.select().from(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId)),
         db_1.db
             .select({ dayOfWeek: schema_1.tourDaysOfWeek.dayOfWeek })
             .from(schema_1.tourDaysOfWeek)
@@ -162,7 +163,13 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             .from(schema_1.tourImages)
             .where((0, drizzle_orm_1.eq)(schema_1.tourImages.tourId, tourId)),
     ]);
-    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
+    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), schedules: schedules.map((s) => ({
+            id: s.id,
+            date: (0, exports.formatDate)(s.date),
+            availableSeats: s.availableSeats,
+            startDate: (0, exports.formatDate)(s.startDate),
+            endDate: (0, exports.formatDate)(s.endDate)
+        })), itinerary: itinerary.map((i) => ({
             title: i.title,
             imagePath: i.imagePath,
             description: i.describtion,
@@ -253,7 +260,10 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             message: "Invalid tourId provided"
         });
     }
-    // Parse promoCodeId to ensure it's a number
+    // Parse counts to ensure they're numbers
+    const adults = parseInt(adultsCount, 10) || 0;
+    const children = parseInt(childrenCount, 10) || 0;
+    const totalPeople = adults + children;
     // Parse promoCodeId only if it's provided and not null/undefined
     let promoCodeIdNum = null;
     if (promoCodeId !== undefined && promoCodeId !== null && promoCodeId !== '') {
@@ -265,10 +275,12 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             });
         }
     }
+    // Get tour schedule and check available seats
     const tourSchedule = yield db_1.db
         .select({
         id: schema_1.tourSchedules.id,
-        tourId: schema_1.tourSchedules.tourId
+        tourId: schema_1.tourSchedules.tourId,
+        availableSeats: schema_1.tourSchedules.availableSeats
     })
         .from(schema_1.tourSchedules)
         .where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.id, tourIdNum))
@@ -279,11 +291,20 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             message: "Tour schedule not found"
         });
     }
-    // Extract the actual tourId from the schedule
-    const actualTourId = tourSchedule[0].tourId;
+    const schedule = tourSchedule[0];
+    const actualTourId = schedule.tourId;
+    // Check if there are enough available seats
+    if (schedule.availableSeats < totalPeople) {
+        return res.status(400).json({
+            success: false,
+            message: `Not enough available seats. Requested: ${totalPeople}, Available: ${schedule.availableSeats}`
+        });
+    }
     console.log("DEBUG - tourScheduleId:", tourIdNum);
     console.log("DEBUG - actualTourId:", actualTourId);
     console.log("DEBUG - promoCodeId:", promoCodeIdNum);
+    console.log("DEBUG - totalPeople:", totalPeople);
+    console.log("DEBUG - currentAvailableSeats:", schedule.availableSeats);
     try {
         // Check if user exists by email and get userId
         const existingUser = yield db_1.db
@@ -298,6 +319,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             });
         }
         const userId = existingUser[0].id;
+        // Promo code logic (unchanged)
         const promoCodeData = yield db_1.db
             .select({
             id: schema_1.promoCode.id,
@@ -314,11 +336,9 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, actualTourId), (0, drizzle_orm_1.eq)(schema_1.promoCode.id, promoCodeIdNum)));
         if (promoCodeData && promoCodeData.length > 0) {
             const promo = promoCodeData[0];
-            // Check usage limit - add null check
             if (promo.usageLimit === null || promo.usageLimit === undefined) {
                 throw new Error("Promo code usage limit is invalid");
             }
-            // Check if usage limit is still available
             if (promo.usageLimit > 0) {
                 yield db_1.db.update(schema_1.promoCode)
                     .set({ usageLimit: promo.usageLimit - 1 })
@@ -330,6 +350,12 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
         }
         // Start transaction
         yield db_1.db.transaction((trx) => __awaiter(void 0, void 0, void 0, function* () {
+            // Update available seats first
+            yield trx.update(schema_1.tourSchedules)
+                .set({
+                availableSeats: schedule.availableSeats - totalPeople
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.id, tourIdNum));
             // Create main booking record
             const [newBooking] = yield trx.insert(schema_1.bookings).values({
                 tourId: tourIdNum,
@@ -346,9 +372,9 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 email,
                 phone,
                 notes: notes || null,
-                adultsCount: adultsCount || 0,
-                childrenCount: childrenCount || 0,
-                infantsCount: infantsCount || 0,
+                adultsCount: adults,
+                childrenCount: children,
+                infantsCount: infantsCount,
                 totalAmount: totalAmount
             });
             // Handle booking extras if provided
@@ -413,13 +439,14 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                     email,
                     phone,
                     notes,
-                    adultsCount,
-                    childrenCount,
-                    infantsCount,
+                    adultsCount: adults,
+                    childrenCount: children,
+                    infantsCount: infantsCount,
                     totalAmount
                 },
                 extras: extras || [],
-                userId: userId
+                userId: userId,
+                availableSeats: schedule.availableSeats - totalPeople
             }, 201);
         }));
     }
@@ -842,49 +869,3 @@ const applyPromoCode = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }));
 });
 exports.applyPromoCode = applyPromoCode;
-/*
-const categorizeBookings = (bookings) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const upcoming = [];
-    const current = [];
-    const history = [];
-
-    bookings.forEach((booking) => {
-      // console.log(Booking ID: ${booking.id});
-      // console.log(Start Date: ${booking.originalStartDate});
-      // console.log(End Date: ${booking.originalEndDate});
-      
-      if (!booking.originalStartDate || !booking.originalEndDate) {
-        console.log("No dates - moving to history");
-        history.push(booking);
-        return;
-      }
-
-      const startDate = new Date(booking.originalStartDate);
-      const endDate = new Date(booking.originalEndDate);
-      const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-
-      // console.log(Today: ${today.toDateString()});
-      // console.log(Start Date Only: ${startDateOnly.toDateString()});
-      // console.log(End Date Only: ${endDateOnly.toDateString()});
-
-      if (startDateOnly > today) {
-        console.log("Moving to upcoming");
-        upcoming.push(booking);
-      } else if (startDateOnly <= today && endDateOnly >= today) {
-        console.log("Moving to current");
-        current.push(booking);
-      } else {
-        console.log("Moving to history");
-        history.push(booking);
-      }
-      console.log("---");
-    });
-
-    console.log(Final counts - Upcoming: ${upcoming.length}, Current: ${current.length}, History: ${history.length});
-    return { upcoming, current, history };
-  };
-*/ 
