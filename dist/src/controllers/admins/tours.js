@@ -41,7 +41,7 @@ const getAllTours = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.tours.country, schema_1.countries.id))
         .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.tours.city, schema_1.cites.id));
     (0, response_1.SuccessResponse)(res, {
-        tours: toursData.map(tour => (Object.assign(Object.assign({}, tour.tours), { startDate: tour.tours.startDate.toISOString().split(' ')[0], endDate: tour.tours.endDate.toISOString().split(' ')[0] }))),
+        tours: toursData.map(tour => (Object.assign(Object.assign({}, tour.tours), { startDate: tour.tours.startDate, endDate: tour.tours.endDate }))),
     }, 200);
 });
 exports.getAllTours = getAllTours;

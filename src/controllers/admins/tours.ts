@@ -61,8 +61,8 @@ export const getAllTours = async (req: Request, res: Response) => {
   SuccessResponse(res, { 
    tours: toursData.map(tour => ({
     ...tour.tours,
-    startDate: tour.tours.startDate.toISOString().split(' ')[0],
-    endDate: tour.tours.endDate.toISOString().split(' ')[0]   
+    startDate: tour.tours.startDate,
+    endDate: tour.tours.endDate  
   })),
   }, 200);
 }
