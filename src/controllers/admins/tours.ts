@@ -61,12 +61,12 @@ export const getAllTours = async (req: Request, res: Response) => {
   SuccessResponse(res, { 
    tours: toursData.map(tour => ({
     ...tour.tours,
-    startDate: tour.tours.startDate.toISOString().split('T')[0],
-    endDate: tour.tours.endDate.toISOString().split('T')[0]
-   })),
+    startDate: tour.tours.startDate.toISOString().split(' ')[0],
+    endDate: tour.tours.endDate.toISOString().split(' ')[0]   
+  })),
   }, 200);
 }
-  
+
 
 export const getTourById = async (req: Request, res: Response) => {
   const tourId = Number(req.params.id);
