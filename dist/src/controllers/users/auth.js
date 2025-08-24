@@ -93,18 +93,76 @@ const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     (0, response_1.SuccessResponse)(res, { message: "Password Updated Successfully" });
 });
 exports.resetPassword = resetPassword;
+/*export const signup = async (req: Request, res: Response) => {
+  const data = req.body;
+  const [exsitUser] = await db
+    .select()
+    .from(users)
+    .where(
+      or(eq(users.email, data.email), eq(users.phoneNumber, data.phoneNumber))
+    );
+  if (exsitUser) {
+    if (exsitUser.email === data.email)
+      throw new ConflictError("Email is Aleardy Used");
+    if (exsitUser.phoneNumber === data.phoneNumber)
+      throw new ConflictError("Phone Number is Aleardy Used");
+  }
+  data.password = await bcrypt.hash(data.password, 10);
+  const [result] = await db.insert(users).values(data).$returningId();
+  const code = randomInt(100000, 999999).toString();
+  await db.insert(emailVerifications).values({
+    userId: result.id,
+    code,
+  });
+  await sendEmail(
+    data.email,
+    "Email Verification",
+    `Your verification code is ${code}`
+  );
+  SuccessResponse(
+    res,
+    { message: "User Signup Successfully Go Verify Email", userId: result.id },
+    201
+  );
+};*/
 const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = req.body;
-    const [exsitUser] = yield db_1.db
+    // Check if user already exists
+    const [existingUser] = yield db_1.db
         .select()
         .from(schema_1.users)
         .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.email, data.email), (0, drizzle_orm_1.eq)(schema_1.users.phoneNumber, data.phoneNumber)));
-    if (exsitUser) {
-        if (exsitUser.email === data.email)
-            throw new Errors_1.ConflictError("Email is Aleardy Used");
-        if (exsitUser.phoneNumber === data.phoneNumber)
-            throw new Errors_1.ConflictError("Phone Number is Aleardy Used");
+    if (existingUser) {
+        // If user exists with same email but not verified, allow resending verification
+        if (existingUser.email === data.email) {
+            if (!existingUser.isVerified) {
+                // Delete existing verification codes
+                yield db_1.db
+                    .delete(schema_1.emailVerifications)
+                    .where((0, drizzle_orm_1.eq)(schema_1.emailVerifications.userId, existingUser.id));
+                // Generate new verification code
+                const code = (0, crypto_1.randomInt)(100000, 999999).toString();
+                // Insert new verification code
+                yield db_1.db.insert(schema_1.emailVerifications).values({
+                    userId: existingUser.id,
+                    code,
+                });
+                // Send verification email
+                yield (0, sendEmails_1.sendEmail)(data.email, "Email Verification", `Your verification code is ${code}`);
+                return (0, response_1.SuccessResponse)(res, {
+                    message: "Verification code resent successfully",
+                    userId: existingUser.id
+                }, 200);
+            }
+            else {
+                throw new Errors_1.ConflictError("Email is already registered and verified");
+            }
+        }
+        if (existingUser.phoneNumber === data.phoneNumber) {
+            throw new Errors_1.ConflictError("Phone Number is already used");
+        }
     }
+    // If no existing user or phone number conflict, create new user
     data.password = yield bcrypt_1.default.hash(data.password, 10);
     const [result] = yield db_1.db.insert(schema_1.users).values(data).$returningId();
     const code = (0, crypto_1.randomInt)(100000, 999999).toString();
@@ -113,7 +171,7 @@ const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         code,
     });
     yield (0, sendEmails_1.sendEmail)(data.email, "Email Verification", `Your verification code is ${code}`);
-    (0, response_1.SuccessResponse)(res, { message: "User Signup Successfully Go Verify Email", userId: result.id }, 201);
+    (0, response_1.SuccessResponse)(res, { message: "User Signup Successfully. Please verify your email.", userId: result.id }, 201);
 });
 exports.signup = signup;
 const verifyEmail = (req, res) => __awaiter(void 0, void 0, void 0, function* () {

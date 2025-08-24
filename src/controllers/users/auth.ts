@@ -87,7 +87,7 @@ export const resetPassword = async (req: Request, res: Response) => {
   SuccessResponse(res, { message: "Password Updated Successfully" });
 };
 
-export const signup = async (req: Request, res: Response) => {
+/*export const signup = async (req: Request, res: Response) => {
   const data = req.body;
   const [exsitUser] = await db
     .select()
@@ -116,6 +116,83 @@ export const signup = async (req: Request, res: Response) => {
   SuccessResponse(
     res,
     { message: "User Signup Successfully Go Verify Email", userId: result.id },
+    201
+  );
+};*/
+
+export const signup = async (req: Request, res: Response) => {
+  const data = req.body;
+  
+  // Check if user already exists
+  const [existingUser] = await db
+    .select()
+    .from(users)
+    .where(
+      or(eq(users.email, data.email), eq(users.phoneNumber, data.phoneNumber))
+    );
+
+  if (existingUser) {
+    // If user exists with same email but not verified, allow resending verification
+    if (existingUser.email === data.email) {
+      if (!existingUser.isVerified) {
+        // Delete existing verification codes
+        await db
+          .delete(emailVerifications)
+          .where(eq(emailVerifications.userId, existingUser.id));
+
+        // Generate new verification code
+        const code = randomInt(100000, 999999).toString();
+        
+        // Insert new verification code
+        await db.insert(emailVerifications).values({
+          userId: existingUser.id,
+          code,
+        });
+
+        // Send verification email
+        await sendEmail(
+          data.email,
+          "Email Verification",
+          `Your verification code is ${code}`
+        );
+
+        return SuccessResponse(
+          res,
+          { 
+            message: "Verification code resent successfully", 
+            userId: existingUser.id 
+          },
+          200
+        );
+      } else {
+        throw new ConflictError("Email is already registered and verified");
+      }
+    }
+    
+    if (existingUser.phoneNumber === data.phoneNumber) {
+      throw new ConflictError("Phone Number is already used");
+    }
+  }
+
+  // If no existing user or phone number conflict, create new user
+  data.password = await bcrypt.hash(data.password, 10);
+  const [result] = await db.insert(users).values(data).$returningId();
+  
+  const code = randomInt(100000, 999999).toString();
+  await db.insert(emailVerifications).values({
+    userId: result.id,
+    code,
+  });
+  
+  await sendEmail(
+    data.email,
+    "Email Verification",
+    `Your verification code is ${code}`
+  );
+  
+  SuccessResponse(
+    res,
+    { message: "User Signup Successfully. Please verify your email.", userId: result.id },
     201
   );
 };
