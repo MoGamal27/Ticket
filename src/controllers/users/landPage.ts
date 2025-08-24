@@ -108,6 +108,7 @@ export const getToursByCategory = async (req: Request, res: Response) => {
       discount: tourDiscounts.value,
       discribtion: tours.describtion,
       duration: tours.durationDays,
+      startDate: tours.startDate,
     })
     .from(tours)
     .leftJoin(tourPrice, eq(tours.id, tourPrice.tourId))
@@ -555,7 +556,7 @@ export const createBookingWithPayment = async (req: Request, res: Response) => {
         },
         extras: extras || [],
         userId: userId,
-        availableSeats: schedule.availableSeats - totalPeople 
+       // availableSeats: schedule.availableSeats - totalPeople 
       }, 201);
     });
   } catch (error) {

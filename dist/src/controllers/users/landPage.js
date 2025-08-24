@@ -78,6 +78,7 @@ const getToursByCategory = (req, res) => __awaiter(void 0, void 0, void 0, funct
         discount: schema_1.tourDiscounts.value,
         discribtion: schema_1.tours.describtion,
         duration: schema_1.tours.durationDays,
+        startDate: schema_1.tours.startDate,
     })
         .from(schema_1.tours)
         .leftJoin(schema_1.tourPrice, (0, drizzle_orm_1.eq)(schema_1.tours.id, schema_1.tourPrice.tourId))
