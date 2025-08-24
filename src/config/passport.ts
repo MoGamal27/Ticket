@@ -4,6 +4,8 @@ import { db } from "../models/db";
 import { users } from "../models/schema";
 import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
+import dotenv from "dotenv";
+dotenv.config();
 
 passport.use(
   new GoogleStrategy(
@@ -14,12 +16,14 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        
+
         let user = await db
           .select()
           .from(users)
           .where(eq(users.googleId, profile.id))
           .limit(1)
-          .then(res => res[0]);
+          .then((res) => res[0]);
 
         if (!user) {
           await db.insert(users).values({
@@ -34,7 +38,7 @@ passport.use(
             .from(users)
             .where(eq(users.googleId, profile.id))
             .limit(1)
-            .then(res => res[0]);
+            .then((res) => res[0]);
         }
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, {
@@ -43,6 +47,7 @@ passport.use(
 
         return done(null, { user, token });
       } catch (err) {
+        console.error("❌ Error in GoogleStrategy:", err);
         return done(err as any, undefined);
       }
     }

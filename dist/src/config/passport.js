@@ -18,6 +18,8 @@ const db_1 = require("../models/db");
 const schema_1 = require("../models/schema");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const drizzle_orm_1 = require("drizzle-orm");
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 passport_1.default.use(new passport_google_oauth20_1.Strategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -30,7 +32,7 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
             .from(schema_1.users)
             .where((0, drizzle_orm_1.eq)(schema_1.users.googleId, profile.id))
             .limit(1)
-            .then(res => res[0]);
+            .then((res) => res[0]);
         if (!user) {
             yield db_1.db.insert(schema_1.users).values({
                 googleId: profile.id,
@@ -43,7 +45,7 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
                 .from(schema_1.users)
                 .where((0, drizzle_orm_1.eq)(schema_1.users.googleId, profile.id))
                 .limit(1)
-                .then(res => res[0]);
+                .then((res) => res[0]);
         }
         const token = jsonwebtoken_1.default.sign({ id: user.id }, process.env.JWT_SECRET, {
             expiresIn: "7d",
@@ -51,6 +53,7 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
         return done(null, { user, token });
     }
     catch (err) {
+        console.error("❌ Error in GoogleStrategy:", err);
         return done(err, undefined);
     }
 })));
