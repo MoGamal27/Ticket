@@ -24,6 +24,10 @@ const formatDate = (date) => {
     return date.toISOString().split('T')[0];
 };
 exports.formatDate = formatDate;
+const formatDateSQL = (date) => {
+    const d = new Date(date);
+    return (0, date_fns_1.format)(d, 'yyyy-MM-dd');
+};
 const getAllTours = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const toursData = yield db_1.db
         .select({
@@ -37,7 +41,7 @@ const getAllTours = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.tours.country, schema_1.countries.id))
         .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.tours.city, schema_1.cites.id));
     (0, response_1.SuccessResponse)(res, {
-        tours: toursData.map(tour => (Object.assign(Object.assign({}, tour.tours), { startDate: (0, exports.formatDate)(tour.tours.startDate), endDate: (0, exports.formatDate)(tour.tours.endDate) }))),
+        tours: toursData.map(tour => (Object.assign(Object.assign({}, tour.tours), { startDate: formatDateSQL(tour.tours.startDate), endDate: formatDateSQL(tour.tours.endDate) }))),
     }, 200);
 });
 exports.getAllTours = getAllTours;
@@ -79,13 +83,14 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
     if (!mainTour)
         throw new Errors_1.NotFound("tour not found");
-    const [highlights, includes, excludes, itinerary, faq, discounts, daysOfWeek, extrasWithPrices, images, promoCodes] = yield Promise.all([
+    const [highlights, includes, excludes, itinerary, faq, discounts, schedules, daysOfWeek, extrasWithPrices, images, promoCodes,] = yield Promise.all([
         db_1.db.select().from(schema_1.tourHighlight).where((0, drizzle_orm_1.eq)(schema_1.tourHighlight.tourId, tourId)),
         db_1.db.select().from(schema_1.tourIncludes).where((0, drizzle_orm_1.eq)(schema_1.tourIncludes.tourId, tourId)),
         db_1.db.select().from(schema_1.tourExcludes).where((0, drizzle_orm_1.eq)(schema_1.tourExcludes.tourId, tourId)),
         db_1.db.select().from(schema_1.tourItinerary).where((0, drizzle_orm_1.eq)(schema_1.tourItinerary.tourId, tourId)),
         db_1.db.select().from(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId)),
         db_1.db.select().from(schema_1.tourDiscounts).where((0, drizzle_orm_1.eq)(schema_1.tourDiscounts.tourId, tourId)),
+        db_1.db.select().from(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId)),
         db_1.db
             .select({ dayOfWeek: schema_1.tourDaysOfWeek.dayOfWeek })
             .from(schema_1.tourDaysOfWeek)
@@ -123,7 +128,13 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             .leftJoin(schema_1.promoCode, (0, drizzle_orm_1.eq)(schema_1.tourPromoCode.promoCodeId, schema_1.promoCode.id))
             .where((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId)),
     ]);
-    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), itinerary: itinerary.map((i) => ({
+    (0, response_1.SuccessResponse)(res, Object.assign(Object.assign({}, mainTour), { startDate: mainTour.startDate.toISOString().split('T')[0], endDate: mainTour.endDate.toISOString().split('T')[0], highlights: highlights.map((h) => h.content), includes: includes.map((i) => i.content), excludes: excludes.map((e) => e.content), schedules: schedules.map((s) => ({
+            id: s.id,
+            date: (0, exports.formatDate)(s.date),
+            availableSeats: s.availableSeats,
+            startDate: (0, exports.formatDate)(s.startDate),
+            endDate: (0, exports.formatDate)(s.endDate)
+        })), itinerary: itinerary.map((i) => ({
             id: i.id,
             title: i.title,
             imagePath: i.imagePath,
@@ -131,8 +142,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         })), faq: faq.map((f) => ({ question: f.question, answer: f.answer })), promoCode: promoCodes.map((p) => ({
             id: p.id,
             code: p.code
-        })), // Use the query result variable
-        discounts, daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek), extras: extrasWithPrices, images: images.map((img) => ({
+        })), discounts, daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek), extras: extrasWithPrices, images: images.map((img) => ({
             id: img.id,
             url: img.imagePath
         })) }), 200);

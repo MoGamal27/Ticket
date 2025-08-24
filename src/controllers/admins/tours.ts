@@ -26,7 +26,6 @@ import {
   bookingExtras,
   payments,
   manualPaymentMethod,
-
 } from "../../models/schema";
 import { SuccessResponse } from "../../utils/response";
 import { eq, and, inArray } from "drizzle-orm";
@@ -40,6 +39,11 @@ import { format } from 'date-fns';
 export const formatDate = (date: Date) => {
   return date.toISOString().split('T')[0]; 
 };
+
+ const formatDateSQL = (date: Date | string) => {
+    const d = new Date(date);
+    return format(d, 'yyyy-MM-dd');
+  };
 
 export const getAllTours = async (req: Request, res: Response) => {
   const toursData = await db
@@ -57,8 +61,8 @@ export const getAllTours = async (req: Request, res: Response) => {
   SuccessResponse(res, { 
    tours: toursData.map(tour => ({
     ...tour.tours,
-    startDate: formatDate(tour.tours.startDate),
-    endDate: formatDate(tour.tours.endDate),
+    startDate: formatDateSQL(tour.tours.startDate),
+    endDate: formatDateSQL(tour.tours.endDate),
    })),
   }, 200);
 }
@@ -109,10 +113,11 @@ export const getTourById = async (req: Request, res: Response) => {
     itinerary,
     faq,
     discounts,
-    daysOfWeek,
+    schedules,
+    daysOfWeek, 
     extrasWithPrices,
     images,
-    promoCodes
+    promoCodes,
   ] = await Promise.all([
     db.select().from(tourHighlight).where(eq(tourHighlight.tourId, tourId)),
     db.select().from(tourIncludes).where(eq(tourIncludes.tourId, tourId)),
@@ -120,11 +125,14 @@ export const getTourById = async (req: Request, res: Response) => {
     db.select().from(tourItinerary).where(eq(tourItinerary.tourId, tourId)),
     db.select().from(tourFAQ).where(eq(tourFAQ.tourId, tourId)),
     db.select().from(tourDiscounts).where(eq(tourDiscounts.tourId, tourId)),
+    db.select().from(tourSchedules).where(eq(tourSchedules.tourId, tourId)),
     
+   
     db
       .select({ dayOfWeek: tourDaysOfWeek.dayOfWeek })
       .from(tourDaysOfWeek)
       .where(eq(tourDaysOfWeek.tourId, tourId)),
+    
     db
       .select({
         id: extras.id,
@@ -168,6 +176,13 @@ export const getTourById = async (req: Request, res: Response) => {
       highlights: highlights.map((h) => h.content),
       includes: includes.map((i) => i.content),
       excludes: excludes.map((e) => e.content),
+      schedules: schedules.map((s: any) => ({
+        id: s.id,
+        date: formatDate(s.date),
+        availableSeats: s.availableSeats,
+        startDate: formatDate(s.startDate),
+        endDate: formatDate(s.endDate)
+      })),
       itinerary: itinerary.map((i) => ({
         id: i.id,
         title: i.title,
@@ -175,14 +190,14 @@ export const getTourById = async (req: Request, res: Response) => {
         description: i.describtion,
       })),
       faq: faq.map((f) => ({ question: f.question, answer: f.answer })),
-      promoCode: promoCodes.map((p) => ({
-       id: p.id,
-      code: p.code
-})), // Use the query result variable
+      promoCode: promoCodes.map((p: any) => ({
+        id: p.id,
+        code: p.code
+      })),
       discounts,
-      daysOfWeek: daysOfWeek.map((d) => d.dayOfWeek),
+      daysOfWeek: daysOfWeek.map((d: any) => d.dayOfWeek), 
       extras: extrasWithPrices,
-      images: images.map((img) => ({
+      images: images.map((img: any) => ({
         id: img.id,
         url: img.imagePath
       })),
