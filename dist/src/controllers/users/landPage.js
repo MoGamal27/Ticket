@@ -446,7 +446,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 },
                 extras: extras || [],
                 userId: userId,
-                availableSeats: schedule.availableSeats - totalPeople
+                // availableSeats: schedule.availableSeats - totalPeople 
             }, 201);
         }));
     }
