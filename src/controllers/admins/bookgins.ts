@@ -44,7 +44,8 @@ export const getBookings = async (req: Request, res: Response) => {
     .from(bookings)
     .leftJoin(users, eq(bookings.userId, users.id))
     .leftJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id)) 
-    .leftJoin(tours, eq(tourSchedules.tourId, tours.id)); 
+    .leftJoin(tours, eq(tourSchedules.tourId, tours.id))
+    .where(eq(bookings.status, "confirmed"));
 
   // Get booking IDs for batch querying
   const bookingIds = mainBookings.map(booking => booking.id);

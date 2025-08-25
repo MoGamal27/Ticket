@@ -179,11 +179,9 @@ const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 bookings: Object.assign(Object.assign({}, row.bookings), { tourId: ((_a = row.tour) === null || _a === void 0 ? void 0 : _a.id) || null, tour: row.tour || null }),
                 bookingDetails: row.bookingDetails,
                 bookingExtras: [],
-                manualPayment: row.manualPayment ? Object.assign(Object.assign({}, row.manualPayment), { type: row.manualPaymentType // Include payment type info
-                 }) : null,
+                manualPayment: row.manualPayment ? Object.assign(Object.assign({}, row.manualPayment), { type: row.manualPaymentType }) : null,
             };
         }
-        // Add booking extras if they exist and haven't been added already
         if (row.bookingExtras && row.bookingExtras.id) {
             const existingExtra = acc[paymentId].bookingExtras.find((extra) => extra.id === row.bookingExtras.id);
             if (!existingExtra) {

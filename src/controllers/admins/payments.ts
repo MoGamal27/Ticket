@@ -205,12 +205,11 @@ export const getAllPayments = async(req: Request, res: Response) => {
           bookingExtras: [],
           manualPayment: row.manualPayment ? {
             ...row.manualPayment,
-            type: row.manualPaymentType // Include payment type info
+            type: row.manualPaymentType 
           } : null, 
         };
       }
 
-      // Add booking extras if they exist and haven't been added already
       if (row.bookingExtras && row.bookingExtras.id) {
         const existingExtra = acc[paymentId].bookingExtras.find(
           (extra: any) => extra.id === row.bookingExtras.id
