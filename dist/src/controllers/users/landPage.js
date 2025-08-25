@@ -117,7 +117,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             adult: schema_1.tourPrice.adult,
             child: schema_1.tourPrice.child,
             infant: schema_1.tourPrice.infant,
-            currency: schema_1.currencies.id,
+            currency: schema_1.currencies.name
         },
     })
         .from(schema_1.tours)
@@ -150,9 +150,8 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 child: schema_1.tourPrice.child,
                 infant: schema_1.tourPrice.infant,
                 currencyId: schema_1.tourPrice.currencyId,
-                // currency name
-                currencyName: schema_1.currencies.name,
-            },
+                currencyName: schema_1.currencies.name
+            }
         })
             .from(schema_1.tourExtras)
             .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.tourExtras.extraId, schema_1.extras.id))

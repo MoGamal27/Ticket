@@ -147,13 +147,13 @@ export const getTourById = async (req: Request, res: Response) => {
         adult: tourPrice.adult,
         child: tourPrice.child,
         infant: tourPrice.infant,
-        currency: currencies.id,
+        currency: currencies.name
       },
     })
     .from(tours)
     .leftJoin(categories, eq(tours.categoryId, categories.id))
     .leftJoin(tourPrice, eq(tours.id, tourPrice.tourId))
-    .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
+    .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id)) 
     .leftJoin(cites, eq(cites.id, tours.city))
     .leftJoin(countries, eq(countries.id, tours.country))
     .leftJoin(tourSchedules, eq(tourSchedules.tourId, tours.id))
@@ -193,14 +193,13 @@ export const getTourById = async (req: Request, res: Response) => {
           child: tourPrice.child,
           infant: tourPrice.infant,
           currencyId: tourPrice.currencyId,
-          // currency name
-          currencyName: currencies.name,
-        },
+          currencyName: currencies.name
+        }
       })
       .from(tourExtras)
       .leftJoin(extras, eq(tourExtras.extraId, extras.id))
       .leftJoin(tourPrice, eq(tourExtras.priceId, tourPrice.id))
-      .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
+      .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id)) 
       .where(eq(tourExtras.tourId, tourId)),
     db
       .select({ imagePath: tourImages.imagePath })
