@@ -13,8 +13,10 @@ import {
   updateCurrencySchema,
 } from "../../validators/admins/currencies";
 import { idParams } from "../../validators/admins/users";
+import { authenticated } from "../../middlewares/authenticated";
 
 const router = Router();
+router.use(authenticated)
 router
   .route("/")
   .get(catchAsync(getAllCurrencies))

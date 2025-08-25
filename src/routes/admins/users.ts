@@ -17,6 +17,7 @@ import { authorizePermissions } from "../../middlewares/authorized";
 import { authenticated } from "../../middlewares/authenticated";
 
 const router = Router();
+router.use(authenticated)
 
 // router.use(authenticated);
 router

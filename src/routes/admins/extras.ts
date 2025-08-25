@@ -13,7 +13,9 @@ import {
   updateExtraSchema,
 } from "../../validators/admins/extras";
 import { idParams } from "../../validators/admins/users";
+import { authenticated } from "../../middlewares/authenticated";
 const router = Router();
+router.use(authenticated)
 router
   .route("/")
   .get(catchAsync(getAllExtras))

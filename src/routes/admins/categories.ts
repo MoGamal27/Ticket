@@ -7,7 +7,9 @@ import {
   getCategory,
   updateCategory,
 } from "../../controllers/admins/categories";
+import { authenticated } from "../../middlewares/authenticated";
 const router = Router();
+router.use(authenticated)
 router.get("/", catchAsync(getAllCategory));
 router.get("/:id", catchAsync(getCategory));
 router.put("/:id", validate(updateCategorySchema), catchAsync(updateCategory));

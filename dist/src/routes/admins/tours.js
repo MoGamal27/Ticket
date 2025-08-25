@@ -6,7 +6,9 @@ const validation_1 = require("../../middlewares/validation");
 const tours_1 = require("../../validators/admins/tours");
 const tours_2 = require("../../controllers/admins/tours");
 const users_1 = require("../../validators/admins/users");
+const authenticated_1 = require("../../middlewares/authenticated");
 const router = (0, express_1.Router)();
+router.use(authenticated_1.authenticated);
 // Main tours routes
 router.route("/")
     .get((0, catchAsync_1.catchAsync)(tours_2.getAllTours))

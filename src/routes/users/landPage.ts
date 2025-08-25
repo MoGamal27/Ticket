@@ -20,6 +20,7 @@ import { authenticated } from "../../middlewares/authenticated";
 import { validate } from "../../middlewares/validation";
 import { createBookingWithPaymentSchema, medicalRecordSchema } from "..//..//validators/users/landPage";
 const router = Router();
+router.use(authenticated)
 
 router.post("/book-tour",validate(createBookingWithPaymentSchema) ,catchAsync(createBookingWithPayment));
 

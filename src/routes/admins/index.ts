@@ -21,6 +21,7 @@ import CategoryMedicalRoute from "./medical";
 import { authorizePermissions } from "../../middlewares/authorized";
 import { authenticated } from "../../middlewares/authenticated";
 const router = Router();
+router.use(authenticated)
 router.use("/auth", AuthRoute);
 router.use("/users", UsersRoute);
 router.use("/admins", AdminsRoute);

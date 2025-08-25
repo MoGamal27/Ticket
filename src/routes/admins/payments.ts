@@ -11,7 +11,9 @@ import {
 import { validate } from "../../middlewares/validation";
 import { idParams } from "../../validators/admins/users";
 import { changeStatusSchema } from "../../validators/admins/payments";
+import { authenticated } from "../../middlewares/authenticated";
 const router = Router();
+router.use(authenticated)
 
 //router.post("/initialize-payment", catchAsync(intializePayemnt))
 

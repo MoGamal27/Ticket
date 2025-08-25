@@ -6,7 +6,9 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const validation_1 = require("../../middlewares/validation");
 const saveFile_1 = require("../../utils/saveFile");
 const medical_2 = require("../../validators/admins/medical");
+const authenticated_1 = require("../../middlewares/authenticated");
 const router = (0, express_1.Router)();
+router.use(authenticated_1.authenticated);
 router
     .route("/medicalTour-all").get((0, catchAsync_1.catchAsync)(medical_1.getAllMedicals));
 router

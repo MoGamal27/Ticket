@@ -15,8 +15,10 @@ import { validate } from "../../middlewares/validation";
 import { upload } from "../../utils/saveFile";
 
 import { createMedicalCategorySchema, updateMedicalCategorySchema, idParams } from "../../validators/admins/medical";
+import { authenticated } from "../../middlewares/authenticated";
 
 const router = Router();
+router.use(authenticated)
 router
   .route("/medicalTour-all").get(catchAsync(getAllMedicals));
 

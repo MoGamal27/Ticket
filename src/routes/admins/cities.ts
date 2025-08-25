@@ -13,7 +13,9 @@ import {
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
 import { idParams } from "../../validators/admins/users";
+import { authenticated } from "../../middlewares/authenticated";
 const router = Router();
+router.use(authenticated)
 router
   .route("/")
   .get(catchAsync(getAllCities))

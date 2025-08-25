@@ -11,9 +11,11 @@ import {
   updateTour,
 } from "../../controllers/admins/tours";
 import { idParams } from "../../validators/admins/users";
+import { authenticated } from "../../middlewares/authenticated";
 
 
 const router = Router();
+router.use(authenticated)
 
 // Main tours routes
 router.route("/")

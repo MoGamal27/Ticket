@@ -6,7 +6,9 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const validation_1 = require("../../middlewares/validation");
 const homePage_2 = require("../../validators/admins/homePage");
 const users_1 = require("../../validators/admins/users");
+const authenticated_1 = require("../../middlewares/authenticated");
 const router = (0, express_1.Router)();
+router.use(authenticated_1.authenticated);
 router
     .route("/")
     .get((0, catchAsync_1.catchAsync)(homePage_1.getAllHomePageCover))

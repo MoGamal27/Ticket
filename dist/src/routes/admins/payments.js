@@ -6,7 +6,9 @@ const payments_1 = require("../../controllers/admins/payments");
 const validation_1 = require("../../middlewares/validation");
 const users_1 = require("../../validators/admins/users");
 const payments_2 = require("../../validators/admins/payments");
+const authenticated_1 = require("../../middlewares/authenticated");
 const router = (0, express_1.Router)();
+router.use(authenticated_1.authenticated);
 //router.post("/initialize-payment", catchAsync(intializePayemnt))
 router.get("/auto-payments", (0, catchAsync_1.catchAsync)(payments_1.getAutoPayments));
 router.get("/allPayment", (0, catchAsync_1.catchAsync)(payments_1.getAllPayments));

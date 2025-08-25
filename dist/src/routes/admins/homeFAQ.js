@@ -6,7 +6,9 @@ const validation_1 = require("../../middlewares/validation");
 const homeFAQ_1 = require("../../controllers/admins/homeFAQ");
 const homeFAQ_2 = require("../../validators/admins/homeFAQ");
 const users_1 = require("../../validators/admins/users");
+const authenticated_1 = require("../../middlewares/authenticated");
 const router = (0, express_1.Router)();
+router.use(authenticated_1.authenticated);
 router
     .route("/")
     .get((0, catchAsync_1.catchAsync)(homeFAQ_1.getAllFaq))

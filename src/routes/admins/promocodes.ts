@@ -13,7 +13,9 @@ import {
   deleteCode,
 } from "../../controllers/admins/promoCode";
 import { idParams } from "../../validators/admins/users";
+import { authenticated } from "../../middlewares/authenticated";
 const router = Router();
+router.use(authenticated)
 router
   .route("/")
   .get(catchAsync(getAllPromoCodes))

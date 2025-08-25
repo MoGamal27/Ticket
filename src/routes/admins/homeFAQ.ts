@@ -13,7 +13,9 @@ import {
   updateFAQSchema,
 } from "../../validators/admins/homeFAQ";
 import { idParams } from "../../validators/admins/users";
+import { authenticated } from "../../middlewares/authenticated";
 const router = Router();
+router.use(authenticated)
 router
   .route("/")
   .get(catchAsync(getAllFaq))

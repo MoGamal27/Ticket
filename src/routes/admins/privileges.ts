@@ -13,8 +13,10 @@ import {
   updatePrivileg,
 } from "../../validators/admins/privileges";
 import { idParams } from "../../validators/admins/users";
+import { authenticated } from "../../middlewares/authenticated";
 
 const router = Router();
+router.use(authenticated)
 router
   .route("/")
   .get(catchAsync(getAllPrivilegs))

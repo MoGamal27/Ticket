@@ -5,7 +5,9 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const users_1 = require("../../controllers/admins/users");
 const validation_1 = require("../../middlewares/validation");
 const users_2 = require("../../validators/admins/users");
+const authenticated_1 = require("../../middlewares/authenticated");
 const router = (0, express_1.Router)();
+router.use(authenticated_1.authenticated);
 // router.use(authenticated);
 router
     .route("/")
