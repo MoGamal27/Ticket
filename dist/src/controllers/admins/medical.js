@@ -53,14 +53,30 @@ const getMedicalCategoryById = (req, res) => __awaiter(void 0, void 0, void 0, f
 exports.getMedicalCategoryById = getMedicalCategoryById;
 const deleteMedicalCategory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const id = Number(req.params.id);
-    const [categorymedical] = yield db_1.db
+    // Check if medical category exists in the category_medical table
+    const [category] = yield db_1.db
         .select()
         .from(schema_1.categoryMedical)
         .where((0, drizzle_orm_1.eq)(schema_1.categoryMedical.id, id));
-    if (!schema_1.categoryMedical)
-        throw new Errors_1.NotFound("Category Medical Not Found");
-    yield db_1.db.delete(schema_1.categoryMedical).where((0, drizzle_orm_1.eq)(schema_1.categoryMedical.id, id));
-    (0, response_1.SuccessResponse)(res, { message: "Category Medical Deleted Successfully" }, 200);
+    if (!category)
+        throw new Errors_1.NotFound("Medical Category Not Found");
+    try {
+        // Start a transaction to ensure data integrity
+        yield db_1.db.transaction((trx) => __awaiter(void 0, void 0, void 0, function* () {
+            yield trx.delete(schema_1.medicalCategories)
+                .where((0, drizzle_orm_1.eq)(schema_1.medicalCategories.categoryId, id));
+            yield trx.delete(schema_1.categoryMedical)
+                .where((0, drizzle_orm_1.eq)(schema_1.categoryMedical.id, id));
+        }));
+        (0, response_1.SuccessResponse)(res, { message: "Medical Category Deleted Successfully" }, 200);
+    }
+    catch (error) {
+        console.error("Delete error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete medical category"
+        });
+    }
 });
 exports.deleteMedicalCategory = deleteMedicalCategory;
 // get all medical 
