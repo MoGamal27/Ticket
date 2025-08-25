@@ -56,14 +56,37 @@ export const getMedicalCategoryById = async (req: Request, res: Response) => {
 
 export const deleteMedicalCategory = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const [categorymedical] = await db
+  
+  // Check if medical category exists in the category_medical table
+  const [category] = await db
     .select()
     .from(categoryMedical)
     .where(eq(categoryMedical.id, id));
-  if (!categoryMedical) throw new NotFound("Category Medical Not Found");
+  
+  if (!category) throw new NotFound("Medical Category Not Found");
 
-  await db.delete(categoryMedical).where(eq(categoryMedical.id, id));
-  SuccessResponse(res, { message: "Category Medical Deleted Successfully" }, 200);
+  try {
+    // Start a transaction to ensure data integrity
+    await db.transaction(async (trx) => {
+      
+      await trx.delete(medicalCategories)
+        .where(eq(medicalCategories.categoryId, id));
+
+      
+      await trx.delete(categoryMedical)
+        .where(eq(categoryMedical.id, id));
+    });
+
+    SuccessResponse(res, { message: "Medical Category Deleted Successfully" }, 200);
+    
+  } catch (error: any) {
+    console.error("Delete error:", error);
+    
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete medical category"
+    });
+  }
 };
 
 
