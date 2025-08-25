@@ -7,7 +7,6 @@ const authenticated_1 = require("../../middlewares/authenticated");
 const validation_1 = require("../../middlewares/validation");
 const landPage_2 = require("..//..//validators/users/landPage");
 const router = (0, express_1.Router)();
-router.use(authenticated_1.authenticated);
 router.post("/book-tour", (0, validation_1.validate)(landPage_2.createBookingWithPaymentSchema), (0, catchAsync_1.catchAsync)(landPage_1.createBookingWithPayment));
 router.post("/create-medical", /*validate(createMedicalSchema),*/ (0, catchAsync_1.catchAsync)(landPage_1.createMedical));
 router.get("/medicals-categories", (0, catchAsync_1.catchAsync)(landPage_1.getMedicalCategories));
