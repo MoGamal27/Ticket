@@ -139,91 +139,113 @@ export const getAutoPayments = async (req: Request, res: Response) => {
 
 
 export const getAllPayments = async(req: Request, res: Response) => {
-  const rows = await db
-    .select({
-      payment: payments,
-      bookings: {
-        id: bookings.id,
-        tourId: tours.id,
-        tourScheduleId: bookings.tourId,
-        userId: bookings.userId,
-        status: bookings.status,
-        discountNumber: bookings.discountNumber,
-        location: bookings.location,
-        address: bookings.address,
-        createdAt: bookings.createdAt,
-      },
-      bookingDetails: bookingDetails,
-      bookingExtras: {
-        id: bookingExtras.id,
-        bookingId: bookingExtras.bookingId,
-        extraId: bookingExtras.extraId,
-        extraName: extras.name,
-        adultCount: bookingExtras.adultCount,
-        childCount: bookingExtras.childCount,
-        infantCount: bookingExtras.infantCount,
-        createdAt: bookingExtras.createdAt,
-      },
-      manualPayment: {
-        id: manualPaymentMethod.id,
-        proofImage: manualPaymentMethod.proofImage,
-        manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
-        uploadedAt: manualPaymentMethod.uploadedAt,
-      },
-      manualPaymentType: {
-        id: manualPaymentTypes.id,
-        name: manualPaymentTypes.name,
-      },
-      tour: {
-        id: tours.id
-      }
-    })
-    .from(payments)
-    .leftJoin(bookings, eq(bookings.id, payments.bookingId))
-    .leftJoin(tourSchedules, eq(tourSchedules.id, bookings.tourId))
-    .leftJoin(tours, eq(tours.id, tourSchedules.tourId))
-    .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.bookingId))
-    .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.bookingId))
-    .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
-    .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id))
-    .leftJoin(manualPaymentTypes, eq(manualPaymentTypes.id, manualPaymentMethod.manualPaymentTypeId));
-
-  // Group by payment.id
-  const grouped = Object.values(
-    rows.reduce((acc: any, row) => {
-      const paymentId = row.payment.id;
-
-      if (!acc[paymentId]) {
-        acc[paymentId] = {
-          payment: row.payment,
-          bookings: {
-            ...row.bookings,
-            tourId: row.tour?.id || null,
-            tour: row.tour || null
-          },
-          bookingDetails: row.bookingDetails,
-          bookingExtras: [],
-          manualPayment: row.manualPayment ? {
-            ...row.manualPayment,
-            type: row.manualPaymentType 
-          } : null, 
-        };
-      }
-
-      if (row.bookingExtras && row.bookingExtras.id) {
-        const existingExtra = acc[paymentId].bookingExtras.find(
-          (extra: any) => extra.id === row.bookingExtras.id
-        );
-        if (!existingExtra) {
-          acc[paymentId].bookingExtras.push(row.bookingExtras);
+  try {
+    const rows = await db
+      .select({
+        payment: payments,
+        bookings: {
+          id: bookings.id,
+          tourId: tours.id,
+          tourScheduleId: bookings.tourId,
+          userId: bookings.userId,
+          status: bookings.status,
+          discountNumber: bookings.discountNumber,
+          location: bookings.location,
+          address: bookings.address,
+          createdAt: bookings.createdAt,
+        },
+        bookingDetails: bookingDetails,
+        bookingExtras: {
+          id: bookingExtras.id,
+          bookingId: bookingExtras.bookingId,
+          extraId: bookingExtras.extraId,
+          extraName: extras.name,
+          adultCount: bookingExtras.adultCount,
+          childCount: bookingExtras.childCount,
+          infantCount: bookingExtras.infantCount,
+          createdAt: bookingExtras.createdAt,
+        },
+        manualPayment: {
+          id: manualPaymentMethod.id,
+          paymentId: manualPaymentMethod.paymentId, // Add this for debugging
+          proofImage: manualPaymentMethod.proofImage,
+          manualPaymentTypeId: manualPaymentMethod.manualPaymentTypeId,
+          uploadedAt: manualPaymentMethod.uploadedAt,
+        },
+        manualPaymentType: {
+          id: manualPaymentTypes.id,
+          name: manualPaymentTypes.name,
+        },
+        tour: {
+          id: tours.id
         }
-      }
+      })
+      .from(payments)
+      .leftJoin(bookings, eq(bookings.id, payments.bookingId))
+      .leftJoin(tourSchedules, eq(tourSchedules.id, bookings.tourId))
+      .leftJoin(tours, eq(tours.id, tourSchedules.tourId))
+      .leftJoin(bookingDetails, eq(bookingDetails.bookingId, payments.bookingId))
+      .leftJoin(bookingExtras, eq(bookingExtras.bookingId, payments.bookingId))
+      .leftJoin(extras, eq(extras.id, bookingExtras.extraId))
+      .leftJoin(manualPaymentMethod, eq(manualPaymentMethod.paymentId, payments.id)) // THIS IS THE KEY FIX
+      .leftJoin(manualPaymentTypes, eq(manualPaymentTypes.id, manualPaymentMethod.manualPaymentTypeId))
+      .orderBy(payments.id); // Add ordering for consistency
 
-      return acc;
-    }, {})
-  );
+    console.log("DEBUG - Raw query results count:", rows.length);
+    
+    // Group by payment.id
+    const grouped = Object.values(
+      rows.reduce((acc: any, row) => {
+        const paymentId = row.payment.id;
+        
+        if (!acc[paymentId]) {
+          console.log(`DEBUG - Processing payment ${paymentId}:`, {
+            paymentId: row.payment.id,
+            manualPaymentId: row.manualPayment?.id,
+            manualPaymentPaymentId: row.manualPayment?.paymentId,
+            proofImage: row.manualPayment?.proofImage
+          });
+          
+          acc[paymentId] = {
+            payment: row.payment,
+            bookings: {
+              ...row.bookings,
+              tourId: row.tour?.id || null,
+              tour: row.tour || null
+            },
+            bookingDetails: row.bookingDetails,
+            bookingExtras: [],
+            manualPayment: row.manualPayment ? {
+              ...row.manualPayment,
+              type: row.manualPaymentType 
+            } : null, 
+          };
+        }
+        
+        // Add booking extras if they exist and aren't already added
+        if (row.bookingExtras && row.bookingExtras.id) {
+          const existingExtra = acc[paymentId].bookingExtras.find(
+            (extra: any) => extra.id === row.bookingExtras.id
+          );
+          if (!existingExtra) {
+            acc[paymentId].bookingExtras.push(row.bookingExtras);
+          }
+        }
+        
+        return acc;
+      }, {})
+    );
 
-  SuccessResponse(res, { payments: grouped }, 200);
+    console.log("DEBUG - Grouped payments count:", grouped.length);
+    
+    SuccessResponse(res, { payments: grouped }, 200);
+  } catch (error) {
+    console.error("Error in getAllPayments:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve payments"
+    });
+  }
 };
 
 // Initialize Payment

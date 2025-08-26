@@ -121,76 +121,96 @@ const getAutoPayments = (req, res) => __awaiter(void 0, void 0, void 0, function
 });
 exports.getAutoPayments = getAutoPayments;
 const getAllPayments = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const rows = yield db_1.db
-        .select({
-        payment: schema_1.payments,
-        bookings: {
-            id: schema_1.bookings.id,
-            tourId: schema_1.tours.id,
-            tourScheduleId: schema_1.bookings.tourId,
-            userId: schema_1.bookings.userId,
-            status: schema_1.bookings.status,
-            discountNumber: schema_1.bookings.discountNumber,
-            location: schema_1.bookings.location,
-            address: schema_1.bookings.address,
-            createdAt: schema_1.bookings.createdAt,
-        },
-        bookingDetails: schema_1.bookingDetails,
-        bookingExtras: {
-            id: schema_1.bookingExtras.id,
-            bookingId: schema_1.bookingExtras.bookingId,
-            extraId: schema_1.bookingExtras.extraId,
-            extraName: schema_1.extras.name,
-            adultCount: schema_1.bookingExtras.adultCount,
-            childCount: schema_1.bookingExtras.childCount,
-            infantCount: schema_1.bookingExtras.infantCount,
-            createdAt: schema_1.bookingExtras.createdAt,
-        },
-        manualPayment: {
-            id: schema_1.manualPaymentMethod.id,
-            proofImage: schema_1.manualPaymentMethod.proofImage,
-            manualPaymentTypeId: schema_1.manualPaymentMethod.manualPaymentTypeId,
-            uploadedAt: schema_1.manualPaymentMethod.uploadedAt,
-        },
-        manualPaymentType: {
-            id: schema_1.manualPaymentTypes.id,
-            name: schema_1.manualPaymentTypes.name,
-        },
-        tour: {
-            id: schema_1.tours.id
-        }
-    })
-        .from(schema_1.payments)
-        .leftJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
-        .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.id, schema_1.bookings.tourId))
-        .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tours.id, schema_1.tourSchedules.tourId))
-        .leftJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.payments.bookingId))
-        .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.bookingId))
-        .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId))
-        .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, schema_1.payments.id))
-        .leftJoin(schema_1.manualPaymentTypes, (0, drizzle_orm_1.eq)(schema_1.manualPaymentTypes.id, schema_1.manualPaymentMethod.manualPaymentTypeId));
-    // Group by payment.id
-    const grouped = Object.values(rows.reduce((acc, row) => {
-        var _a;
-        const paymentId = row.payment.id;
-        if (!acc[paymentId]) {
-            acc[paymentId] = {
-                payment: row.payment,
-                bookings: Object.assign(Object.assign({}, row.bookings), { tourId: ((_a = row.tour) === null || _a === void 0 ? void 0 : _a.id) || null, tour: row.tour || null }),
-                bookingDetails: row.bookingDetails,
-                bookingExtras: [],
-                manualPayment: row.manualPayment ? Object.assign(Object.assign({}, row.manualPayment), { type: row.manualPaymentType }) : null,
-            };
-        }
-        if (row.bookingExtras && row.bookingExtras.id) {
-            const existingExtra = acc[paymentId].bookingExtras.find((extra) => extra.id === row.bookingExtras.id);
-            if (!existingExtra) {
-                acc[paymentId].bookingExtras.push(row.bookingExtras);
+    try {
+        const rows = yield db_1.db
+            .select({
+            payment: schema_1.payments,
+            bookings: {
+                id: schema_1.bookings.id,
+                tourId: schema_1.tours.id,
+                tourScheduleId: schema_1.bookings.tourId,
+                userId: schema_1.bookings.userId,
+                status: schema_1.bookings.status,
+                discountNumber: schema_1.bookings.discountNumber,
+                location: schema_1.bookings.location,
+                address: schema_1.bookings.address,
+                createdAt: schema_1.bookings.createdAt,
+            },
+            bookingDetails: schema_1.bookingDetails,
+            bookingExtras: {
+                id: schema_1.bookingExtras.id,
+                bookingId: schema_1.bookingExtras.bookingId,
+                extraId: schema_1.bookingExtras.extraId,
+                extraName: schema_1.extras.name,
+                adultCount: schema_1.bookingExtras.adultCount,
+                childCount: schema_1.bookingExtras.childCount,
+                infantCount: schema_1.bookingExtras.infantCount,
+                createdAt: schema_1.bookingExtras.createdAt,
+            },
+            manualPayment: {
+                id: schema_1.manualPaymentMethod.id,
+                paymentId: schema_1.manualPaymentMethod.paymentId, // Add this for debugging
+                proofImage: schema_1.manualPaymentMethod.proofImage,
+                manualPaymentTypeId: schema_1.manualPaymentMethod.manualPaymentTypeId,
+                uploadedAt: schema_1.manualPaymentMethod.uploadedAt,
+            },
+            manualPaymentType: {
+                id: schema_1.manualPaymentTypes.id,
+                name: schema_1.manualPaymentTypes.name,
+            },
+            tour: {
+                id: schema_1.tours.id
             }
-        }
-        return acc;
-    }, {}));
-    (0, response_1.SuccessResponse)(res, { payments: grouped }, 200);
+        })
+            .from(schema_1.payments)
+            .leftJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
+            .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.id, schema_1.bookings.tourId))
+            .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tours.id, schema_1.tourSchedules.tourId))
+            .leftJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.payments.bookingId))
+            .leftJoin(schema_1.bookingExtras, (0, drizzle_orm_1.eq)(schema_1.bookingExtras.bookingId, schema_1.payments.bookingId))
+            .leftJoin(schema_1.extras, (0, drizzle_orm_1.eq)(schema_1.extras.id, schema_1.bookingExtras.extraId))
+            .leftJoin(schema_1.manualPaymentMethod, (0, drizzle_orm_1.eq)(schema_1.manualPaymentMethod.paymentId, schema_1.payments.id)) // THIS IS THE KEY FIX
+            .leftJoin(schema_1.manualPaymentTypes, (0, drizzle_orm_1.eq)(schema_1.manualPaymentTypes.id, schema_1.manualPaymentMethod.manualPaymentTypeId))
+            .orderBy(schema_1.payments.id); // Add ordering for consistency
+        console.log("DEBUG - Raw query results count:", rows.length);
+        // Group by payment.id
+        const grouped = Object.values(rows.reduce((acc, row) => {
+            var _a, _b, _c, _d;
+            const paymentId = row.payment.id;
+            if (!acc[paymentId]) {
+                console.log(`DEBUG - Processing payment ${paymentId}:`, {
+                    paymentId: row.payment.id,
+                    manualPaymentId: (_a = row.manualPayment) === null || _a === void 0 ? void 0 : _a.id,
+                    manualPaymentPaymentId: (_b = row.manualPayment) === null || _b === void 0 ? void 0 : _b.paymentId,
+                    proofImage: (_c = row.manualPayment) === null || _c === void 0 ? void 0 : _c.proofImage
+                });
+                acc[paymentId] = {
+                    payment: row.payment,
+                    bookings: Object.assign(Object.assign({}, row.bookings), { tourId: ((_d = row.tour) === null || _d === void 0 ? void 0 : _d.id) || null, tour: row.tour || null }),
+                    bookingDetails: row.bookingDetails,
+                    bookingExtras: [],
+                    manualPayment: row.manualPayment ? Object.assign(Object.assign({}, row.manualPayment), { type: row.manualPaymentType }) : null,
+                };
+            }
+            // Add booking extras if they exist and aren't already added
+            if (row.bookingExtras && row.bookingExtras.id) {
+                const existingExtra = acc[paymentId].bookingExtras.find((extra) => extra.id === row.bookingExtras.id);
+                if (!existingExtra) {
+                    acc[paymentId].bookingExtras.push(row.bookingExtras);
+                }
+            }
+            return acc;
+        }, {}));
+        console.log("DEBUG - Grouped payments count:", grouped.length);
+        (0, response_1.SuccessResponse)(res, { payments: grouped }, 200);
+    }
+    catch (error) {
+        console.error("Error in getAllPayments:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve payments"
+        });
+    }
 });
 exports.getAllPayments = getAllPayments;
 // Initialize Payment
