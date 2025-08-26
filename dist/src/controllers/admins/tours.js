@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = exports.formatDate = void 0;
+exports.updateTourStatus = exports.updateTour = exports.deleteTour = exports.addData = exports.createTour = exports.getTourById = exports.getAllTours = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const response_1 = require("../../utils/response");
@@ -707,3 +707,19 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     (0, response_1.SuccessResponse)(res, { message: "Tour Updated Successfully" }, 200);
 });
 exports.updateTour = updateTour;
+const updateTourStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { tourId, status } = req.body;
+    // validation tour if not exist 
+    const [tour] = yield db_1.db
+        .select()
+        .from(schema_1.tours)
+        .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
+    if (!tour)
+        throw new Errors_1.NotFound("Tour Not Found");
+    yield db_1.db
+        .update(schema_1.tours)
+        .set({ status })
+        .where((0, drizzle_orm_1.eq)(schema_1.tours.id, tourId));
+    (0, response_1.SuccessResponse)(res, { message: "Tour status updated successfully" }, 200);
+});
+exports.updateTourStatus = updateTourStatus;

@@ -894,4 +894,22 @@ export const updateTour = async (req: Request, res: Response) => {
 };
 
 
+export const updateTourStatus = async (req: Request, res: Response) => {
+  const { tourId, status } = req.body;
+
+  // validation tour if not exist 
+  const [tour] = await db
+    .select()
+    .from(tours)
+    .where(eq(tours.id, tourId));
+  if (!tour) throw new NotFound("Tour Not Found");
+
+  await db
+    .update(tours)
+    .set({ status })
+    .where(eq(tours.id, tourId));
+
+  SuccessResponse(res, { message: "Tour status updated successfully" }, 200);
+};
+
 

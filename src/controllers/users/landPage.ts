@@ -72,7 +72,9 @@ export const getImages = async (req: Request, res: Response) => {
 };
 
 export const getFeaturedTours = async (req: Request, res: Response) => {
-  const tour = await db
+  const currentDate = new Date();
+
+  const tourData = await db
     .select({
       id: tours.id,
       title: tours.title,
@@ -83,15 +85,51 @@ export const getFeaturedTours = async (req: Request, res: Response) => {
       discount: tourDiscounts.value,
       discribtion: tours.describtion,
       duration: tours.durationDays,
+      startDate: tours.startDate,
+      scheduleId: tourSchedules.id,
+      scheduleDate: tourSchedules.date
     })
     .from(tours)
-    .where(eq(tours.featured, true))
     .leftJoin(tourPrice, eq(tours.id, tourPrice.tourId))
     .leftJoin(cites, eq(cites.id, tours.city))
     .leftJoin(countries, eq(countries.id, tours.country))
     .leftJoin(tourDiscounts, eq(tourDiscounts.tourId, tours.id))
-    .groupBy(tours.id);
-  SuccessResponse(res, { tours: tour }, 200);
+    .leftJoin(tourSchedules, eq(tours.id, tourSchedules.tourId))
+    .where(and(
+      eq(tours.featured, true),
+      eq(tours.status, true),
+      gt(tourSchedules.date, currentDate)
+    ));
+
+  // Group by tour
+  const groupedTours = tourData.reduce((acc, row: any) => {
+    if (!acc[row.id]) {
+      acc[row.id] = {
+        id: row.id,
+        title: row.title,
+        country: row.country,
+        city: row.city,
+        imagePath: row.imagePath,
+        price: row.price,
+        discount: row.discount,
+        discribtion: row.discribtion,
+        duration: row.duration,
+        startDate: row.startDate,
+        schedules: [],
+      };
+    }
+
+    if (row.scheduleId && row.scheduleDate > currentDate) {
+      acc[row.id].schedules.push({
+        id: row.scheduleId,
+        date: row.scheduleDate,
+      });
+    }
+
+    return acc;
+  }, {});
+
+  SuccessResponse(res, { tours: Object.values(groupedTours) }, 200);
 };
 
 
@@ -120,7 +158,10 @@ export const getToursByCategory = async (req: Request, res: Response) => {
     .leftJoin(tourDiscounts, eq(tourDiscounts.tourId, tours.id))
     .leftJoin(tourSchedules, eq(tours.id, tourSchedules.tourId))
     .leftJoin(categories, eq(categories.id, tours.categoryId))
-    .where(eq(categories.name, category.toLowerCase()))
+    .where(and(
+      eq(categories.name, category.toLowerCase()),
+      eq(tours.status, true)
+    ))
     // Filter schedules at the database level for better performance
     .where(gt(tourSchedules.date, currentDate));
 

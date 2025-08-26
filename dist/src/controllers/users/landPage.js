@@ -43,7 +43,8 @@ const getImages = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.getImages = getImages;
 const getFeaturedTours = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const tour = yield db_1.db
+    const currentDate = new Date();
+    const tourData = yield db_1.db
         .select({
         id: schema_1.tours.id,
         title: schema_1.tours.title,
@@ -54,15 +55,43 @@ const getFeaturedTours = (req, res) => __awaiter(void 0, void 0, void 0, functio
         discount: schema_1.tourDiscounts.value,
         discribtion: schema_1.tours.describtion,
         duration: schema_1.tours.durationDays,
+        startDate: schema_1.tours.startDate,
+        scheduleId: schema_1.tourSchedules.id,
+        scheduleDate: schema_1.tourSchedules.date
     })
         .from(schema_1.tours)
-        .where((0, drizzle_orm_1.eq)(schema_1.tours.featured, true))
         .leftJoin(schema_1.tourPrice, (0, drizzle_orm_1.eq)(schema_1.tours.id, schema_1.tourPrice.tourId))
         .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.cites.id, schema_1.tours.city))
         .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.countries.id, schema_1.tours.country))
         .leftJoin(schema_1.tourDiscounts, (0, drizzle_orm_1.eq)(schema_1.tourDiscounts.tourId, schema_1.tours.id))
-        .groupBy(schema_1.tours.id);
-    (0, response_1.SuccessResponse)(res, { tours: tour }, 200);
+        .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.tours.id, schema_1.tourSchedules.tourId))
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tours.featured, true), (0, drizzle_orm_1.eq)(schema_1.tours.status, true), (0, drizzle_orm_1.gt)(schema_1.tourSchedules.date, currentDate)));
+    // Group by tour
+    const groupedTours = tourData.reduce((acc, row) => {
+        if (!acc[row.id]) {
+            acc[row.id] = {
+                id: row.id,
+                title: row.title,
+                country: row.country,
+                city: row.city,
+                imagePath: row.imagePath,
+                price: row.price,
+                discount: row.discount,
+                discribtion: row.discribtion,
+                duration: row.duration,
+                startDate: row.startDate,
+                schedules: [],
+            };
+        }
+        if (row.scheduleId && row.scheduleDate > currentDate) {
+            acc[row.id].schedules.push({
+                id: row.scheduleId,
+                date: row.scheduleDate,
+            });
+        }
+        return acc;
+    }, {});
+    (0, response_1.SuccessResponse)(res, { tours: Object.values(groupedTours) }, 200);
 });
 exports.getFeaturedTours = getFeaturedTours;
 const getToursByCategory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -89,7 +118,7 @@ const getToursByCategory = (req, res) => __awaiter(void 0, void 0, void 0, funct
         .leftJoin(schema_1.tourDiscounts, (0, drizzle_orm_1.eq)(schema_1.tourDiscounts.tourId, schema_1.tours.id))
         .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.tours.id, schema_1.tourSchedules.tourId))
         .leftJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.categories.id, schema_1.tours.categoryId))
-        .where((0, drizzle_orm_1.eq)(schema_1.categories.name, category.toLowerCase()))
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.categories.name, category.toLowerCase()), (0, drizzle_orm_1.eq)(schema_1.tours.status, true)))
         // Filter schedules at the database level for better performance
         .where((0, drizzle_orm_1.gt)(schema_1.tourSchedules.date, currentDate));
     // Group by tour
