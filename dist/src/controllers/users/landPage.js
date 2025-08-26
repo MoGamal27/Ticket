@@ -275,6 +275,17 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             });
         }
     }
+    // Validate proof image format BEFORE starting any database operations
+    if (proofImage && paymentMethodId) {
+        // Quick validation of base64 format
+        const base64Pattern = /^data:[^;]+;base64,/;
+        if (!base64Pattern.test(proofImage.trim())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid proof image format. Expected base64 data URL."
+            });
+        }
+    }
     // Get tour schedule and check available seats
     const tourSchedule = yield db_1.db
         .select({
@@ -319,6 +330,22 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             });
         }
         const userId = existingUser[0].id;
+        // Process proof image BEFORE starting transaction to fail fast if image is invalid
+        let savedImageUrl = null;
+        if (proofImage && paymentMethodId) {
+            try {
+                console.log("Processing proof image for userId:", userId);
+                savedImageUrl = yield (0, handleImages_1.saveBase64Image)(proofImage, userId.toString(), req, "payment-proofs");
+                console.log("Successfully saved proof image:", savedImageUrl);
+            }
+            catch (imageError) {
+                console.error("Failed to process proof image:", imageError);
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid proof image: ${imageError instanceof Error ? imageError.message : 'Unknown error'}`
+                });
+            }
+        }
         // Promo code logic (unchanged)
         const promoCodeData = yield db_1.db
             .select({
@@ -397,11 +424,9 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 transactionId: null,
                 createdAt: new Date()
             }).$returningId();
-            // Handle proof image if provided
-            let savedImageUrl = null;
-            if (proofImage && paymentMethodId) {
+            // Save manual payment method with the already processed image URL
+            if (savedImageUrl && paymentMethodId) {
                 try {
-                    savedImageUrl = yield (0, handleImages_1.saveBase64Image)(proofImage, userId.toString(), req, "payment-proofs");
                     yield trx.insert(schema_1.manualPaymentMethod).values({
                         paymentId: payment.id,
                         proofImage: savedImageUrl,
@@ -411,8 +436,8 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                     });
                 }
                 catch (error) {
-                    console.error("Failed to save proof image:", error);
-                    throw new Error("Failed to save payment proof image");
+                    console.error("Failed to insert manual payment method:", error);
+                    throw new Error("Failed to save payment method details");
                 }
             }
             // Return success response
