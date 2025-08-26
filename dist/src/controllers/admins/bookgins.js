@@ -50,7 +50,8 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         .from(schema_1.bookings)
         .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.bookings.userId, schema_1.users.id))
         .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id))
-        .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id));
+        .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
+        .where((0, drizzle_orm_1.eq)(schema_1.bookings.status, "confirmed"));
     // Get booking IDs for batch querying
     const bookingIds = mainBookings.map(booking => booking.id);
     // Get all booking details in one query
