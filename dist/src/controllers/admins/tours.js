@@ -71,7 +71,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             adult: schema_1.tourPrice.adult,
             child: schema_1.tourPrice.child,
             infant: schema_1.tourPrice.infant,
-            currency: schema_1.currencies.id,
+            currency: schema_1.currencies.name
         },
     })
         .from(schema_1.tours)

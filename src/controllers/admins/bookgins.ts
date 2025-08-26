@@ -20,8 +20,12 @@ export const getBookings = async (req: Request, res: Response) => {
       location: bookings.location,
       address: bookings.address,
 
-      
-      
+
+       tourScheduleId: tourSchedules.id,
+      tourScheduleDate: tourSchedules.date, 
+      tourScheduleStartDate: tourSchedules.startDate,
+      tourScheduleEndDate: tourSchedules.endDate, 
+         
       // Tour info (via tourSchedule -> tour relationship)
       tourId: tours.id,
       tourName: tours.title,

@@ -28,6 +28,10 @@ const getBookings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         discountNumber: schema_1.bookings.discountNumber,
         location: schema_1.bookings.location,
         address: schema_1.bookings.address,
+        tourScheduleId: schema_1.tourSchedules.id,
+        tourScheduleDate: schema_1.tourSchedules.date,
+        tourScheduleStartDate: schema_1.tourSchedules.startDate,
+        tourScheduleEndDate: schema_1.tourSchedules.endDate,
         // Tour info (via tourSchedule -> tour relationship)
         tourId: schema_1.tours.id,
         tourName: schema_1.tours.title,

@@ -147,6 +147,11 @@ export const getAllPayments = async(req: Request, res: Response) => {
           id: bookings.id,
           tourId: tours.id,
           tourScheduleId: bookings.tourId,
+
+          tourScheduleDate: tourSchedules.date, 
+          tourScheduleStartDate: tourSchedules.startDate,
+          tourScheduleEndDate: tourSchedules.endDate, 
+          
           userId: bookings.userId,
           status: bookings.status,
           discountNumber: bookings.discountNumber,

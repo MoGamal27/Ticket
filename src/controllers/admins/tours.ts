@@ -94,7 +94,7 @@ export const getTourById = async (req: Request, res: Response) => {
         adult: tourPrice.adult,
         child: tourPrice.child,
         infant: tourPrice.infant,
-        currency: currencies.id,
+        currency: currencies.name
       },
     })
     .from(tours)
