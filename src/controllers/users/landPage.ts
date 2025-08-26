@@ -35,7 +35,7 @@ import {
   promoCode
 
 } from "../../models/schema";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, exists, gt } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound, UnauthorizedError, ValidationError } from "../../Errors";
 import { saveBase64Image } from "../../utils/handleImages";
@@ -94,10 +94,12 @@ export const getFeaturedTours = async (req: Request, res: Response) => {
   SuccessResponse(res, { tours: tour }, 200);
 };
 
+
 export const getToursByCategory = async (req: Request, res: Response) => {
   const category = req.params.category;
+  const currentDate = new Date();
 
-  const tour = await db
+  const tourData = await db
     .select({
       id: tours.id,
       title: tours.title,
@@ -106,19 +108,52 @@ export const getToursByCategory = async (req: Request, res: Response) => {
       imagePath: tours.mainImage,
       price: tourPrice.adult,
       discount: tourDiscounts.value,
-      discribtion: tours.describtion,
       duration: tours.durationDays,
       startDate: tours.startDate,
+      scheduleId: tourSchedules.id,
+      scheduleDate: tourSchedules.date
     })
     .from(tours)
     .leftJoin(tourPrice, eq(tours.id, tourPrice.tourId))
     .leftJoin(cites, eq(cites.id, tours.city))
     .leftJoin(countries, eq(countries.id, tours.country))
     .leftJoin(tourDiscounts, eq(tourDiscounts.tourId, tours.id))
+    .leftJoin(tourSchedules, eq(tours.id, tourSchedules.tourId))
     .leftJoin(categories, eq(categories.id, tours.categoryId))
-    .where(eq(categories.name, category.toLowerCase()));
-  SuccessResponse(res, { tours: tour }, 200);
+    .where(eq(categories.name, category.toLowerCase()))
+    // Filter schedules at the database level for better performance
+    .where(gt(tourSchedules.date, currentDate));
+
+  // Group by tour
+  const groupedTours = tourData.reduce((acc, row: any) => {
+    if (!acc[row.id]) {
+      acc[row.id] = {
+        id: row.id,
+        title: row.title,
+        country: row.country,
+        city: row.city,
+        imagePath: row.imagePath,
+        price: row.price,
+        discount: row.discount,
+        duration: row.duration,
+        startDate: row.startDate,
+        schedules: [],
+      };
+    }
+
+    if (row.scheduleId && row.scheduleDate > currentDate) {
+      acc[row.id].schedules.push({
+        id: row.scheduleId,
+        date: row.scheduleDate,
+      });
+    }
+
+    return acc;
+  }, {});
+
+  SuccessResponse(res, { tours: Object.values(groupedTours) }, 200);
 };
+
 
 export const getTourById = async (req: Request, res: Response) => {
   const tourId = Number(req.params.id);
