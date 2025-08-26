@@ -10,7 +10,7 @@ import {
   getMedicalCategories,
   getAcceptMedicalRequests,
   getRejectedMedicalRequests,
-  applyPromoCode 
+  applyPromoCode
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
 import { AuthenticatedRequest } from "../../types/custom";

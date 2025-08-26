@@ -198,6 +198,7 @@ export const getToursByCategory = async (req: Request, res: Response) => {
 };
 
 
+
 export const getTourById = async (req: Request, res: Response) => {
   const tourId = Number(req.params.id);
   const [mainTour] = await db

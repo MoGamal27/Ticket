@@ -912,4 +912,23 @@ export const updateTourStatus = async (req: Request, res: Response) => {
   SuccessResponse(res, { message: "Tour status updated successfully" }, 200);
 };
 
+export const updateTourFeatured = async (req: Request, res: Response) => {
+  const { tourId, featured } = req.body;
+
+    // validation tour if not exist 
+  const [tour] = await db
+    .select()
+    .from(tours)
+    .where(eq(tours.id, tourId));
+  if (!tour) throw new NotFound("Tour Not Found");
+
+
+  await db
+    .update(tours)
+    .set({ featured })
+    .where(eq(tours.id, tourId));
+
+  SuccessResponse(res, { message: "feature tour updated successfully" }, 200);
+};
+
 

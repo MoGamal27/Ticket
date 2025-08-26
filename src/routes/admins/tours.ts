@@ -9,7 +9,8 @@ import {
   getAllTours,
   getTourById,
   updateTour,
-  updateTourStatus
+  updateTourStatus,
+  updateTourFeatured
 } from "../../controllers/admins/tours";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
@@ -25,7 +26,12 @@ router.route("/")
   
  
   router.route("/status").post(catchAsync(updateTourStatus)) 
+
+  router.route("/featured").post(catchAsync(updateTourFeatured)) 
   
+
+  
+
 // Special admin operations
 router.get("/add-data", catchAsync(addData));
  

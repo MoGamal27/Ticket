@@ -14,6 +14,7 @@ router.route("/")
     .get((0, catchAsync_1.catchAsync)(tours_2.getAllTours))
     .post((0, validation_1.validate)(tours_1.createTourSchema), (0, catchAsync_1.catchAsync)(tours_2.createTour));
 router.route("/status").post((0, catchAsync_1.catchAsync)(tours_2.updateTourStatus));
+router.route("/featured").post((0, catchAsync_1.catchAsync)(tours_2.updateTourFeatured));
 // Special admin operations
 router.get("/add-data", (0, catchAsync_1.catchAsync)(tours_2.addData));
 // Individual tour operations
