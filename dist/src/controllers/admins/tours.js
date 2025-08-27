@@ -676,29 +676,6 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             }
         }
         if (data.startDate || data.endDate || data.daysOfWeek) {
-            try {
-                // Get all schedule IDs for this tour
-                const tourScheduleIds = yield tx
-                    .select({ id: schema_1.tourSchedules.id })
-                    .from(schema_1.tourSchedules)
-                    .where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId));
-                const scheduleIds = tourScheduleIds.map(s => s.id);
-                // Check if any bookings exist for ANY of this tour's schedules
-                if (scheduleIds.length > 0) {
-                    const existingBookings = yield tx
-                        .select({ id: schema_1.bookings.id })
-                        .from(schema_1.bookings)
-                        .where((0, drizzle_orm_1.inArray)(schema_1.bookings.tourId, scheduleIds));
-                    if (existingBookings.length > 0) {
-                        throw new Error('Cannot update schedule: Tour has existing bookings');
-                    }
-                }
-                // Safe to delete schedules
-                yield tx.delete(schema_1.tourSchedules).where((0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, tourId));
-            }
-            catch (error) {
-                throw error;
-            }
             // Convert dates to proper SQL format
             const formatDateForSQL = (date) => {
                 const d = new Date(date);
