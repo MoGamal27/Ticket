@@ -94,6 +94,7 @@ export const getTourById = async (req: Request, res: Response) => {
         adult: tourPrice.adult,
         child: tourPrice.child,
         infant: tourPrice.infant,
+        currencyId: tourPrice.currencyId,
         currency: currencies.name
       },
     })
@@ -853,15 +854,41 @@ export const updateTour = async (req: Request, res: Response) => {
       }
     }
 
-     // Generate schedules if needed using transaction
-   // In your updateTour function, before calling generateTourSchedules:
+   
    if (data.startDate || data.endDate || data.daysOfWeek) {
-  await tx.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
-  
+  try {
+    // Get all schedule IDs for this tour
+    const tourScheduleIds = await tx
+      .select({ id: tourSchedules.id })
+      .from(tourSchedules)
+      .where(eq(tourSchedules.tourId, tourId));
+
+    const scheduleIds = tourScheduleIds.map(s => s.id);
+
+    // Check if any bookings exist for ANY of this tour's schedules
+    if (scheduleIds.length > 0) {
+      const existingBookings = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(inArray(bookings.tourId, scheduleIds));
+      
+      if (existingBookings.length > 0) {
+        throw new Error('Cannot update schedule: Tour has existing bookings');
+      }
+    }
+
+    // Safe to delete schedules
+    await tx.delete(tourSchedules).where(eq(tourSchedules.tourId, tourId));
+
+  } catch(error) {
+    throw error;
+  }
+
+    
   // Convert dates to proper SQL format
   const formatDateForSQL = (date: Date | string) => {
     const d = new Date(date);
-    return format(d, 'yyyy-MM-dd HH:mm:ss'); // Use date-fns format
+    return format(d, 'yyyy-MM-dd HH:mm:ss'); 
   };
 
   const startDateFormatted = data.startDate 
@@ -872,7 +899,7 @@ export const updateTour = async (req: Request, res: Response) => {
     ? formatDateForSQL(data.endDate)
     : formatDateForSQL(existingTour.endDate);
 
-  // Call the modified generateTourSchedules function with tx parameter
+  // modified generateTourSchedules function with tx parameter
   await generateTourSchedulesInTransaction(tx, {
     tourId,
     startDate: startDateFormatted,
