@@ -749,51 +749,45 @@ export const updateTour = async (req: Request, res: Response) => {
     }
 
     // Handle promo codes with transaction
-    if (data.promoCodeIds && data.promoCodeIds.length > 0) {
-      // Validate that the promo codes exist using transaction
-      const existingPromoCodes = await tx
-        .select({ 
-          id: promoCode.id
-        })
-        .from(promoCode)
-        .where(inArray(promoCode.id, data.promoCodeIds));
+    // Handle promo codes with transaction
+if (data.promoCodeIds && data.promoCodeIds.length > 0) {
+  // Validate that the promo codes exist using transaction
+  const existingPromoCodes = await tx
+    .select({ 
+      id: promoCode.id
+    })
+    .from(promoCode)
+    .where(inArray(promoCode.id, data.promoCodeIds));
 
-      const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
-      const invalidPromoCodeIds = data.promoCodeIds.filter((id: number) => 
-        !existingPromoCodeIds.includes(id)
-      );
+  const existingPromoCodeIds = existingPromoCodes.map(pc => pc.id);
+  const invalidPromoCodeIds = data.promoCodeIds.filter((id: number) => 
+    !existingPromoCodeIds.includes(id)
+  );
 
-      // Handle invalid promo codes
-      if (invalidPromoCodeIds.length > 0) {
-        throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
-      }
+  // Handle invalid promo codes
+  if (invalidPromoCodeIds.length > 0) {
+    throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
+  }
 
-      // Check which promo codes are already associated with this tour using transaction
-      const existingAssociations = await tx
-        .select({ promoCodeId: tourPromoCode.promoCodeId })
-        .from(tourPromoCode)
-        .where(
-          and(
-            eq(tourPromoCode.tourId, tourId),
-            inArray(tourPromoCode.promoCodeId, data.promoCodeIds)
-          )
-        );
+  // First, remove ALL existing associations for this tour
+  await tx
+    .delete(tourPromoCode)
+    .where(eq(tourPromoCode.tourId, tourId));
 
-      const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
-      const newAssociations = data.promoCodeIds.filter((id: number) => 
-        !alreadyAssociatedIds.includes(id)
-      );
+  // Then, insert the new associations
+  await tx.insert(tourPromoCode).values(
+    data.promoCodeIds.map((promoCodeId: number) => ({
+      tourId,
+      promoCodeId
+    }))
+  );
+} else {
+  // If no promo codes are provided, remove all existing associations
+  await tx
+    .delete(tourPromoCode)
+    .where(eq(tourPromoCode.tourId, tourId));
+}
 
-      // Insert new associations only using transaction
-      if (newAssociations.length > 0) {
-        await tx.insert(tourPromoCode).values(
-          newAssociations.map((promoCodeId: number) => ({
-            tourId,
-            promoCodeId
-          }))
-        );
-      }
-    }
 
     if (data.faq !== undefined) {
       await tx.delete(tourFAQ).where(eq(tourFAQ.tourId, tourId));

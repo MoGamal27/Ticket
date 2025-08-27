@@ -599,6 +599,7 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             }
         }
         // Handle promo codes with transaction
+        // Handle promo codes with transaction
         if (data.promoCodeIds && data.promoCodeIds.length > 0) {
             // Validate that the promo codes exist using transaction
             const existingPromoCodes = yield tx
@@ -613,20 +614,21 @@ const updateTour = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             if (invalidPromoCodeIds.length > 0) {
                 throw new Error(`Invalid promo code IDs: ${invalidPromoCodeIds.join(', ')}`);
             }
-            // Check which promo codes are already associated with this tour using transaction
-            const existingAssociations = yield tx
-                .select({ promoCodeId: schema_1.tourPromoCode.promoCodeId })
-                .from(schema_1.tourPromoCode)
-                .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId), (0, drizzle_orm_1.inArray)(schema_1.tourPromoCode.promoCodeId, data.promoCodeIds)));
-            const alreadyAssociatedIds = existingAssociations.map(a => a.promoCodeId);
-            const newAssociations = data.promoCodeIds.filter((id) => !alreadyAssociatedIds.includes(id));
-            // Insert new associations only using transaction
-            if (newAssociations.length > 0) {
-                yield tx.insert(schema_1.tourPromoCode).values(newAssociations.map((promoCodeId) => ({
-                    tourId,
-                    promoCodeId
-                })));
-            }
+            // First, remove ALL existing associations for this tour
+            yield tx
+                .delete(schema_1.tourPromoCode)
+                .where((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId));
+            // Then, insert the new associations
+            yield tx.insert(schema_1.tourPromoCode).values(data.promoCodeIds.map((promoCodeId) => ({
+                tourId,
+                promoCodeId
+            })));
+        }
+        else {
+            // If no promo codes are provided, remove all existing associations
+            yield tx
+                .delete(schema_1.tourPromoCode)
+                .where((0, drizzle_orm_1.eq)(schema_1.tourPromoCode.tourId, tourId));
         }
         if (data.faq !== undefined) {
             yield tx.delete(schema_1.tourFAQ).where((0, drizzle_orm_1.eq)(schema_1.tourFAQ.tourId, tourId));
