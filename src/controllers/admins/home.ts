@@ -9,7 +9,7 @@ import {
   bookingDetails,
   tourSchedules
 } from "../../models/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 
 
@@ -67,7 +67,7 @@ export const getStatistics = async (req: Request, res: Response) => {
       .leftJoin(bookings, eq(bookingDetails.bookingId, bookings.id))
       .leftJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id)) 
       .leftJoin(tours, eq(tourSchedules.tourId, tours.id)) 
-      .orderBy(bookings.createdAt) 
+      .orderBy(desc(bookings.createdAt)) 
       .limit(3);
 
     // 3. Get general statistics

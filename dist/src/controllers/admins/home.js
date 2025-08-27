@@ -57,7 +57,7 @@ const getStatistics = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             .leftJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.bookingDetails.bookingId, schema_1.bookings.id))
             .leftJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id))
             .leftJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
-            .orderBy(schema_1.bookings.createdAt)
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.bookings.createdAt))
             .limit(3);
         // 3. Get general statistics
         const [{ userCount }] = yield db_1.db
