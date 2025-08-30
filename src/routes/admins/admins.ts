@@ -16,6 +16,7 @@ import {
 } from "../../validators/admins/admins";
 import { validate } from "../../middlewares/validation";
 import { authenticated } from "../../middlewares/authenticated";
+
 const router = Router();
 router.use(authenticated)
 router

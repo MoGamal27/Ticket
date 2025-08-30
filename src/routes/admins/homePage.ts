@@ -14,16 +14,17 @@ import {
 } from "../../validators/admins/homePage";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated)
 router
   .route("/")
-  .get(catchAsync(getAllHomePageCover))
-  .post(validate(createHomePageCoverSchema), createHomePageCover);
+  .get(hasPrivilege("Home Page Cover", "View"),catchAsync(getAllHomePageCover))
+  .post(hasPrivilege("Home Page Cover", "Add"),validate(createHomePageCoverSchema), createHomePageCover);
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getHomePageCover))
-  .put(validate(updateHomePageCoverSchema), catchAsync(updateHomePageCover))
-  .delete(validate(idParams), catchAsync(deleteHomePageCover));
+  .put(hasPrivilege("Home Page Cover", "Edit"),validate(updateHomePageCoverSchema), catchAsync(updateHomePageCover))
+  .delete(hasPrivilege("Home Page Cover", "Delete"),validate(idParams), catchAsync(deleteHomePageCover));
 export default router;

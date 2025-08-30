@@ -14,16 +14,17 @@ import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated)
 router
   .route("/")
-  .get(catchAsync(getAllCountries))
-  .post(validate(createCountrySchema), catchAsync(createCountry));
+  .get(hasPrivilege("Country", "View"),catchAsync(getAllCountries))
+  .post(hasPrivilege("Country", "Add"),validate(createCountrySchema), catchAsync(createCountry));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getCountryById))
-  .put(validate(updateCountrySchema), catchAsync(updateCountry))
-  .delete(validate(idParams), catchAsync(deleteCountry));
+  .put(hasPrivilege("Country", "Edit"),validate(updateCountrySchema), catchAsync(updateCountry))
+  .delete(hasPrivilege("Country", "Delete"),validate(idParams), catchAsync(deleteCountry));
 export default router;

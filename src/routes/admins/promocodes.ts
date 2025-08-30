@@ -14,16 +14,17 @@ import {
 } from "../../controllers/admins/promoCode";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated)
 router
   .route("/")
-  .get(catchAsync(getAllPromoCodes))
-  .post(validate(createCodeSchema), catchAsync(createCode));
+  .get(hasPrivilege("Promo Code", "View"),catchAsync(getAllPromoCodes))
+  .post(hasPrivilege("Promo Code", "Add"),validate(createCodeSchema), catchAsync(createCode));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getCode))
-  .delete(validate(idParams), catchAsync(deleteCode))
-  .put(validate(updateCodeSchema), catchAsync(updateCode));
+  .delete(hasPrivilege("Promo Code", "Delete"),validate(idParams), catchAsync(deleteCode))
+  .put(hasPrivilege("Promo Code", "Edit"),validate(updateCodeSchema), catchAsync(updateCode));
 export default router;

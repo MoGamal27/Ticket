@@ -14,20 +14,20 @@ import {
 } from "../../controllers/admins/tours";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
-
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 
 const router = Router();
 router.use(authenticated)
 
 // Main tours routes
 router.route("/")
-  .get(catchAsync(getAllTours))
-  .post(validate(createTourSchema), catchAsync(createTour))
+  .get(hasPrivilege("Tour", "View"), catchAsync(getAllTours))
+  .post(hasPrivilege("Tour", "Add"), validate(createTourSchema), catchAsync(createTour))
   
  
-  router.route("/status").post(catchAsync(updateTourStatus)) 
+  router.route("/status").post(hasPrivilege("Tour", "Status"),catchAsync(updateTourStatus)) 
 
-  router.route("/featured").post(catchAsync(updateTourFeatured)) 
+  router.route("/featured").post(hasPrivilege("Tour", "Featured"),catchAsync(updateTourFeatured)) 
   
 
   
@@ -38,8 +38,8 @@ router.get("/add-data", catchAsync(addData));
 
 // Individual tour operations
 router.route("/:id")
-  .put(validate(updateTourSchema), catchAsync(updateTour))
+  .put(validate(updateTourSchema), hasPrivilege("Tour", "Edit"),catchAsync(updateTour))
   .get(validate(idParams), catchAsync(getTourById))
-  .delete(validate(idParams), catchAsync(deleteTour));
+  .delete(validate(idParams), hasPrivilege("Tour", "Delete"),catchAsync(deleteTour));
 
 export default router;

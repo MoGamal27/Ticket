@@ -14,17 +14,17 @@ import {
 } from "../../validators/admins/currencies";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
-
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated)
 router
   .route("/")
-  .get(catchAsync(getAllCurrencies))
-  .post(validate(createCurrencySchema), catchAsync(createCurrency));
+  .get(hasPrivilege("Currency", "View"),catchAsync(getAllCurrencies))
+  .post(hasPrivilege("Currency", "Add"),validate(createCurrencySchema), catchAsync(createCurrency));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getCurrency))
-  .delete(validate(idParams), catchAsync(deleteCurrency))
-  .put(validate(idParams), catchAsync(updateCurrency));
+  .delete(hasPrivilege("Currency", "Delete"),validate(idParams), catchAsync(deleteCurrency))
+  .put(hasPrivilege("Currency", "Edit"),validate(idParams), catchAsync(updateCurrency));
 export default router;

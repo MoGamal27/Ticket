@@ -7,15 +7,16 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const validation_1 = require("../../middlewares/validation");
 const users_1 = require("../../validators/admins/users");
 const authenticated_1 = require("../../middlewares/authenticated");
+const hasPrivilege_1 = require("../../middlewares/hasPrivilege");
 const router = (0, express_1.Router)();
 router.use(authenticated_1.authenticated);
 router
     .route("/")
-    .get((0, catchAsync_1.catchAsync)(cities_1.getAllCities))
-    .post((0, validation_1.validate)(cities_2.createCitySchema), (0, catchAsync_1.catchAsync)(cities_1.createCity));
+    .get((0, hasPrivilege_1.hasPrivilege)("City", "View"), (0, catchAsync_1.catchAsync)(cities_1.getAllCities))
+    .post((0, hasPrivilege_1.hasPrivilege)("City", "Add"), (0, validation_1.validate)(cities_2.createCitySchema), (0, catchAsync_1.catchAsync)(cities_1.createCity));
 router
     .route("/:id")
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(cities_1.getCityById))
-    .put((0, validation_1.validate)(cities_2.updateCitySchema), (0, catchAsync_1.catchAsync)(cities_1.updateCity))
-    .delete((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(cities_1.deleteCity));
+    .put((0, hasPrivilege_1.hasPrivilege)("City", "Edit"), (0, validation_1.validate)(cities_2.updateCitySchema), (0, catchAsync_1.catchAsync)(cities_1.updateCity))
+    .delete((0, hasPrivilege_1.hasPrivilege)("City", "Delete"), (0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(cities_1.deleteCity));
 exports.default = router;

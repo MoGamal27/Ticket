@@ -14,16 +14,18 @@ import {
 } from "../../validators/admins/homeFAQ";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
+
 const router = Router();
 router.use(authenticated)
 router
   .route("/")
-  .get(catchAsync(getAllFaq))
-  .post(validate(createFAQSchema), catchAsync(createFaq));
+  .get(hasPrivilege("Home Page Faq", "View"),catchAsync(getAllFaq))
+  .post(hasPrivilege("Home Page Faq", "Add"),validate(createFAQSchema), catchAsync(createFaq));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getFaqById))
-  .put(validate(updateFAQSchema), catchAsync(updateFaq))
-  .delete(validate(idParams), catchAsync(deleteFaq));
+  .put(hasPrivilege("Home Page Faq", "Edit"),validate(updateFAQSchema), catchAsync(updateFaq))
+  .delete(hasPrivilege("Home Page Faq", "Delete"),validate(idParams), catchAsync(deleteFaq));
 export default router;

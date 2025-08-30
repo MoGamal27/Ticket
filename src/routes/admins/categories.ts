@@ -8,9 +8,10 @@ import {
   updateCategory,
 } from "../../controllers/admins/categories";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated)
-router.get("/", catchAsync(getAllCategory));
+router.get("/", hasPrivilege("Category", "View"), catchAsync(getAllCategory));
 router.get("/:id", catchAsync(getCategory));
-router.put("/:id", validate(updateCategorySchema), catchAsync(updateCategory));
+router.put("/:id", hasPrivilege("Category", "Edit"), validate(updateCategorySchema), catchAsync(updateCategory));
 export default router;

@@ -14,16 +14,17 @@ import {
 } from "../../validators/admins/paymentMethods";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated)
 router
   .route("/")
-  .get(catchAsync(getAllPaymentMethods))
-  .post(validate(createPaymentMethods), catchAsync(createMethod));
+  .get(hasPrivilege("Payment Methods", "View"),catchAsync(getAllPaymentMethods))
+  .post(hasPrivilege("Payment Methods", "Add"),validate(createPaymentMethods), catchAsync(createMethod));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getMethod))
-  .put(validate(updatePaymentMethods), catchAsync(updateMethod))
-  .delete(validate(idParams), catchAsync(deleteMethod));
+  .put(hasPrivilege("Payment Methods", "Edit"),validate(updatePaymentMethods), catchAsync(updateMethod))
+  .delete(hasPrivilege("Payment Methods", "Delete"),validate(idParams), catchAsync(deleteMethod));
 export default router;

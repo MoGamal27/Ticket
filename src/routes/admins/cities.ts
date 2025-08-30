@@ -14,16 +14,17 @@ import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
 import { idParams } from "../../validators/admins/users";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated)
 router
   .route("/")
-  .get(catchAsync(getAllCities))
-  .post(validate(createCitySchema), catchAsync(createCity));
+  .get(hasPrivilege("City", "View"),catchAsync(getAllCities))
+  .post(hasPrivilege("City", "Add"),validate(createCitySchema), catchAsync(createCity));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getCityById))
-  .put(validate(updateCitySchema), catchAsync(updateCity))
-  .delete(validate(idParams), catchAsync(deleteCity));
+  .put(hasPrivilege("City", "Edit"),validate(updateCitySchema), catchAsync(updateCity))
+  .delete(hasPrivilege("City", "Delete"),validate(idParams), catchAsync(deleteCity));
 export default router;

@@ -5,10 +5,11 @@ import { getProfile, updateProfile } from "../../controllers/admins/profile";
 import { updateProfileSchema } from "../../validators/admins/profile";
 import { authenticated } from "../../middlewares/authenticated";
 import { authorizePermissions } from "../../middlewares/authorized";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
 router.use(authenticated, authorizePermissions("super_admin"));
 router
   .route("/")
-  .get(catchAsync(getProfile))
-  .put(validate(updateProfileSchema), catchAsync(updateProfile));
+  .get(hasPrivilege("Profile", "View"),catchAsync(getProfile))
+  .put(hasPrivilege("Profile", "Edit"),validate(updateProfileSchema), catchAsync(updateProfile));
 export default router;

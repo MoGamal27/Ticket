@@ -7,15 +7,16 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const validation_1 = require("../../middlewares/validation");
 const users_1 = require("../../validators/admins/users");
 const authenticated_1 = require("../../middlewares/authenticated");
+const hasPrivilege_1 = require("../../middlewares/hasPrivilege");
 const router = (0, express_1.Router)();
 router.use(authenticated_1.authenticated);
 router
     .route("/")
-    .get((0, catchAsync_1.catchAsync)(country_1.getAllCountries))
-    .post((0, validation_1.validate)(country_2.createCountrySchema), (0, catchAsync_1.catchAsync)(country_1.createCountry));
+    .get((0, hasPrivilege_1.hasPrivilege)("Country", "View"), (0, catchAsync_1.catchAsync)(country_1.getAllCountries))
+    .post((0, hasPrivilege_1.hasPrivilege)("Country", "Add"), (0, validation_1.validate)(country_2.createCountrySchema), (0, catchAsync_1.catchAsync)(country_1.createCountry));
 router
     .route("/:id")
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(country_1.getCountryById))
-    .put((0, validation_1.validate)(country_2.updateCountrySchema), (0, catchAsync_1.catchAsync)(country_1.updateCountry))
-    .delete((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(country_1.deleteCountry));
+    .put((0, hasPrivilege_1.hasPrivilege)("Country", "Edit"), (0, validation_1.validate)(country_2.updateCountrySchema), (0, catchAsync_1.catchAsync)(country_1.updateCountry))
+    .delete((0, hasPrivilege_1.hasPrivilege)("Country", "Delete"), (0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(country_1.deleteCountry));
 exports.default = router;
