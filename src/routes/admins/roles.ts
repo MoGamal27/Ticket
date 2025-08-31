@@ -1,0 +1,38 @@
+import { Router } from "express";
+import { catchAsync } from "../../utils/catchAsync";
+import {
+  getAllAdmins,
+  getAdmin,
+  createAdmin,
+  updateAdmin,
+  deleteAdmin,
+  addPrivilegesAdmin,
+} from "../../controllers/admins/admins";
+import { idParams } from "../../validators/admins/users";
+import {
+  createAdminSchema,
+  updateAdminSchema,
+  addPrivilegesAdminSchema,
+} from "../../validators/admins/admins";
+import { validate } from "../../middlewares/validation";
+import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
+const router = Router();
+router.use(authenticated)
+router
+  .route("/")
+  .get(hasPrivilege("Roles", "View"),catchAsync(getAllAdmins))
+  .post(hasPrivilege("Roles", "Add"),validate(createAdminSchema), catchAsync(createAdmin));
+
+router.post(
+  "/:id/privileges",
+  validate(addPrivilegesAdminSchema),
+  catchAsync(addPrivilegesAdmin)
+);
+
+router
+  .route("/:id")
+  .get(validate(idParams), catchAsync(getAdmin))
+  .put(hasPrivilege("Roles", "Edit"),validate(updateAdminSchema), catchAsync(updateAdmin))
+  .delete(hasPrivilege("Roles", "Delete"),validate(idParams), catchAsync(deleteAdmin));
+export default router;

@@ -19,6 +19,7 @@ import HomeRoute from "./home";
 import TourRoute from "./tours";
 import CategoryMedicalRoute from "./medical";
 import TourHomeRoute from "./tourHome";
+import RolesRoute from "./roles"
 import { authorizePermissions } from "../../middlewares/authorized";
 import { authenticated } from "../../middlewares/authenticated";
 
@@ -26,6 +27,7 @@ const router = Router();
 router.use("/auth", AuthRoute);
 router.use("/users", UsersRoute);
 router.use("/admins", AdminsRoute);
+router.use("/roles", RolesRoute)
 router.use("/privileges", PrivilegesRoute);
 router.use("/categories", CategoryRoute);
 router.use("/promocodes", PromoCodeRoute);
