@@ -17,26 +17,28 @@ import { upload } from "../../utils/saveFile";
 import { createMedicalCategorySchema, updateMedicalCategorySchema, idParams } from "../../validators/admins/medical";
 import { authenticated } from "../../middlewares/authenticated";
 
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
+
 const router = Router();
 router.use(authenticated)
 router
-  .route("/medicalTour-all").get(catchAsync(getAllMedicals));
+  .route("/medicalTour-all").get(hasPrivilege("Request", "View"),catchAsync(getAllMedicals));
 
   router
-  .route("/accept-medical").post(upload.single('fileData'),catchAsync(acceptMedicalRequest));
+  .route("/accept-medical").post(hasPrivilege("Request", "Status"),upload.single('fileData'),catchAsync(acceptMedicalRequest));
 
-  router.route("/reject-medical").post(catchAsync(rejectMedicalRequest));
+  router.route("/reject-medical").post(hasPrivilege("Request", "Status"),upload.single('fileData'),catchAsync(rejectMedicalRequest));
 
 router
   .route("/")
-  .get(catchAsync(getMedicalCategories))
-  .post(validate(createMedicalCategorySchema),catchAsync(createMedicalCategory));
+  .get(hasPrivilege("Medical", "View"),catchAsync(getMedicalCategories))
+  .post(hasPrivilege("Medical", "Add"),validate(createMedicalCategorySchema),catchAsync(createMedicalCategory));
 
 router
   .route("/:id")
   .get(catchAsync(getMedicalCategoryById))
-  .put(validate(updateMedicalCategorySchema),catchAsync(updateCategoryMedical))
-  .delete(catchAsync(deleteMedicalCategory))
+  .put(hasPrivilege("Medical", "Edit"),validate(updateMedicalCategorySchema),catchAsync(updateCategoryMedical))
+  .delete(hasPrivilege("Medical", "Delete"),validate(idParams),catchAsync(deleteMedicalCategory))
 
 router
   .route("/medicals/:id").get(catchAsync(getMedicalById));
