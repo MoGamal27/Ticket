@@ -22,9 +22,9 @@ router.get("/auto-payments", hasPrivilege("Auto Payment", "View"),catchAsync(get
 
 router.get("/allPayment", hasPrivilege("All Payments", "View"),catchAsync(getAllPayments));
 
-router.get("/pending-payments", catchAsync(getPendingPayments));
+router.get("/pending-payments", hasPrivilege("Pending Payment", "View"),catchAsync(getPendingPayments));
 router
   .route("/pending-payments/:id")
   .get(validate(idParams), catchAsync(getPaymentById))
-  .patch(validate(changeStatusSchema), catchAsync(changeStatus));
+  .patch(hasPrivilege("Pending Payment", "Status"), validate(changeStatusSchema), catchAsync(changeStatus));
 export default router;

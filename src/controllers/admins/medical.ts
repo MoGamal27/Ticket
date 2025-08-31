@@ -12,14 +12,6 @@ import { db } from "../../models/db";
 import { SuccessResponse } from "../../utils/response";
 import { eq, inArray } from "drizzle-orm";
 import { NotFound } from "../../Errors";
-import { saveFile } from "../../utils/saveFile";
-
-import { sendEmail } from "../../utils/sendEmails";
-
-import { Request } from "express";
-import multer from "multer";
-
-
 
 
 export const getMedicalCategories = async (req: Request, res: Response) => {
@@ -27,10 +19,50 @@ export const getMedicalCategories = async (req: Request, res: Response) => {
     SuccessResponse(res, { categoriesMedical: data }, 200);
     }
 
-export const createMedicalCategory = async (req: Request, res: Response) => {
+export const createMedical = async (req: Request, res: Response) => {
   const data = req.body;
-  await db.insert(categoryMedical).values(data);
-  SuccessResponse(res, { message: "Category Medical Created Successfully" }, 201);
+  const [insertResult] = await db.insert(Medicals).values({
+    userId: data.userId,
+    describtion: data.describtion,
+  });
+
+  const medicalId = insertResult.insertId;
+  if (!medicalId) {
+    throw new Error('Failed to create medical record');
+  }
+
+  await db.insert(medicalCategories).values(
+    data.categoryIds.map(categoryId => ({
+      medicalId: medicalId,
+      categoryId: categoryId,
+    }))
+  );
+
+  if (data.images && data.images.length > 0) {
+    const imageRecords = await Promise.all(
+      data.images.map(async (imagePath: string) => {
+        const path = await saveBase64Image(imagePath, uuid(), req, "medicalImages");
+        return {
+          medicalId: medicalId,
+          imagePath: path
+        };
+      })
+    );
+    
+    await db.insert(MedicalImages).values(imageRecords);
+  }
+
+  const [medical] = await db
+    .select()
+    .from(Medicals)
+    .where(eq(Medicals.id, medicalId));
+
+  const categories = await db
+    .select()
+    .from(medicalCategories)
+    .where(eq(medicalCategories.medicalId, medicalId));
+
+  SuccessResponse(res, { medical: { ...medical, categories } }, 201);
 };
 
 export const updateCategoryMedical = async (req: Request, res: Response) => {
@@ -56,37 +88,14 @@ export const getMedicalCategoryById = async (req: Request, res: Response) => {
 
 export const deleteMedicalCategory = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  
-  // Check if medical category exists in the category_medical table
-  const [category] = await db
+  const [categorymedical] = await db
     .select()
     .from(categoryMedical)
     .where(eq(categoryMedical.id, id));
-  
-  if (!category) throw new NotFound("Medical Category Not Found");
+  if (!categoryMedical) throw new NotFound("Category Medical Not Found");
 
-  try {
-    // Start a transaction to ensure data integrity
-    await db.transaction(async (trx) => {
-      
-      await trx.delete(medicalCategories)
-        .where(eq(medicalCategories.categoryId, id));
-
-      
-      await trx.delete(categoryMedical)
-        .where(eq(categoryMedical.id, id));
-    });
-
-    SuccessResponse(res, { message: "Medical Category Deleted Successfully" }, 200);
-    
-  } catch (error: any) {
-    console.error("Delete error:", error);
-    
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete medical category"
-    });
-  }
+  await db.delete(categoryMedical).where(eq(categoryMedical.id, id));
+  SuccessResponse(res, { message: "Category Medical Deleted Successfully" }, 200);
 };
 
 
@@ -239,11 +248,10 @@ export const getAllMedicals = async (req: Request, res: Response) => {
       .select({
         id: Medicals.id,
         userId: Medicals.userId,
-        userName: Medicals.fullName,
-        userEmail: users.email,
-        phoneNumber: Medicals.phoneNumber,
         describtion: Medicals.describtion,
         status: Medicals.status,
+        userName: users.name,
+        userEmail: users.email,
       })
       .from(Medicals)
       .leftJoin(users, eq(Medicals.userId, users.id));
@@ -284,7 +292,6 @@ export const getAllMedicals = async (req: Request, res: Response) => {
       status: medical.status,
       userName: medical.userName,
       userEmail: medical.userEmail,
-      phoneNumber: medical.phoneNumber,
       categories: categories.filter(cat => 
         medicalCategoriesData.some(mc => 
           mc.medicalId === medical.id && mc.categoryId === cat.id
@@ -297,138 +304,12 @@ export const getAllMedicals = async (req: Request, res: Response) => {
     const groupedMedicals = {
       pending: medicalsWithDetails.filter(m => m.status === 'pending'),
       accepted: medicalsWithDetails.filter(m => m.status === 'accepted'),
-      history: medicalsWithDetails.filter(m => m.status === 'rejected'),
+      history: medicalsWithDetails.filter(m => m.status === 'history')
     };
 
     SuccessResponse(res, { medicals: groupedMedicals }, 200);
   } catch (error) {
     console.error("Error fetching medical records:", error);
     res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-
-
-export const acceptMedicalRequest = async (req: Request, res: Response) => {
-   const fileData = req.file as Express.Multer.File;
-  const { medicalId, price } = req.body; 
-  //const fileData = req.file as Express.Multer.File;
-  try {
-    // Validation
-    if (!medicalId || price === undefined) {
-      return res.status(400).json({ error: "Medical ID and price are required" });
-    }
-
-    let documentUrl = null;
-    let documentType = null;
-
-    // Handle file if provided
-    if (fileData) {
-      const { url, type } = await saveFile(fileData, medicalId, req);
-      documentUrl = url;
-       documentType = type === 'image' || type === 'file' ? type : null;
-    } else {
-      return res.status(400).json({ error: "File is required" });
-    }
-
-    // Update medical record
-    const result = await db.update(Medicals)
-    .set({ 
-    status: 'accepted',
-    price,
-    documentUrl,
-    documentType,
-    acceptedAt: new Date()
-  })
-  .where(eq(Medicals.id, medicalId));
-
-// Retrieve the updated medical record
-const [medical] = await db.select().from(Medicals).where(eq(Medicals.id, medicalId));
-
-// Get user email by joining with users table
-    const [user] = await db.select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, medical.userId));
-
-    // Send email notification if user exists and has email
-    if (user?.email) {
-      try {
-        const emailSubject = `Your Medical Request Has Been Accepted`;
-        const emailText = `
-          Dear ${medical.fullName || 'User'},
-          
-          Your medical request has been accepted.
-          
-          Details:
-          - Status: Accepted
-          - Price: ${price}
-          ${documentUrl ? `- Document: ${documentUrl}` : ''}
-          
-          Thank you for using our service.
-        `;
-        
-        await sendEmail(user.email, emailSubject, emailText);
-      } catch (emailError) {
-        console.error("Error sending email:", emailError);
-      }
-    }
-
-res.json({
-  success: true,
-  medical
-});
-  } catch (error: any) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error: " + error.message });
-  }
-};
-  
-
-export const rejectMedicalRequest = async (req: Request, res: Response) => {
-  const { medicalId, reason } = req.body;
-
-  try {
-    // Validation
-    if (!medicalId) {
-      return res.status(400).json({ error: "Medical ID is required" });
-    }
-
-    // Update medical record to rejected status
-    const result = await db.update(Medicals)
-      .set({ status: 'rejected',  rejectionReason: reason || null })
-      .where(eq(Medicals.id, medicalId));
-
-    // Retrieve the updated medical record
-    const [medical] = await db.select().from(Medicals).where(eq(Medicals.id, medicalId));
-
-    // Get user email by joining with users table
-    const [user] = await db.select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, medical.userId));
-
-    // Send email notification if user exists and has email
-    if (user?.email) {
-      try {
-        const emailSubject = `Your Medical Request Has Been Rejected`;
-        const emailText = `
-          Dear ${medical.fullName || 'User'},
-          
-          Reason for rejection: ${reason || 'No reason provided'}
-          
-          Your medical request has been rejected.
-          
-          Thank you for using our service.
-        `;
-        
-        await sendEmail(user.email, emailSubject, emailText);
-      } catch (emailError) {
-        console.error("Error sending email:", emailError);
-      }
-    }
-
-    SuccessResponse(res, { message: "Medical request rejected successfully", medical }, 200);
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error" });
   }
 };

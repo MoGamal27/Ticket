@@ -240,3 +240,5 @@ export const requireEmail = async (req: Request, res: Response) => {
 
   SuccessResponse(res, { message: "code sent succefully" }, 200);
 };
+
+

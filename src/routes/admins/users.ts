@@ -15,6 +15,7 @@ import {
 } from "../../validators/admins/users";
 import { authorizePermissions } from "../../middlewares/authorized";
 import { authenticated } from "../../middlewares/authenticated";
+import { hasPrivilege } from "../../middlewares/hasPrivilege";
 
 const router = Router();
 router.use(authenticated)
@@ -24,14 +25,15 @@ router
   .route("/")
   .post(
     // authorizePermissions("user-add"),
+    hasPrivilege("User", "Add"),
     validate(createUserSchema),
     catchAsync(createUser)
   )
-  .get(catchAsync(getAllUsers));
+  .get(hasPrivilege("User", "View"),catchAsync(getAllUsers));
 
 router
   .route("/:id")
   .get(validate(idParams), catchAsync(getUser))
-  .put(validate(updateUserSchema), catchAsync(updateUser))
-  .delete(validate(idParams), catchAsync(deleteUser));
+  .put(hasPrivilege("User", "Edit"),validate(updateUserSchema), catchAsync(updateUser))
+  .delete(hasPrivilege("User", "Delete"),validate(idParams), catchAsync(deleteUser));
 export default router;

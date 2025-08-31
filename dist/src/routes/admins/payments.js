@@ -13,9 +13,9 @@ router.use(authenticated_1.authenticated);
 //router.post("/initialize-payment", catchAsync(intializePayemnt))
 router.get("/auto-payments", (0, hasPrivilege_1.hasPrivilege)("Auto Payment", "View"), (0, catchAsync_1.catchAsync)(payments_1.getAutoPayments));
 router.get("/allPayment", (0, hasPrivilege_1.hasPrivilege)("All Payments", "View"), (0, catchAsync_1.catchAsync)(payments_1.getAllPayments));
-router.get("/pending-payments", (0, catchAsync_1.catchAsync)(payments_1.getPendingPayments));
+router.get("/pending-payments", (0, hasPrivilege_1.hasPrivilege)("Pending Payment", "View"), (0, catchAsync_1.catchAsync)(payments_1.getPendingPayments));
 router
     .route("/pending-payments/:id")
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(payments_1.getPaymentById))
-    .patch((0, validation_1.validate)(payments_2.changeStatusSchema), (0, catchAsync_1.catchAsync)(payments_1.changeStatus));
+    .patch((0, hasPrivilege_1.hasPrivilege)("Pending Payment", "Status"), (0, validation_1.validate)(payments_2.changeStatusSchema), (0, catchAsync_1.catchAsync)(payments_1.changeStatus));
 exports.default = router;
