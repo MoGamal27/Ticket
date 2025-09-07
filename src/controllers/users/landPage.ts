@@ -1155,6 +1155,9 @@ export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) =
 
 
 export const getToursWithEssentialInfo = async (req: Request, res: Response) => {
+
+    const currentDate = new Date();
+    
     const toursList = await db
       .select({
         id: tours.id,
@@ -1192,22 +1195,25 @@ export const getToursWithEssentialInfo = async (req: Request, res: Response) => 
       .from(tourSchedules)
       .where(inArray(tourSchedules.tourId, toursList.map(t => t.id)));
 
-    // Group schedules by tourId
+    // Group schedules by tourId and filter by current date
     const schedulesByTourId = allSchedules.reduce((acc, schedule) => {
-      if (!acc[schedule.tourId]) {
-        acc[schedule.tourId] = [];
+      // Only include schedules with date > current date
+      if (schedule.date > currentDate) {
+        if (!acc[schedule.tourId]) {
+          acc[schedule.tourId] = [];
+        }
+        acc[schedule.tourId].push({
+          id: schedule.id,
+          date: schedule.date,
+          availableSeats: schedule.availableSeats,
+          startDate: schedule.startDate,
+          endDate: schedule.endDate
+        });
       }
-      acc[schedule.tourId].push({
-        id: schedule.id,
-        date: schedule.date,
-        availableSeats: schedule.availableSeats,
-        startDate: schedule.startDate,
-        endDate: schedule.endDate
-      });
       return acc;
     }, {} as Record<number, any[]>);
 
-    // Combine tours with their schedules
+    // Combine tours with their filtered schedules
     const toursWithSchedules = toursList.map(tour => ({
       id: tour.id,
       title: tour.title,
@@ -1217,11 +1223,10 @@ export const getToursWithEssentialInfo = async (req: Request, res: Response) => 
       country: tour.country,
       city: tour.city,
       price: tour.price,
-      schedules: schedulesByTourId[tour.id] || []
+      schedules: schedulesByTourId[tour.id] || [] 
     }));
 
     SuccessResponse(res, toursWithSchedules, 200);
-  
 };
 
 
@@ -1232,13 +1237,13 @@ export const createContactMessage = async (req: Request, res: Response) => {
 
     // Validate required fields
     if (!name || !email || !message) {
-      return ErrorResponse(res, "Name, email, and message are required", 400);
+      return ErrorResponse(res, 400,"Name, email, and message are required");
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return ErrorResponse(res, "Please provide a valid email address", 400);
+      return ErrorResponse(res, 400,"Please provide a valid email address");
     }
 
     // Insert the contact message

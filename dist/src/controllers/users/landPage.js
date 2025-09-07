@@ -955,6 +955,7 @@ const applyPromoCode = (req, res) => __awaiter(void 0, void 0, void 0, function*
 });
 exports.applyPromoCode = applyPromoCode;
 const getToursWithEssentialInfo = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const currentDate = new Date();
     const toursList = yield db_1.db
         .select({
         id: schema_1.tours.id,
@@ -990,21 +991,24 @@ const getToursWithEssentialInfo = (req, res) => __awaiter(void 0, void 0, void 0
     })
         .from(schema_1.tourSchedules)
         .where((0, drizzle_orm_1.inArray)(schema_1.tourSchedules.tourId, toursList.map(t => t.id)));
-    // Group schedules by tourId
+    // Group schedules by tourId and filter by current date
     const schedulesByTourId = allSchedules.reduce((acc, schedule) => {
-        if (!acc[schedule.tourId]) {
-            acc[schedule.tourId] = [];
+        // Only include schedules with date > current date
+        if (schedule.date > currentDate) {
+            if (!acc[schedule.tourId]) {
+                acc[schedule.tourId] = [];
+            }
+            acc[schedule.tourId].push({
+                id: schedule.id,
+                date: schedule.date,
+                availableSeats: schedule.availableSeats,
+                startDate: schedule.startDate,
+                endDate: schedule.endDate
+            });
         }
-        acc[schedule.tourId].push({
-            id: schedule.id,
-            date: schedule.date,
-            availableSeats: schedule.availableSeats,
-            startDate: schedule.startDate,
-            endDate: schedule.endDate
-        });
         return acc;
     }, {});
-    // Combine tours with their schedules
+    // Combine tours with their filtered schedules
     const toursWithSchedules = toursList.map(tour => ({
         id: tour.id,
         title: tour.title,
@@ -1024,12 +1028,12 @@ const createContactMessage = (req, res) => __awaiter(void 0, void 0, void 0, fun
         const { name, email, phone, message } = req.body;
         // Validate required fields
         if (!name || !email || !message) {
-            return ErrorResponse(res, "Name, email, and message are required", 400);
+            return ErrorResponse(res, 400, "Name, email, and message are required");
         }
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            return ErrorResponse(res, "Please provide a valid email address", 400);
+            return ErrorResponse(res, 400, "Please provide a valid email address");
         }
         // Insert the contact message
         const [newContact] = yield db_1.db.insert(schema_1.contactus).values({
