@@ -32,7 +32,8 @@ import {
   MedicalImages,
   medicalCategories,
   tourPromoCode,
-  promoCode
+  promoCode,
+  contactus
 
 } from "../../models/schema";
 import { and, desc, eq, inArray, exists, gt } from "drizzle-orm";
@@ -1225,3 +1226,35 @@ export const getToursWithEssentialInfo = async (req: Request, res: Response) => 
 
 
 
+export const createContactMessage = async (req: Request, res: Response) => {
+  try {
+    const { name, email, phone, message } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !message) {
+      return ErrorResponse(res, "Name, email, and message are required", 400);
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return ErrorResponse(res, "Please provide a valid email address", 400);
+    }
+
+    // Insert the contact message
+    const [newContact] = await db.insert(contactus).values({
+      name,
+      email,
+      phone: phone || null,
+      message,
+    }).execute();
+
+    SuccessResponse(res, { 
+      id: newContact.insertId, 
+      message: "Contact message submitted successfully" 
+    }, 201);
+  } catch (error) {
+    console.error("Error creating contact message:", error);
+    ErrorResponse(res, "Failed to submit contact message", 500);
+  }
+};

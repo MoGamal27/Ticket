@@ -20,6 +20,7 @@ import TourRoute from "./tours";
 import CategoryMedicalRoute from "./medical";
 import TourHomeRoute from "./tourHome";
 import RolesRoute from "./roles"
+import ContactRoute from "./contactus"
 import { authorizePermissions } from "../../middlewares/authorized";
 import { authenticated } from "../../middlewares/authenticated";
 
@@ -45,4 +46,5 @@ router.use("/bookings", BookingsRoute);
 router.use("/home", HomeRoute);
 router.use("/medical", CategoryMedicalRoute);
 router.use("/tourHome", TourHomeRoute);
+router.use("/contactus", ContactRoute)
 export default router;

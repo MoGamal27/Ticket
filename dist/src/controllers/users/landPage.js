@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getToursWithEssentialInfo = exports.applyPromoCode = exports.getRejectedMedicalRequests = exports.getAcceptMedicalRequests = exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
+exports.createContactMessage = exports.getToursWithEssentialInfo = exports.applyPromoCode = exports.getRejectedMedicalRequests = exports.getAcceptMedicalRequests = exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -1019,3 +1019,33 @@ const getToursWithEssentialInfo = (req, res) => __awaiter(void 0, void 0, void 0
     (0, response_1.SuccessResponse)(res, toursWithSchedules, 200);
 });
 exports.getToursWithEssentialInfo = getToursWithEssentialInfo;
+const createContactMessage = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { name, email, phone, message } = req.body;
+        // Validate required fields
+        if (!name || !email || !message) {
+            return ErrorResponse(res, "Name, email, and message are required", 400);
+        }
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return ErrorResponse(res, "Please provide a valid email address", 400);
+        }
+        // Insert the contact message
+        const [newContact] = yield db_1.db.insert(schema_1.contactus).values({
+            name,
+            email,
+            phone: phone || null,
+            message,
+        }).execute();
+        (0, response_1.SuccessResponse)(res, {
+            id: newContact.insertId,
+            message: "Contact message submitted successfully"
+        }, 201);
+    }
+    catch (error) {
+        console.error("Error creating contact message:", error);
+        ErrorResponse(res, "Failed to submit contact message", 500);
+    }
+});
+exports.createContactMessage = createContactMessage;

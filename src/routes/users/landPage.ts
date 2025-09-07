@@ -11,7 +11,8 @@ import {
   getAcceptMedicalRequests,
   getRejectedMedicalRequests,
   applyPromoCode,
-  getToursWithEssentialInfo
+  getToursWithEssentialInfo,
+  createContactMessage
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
 import { AuthenticatedRequest } from "../../types/custom";
@@ -45,9 +46,14 @@ router.post("/apply-promo-code", authenticated, catchAsync((req, res) => {
   return applyPromoCode(req as AuthenticatedRequest, res);
 }))
 
+router.post("/contactus", catchAsync(createContactMessage))
+
+
 router.get("/images", catchAsync(getImages));
 router.get("/featured-tours", catchAsync(getFeaturedTours));
 router.get("/category-tours/:category", catchAsync(getToursByCategory));
 router.get("/category-tours/category/:id", catchAsync(getTourById));
 router.get("/tours-with-essential-info", catchAsync(getToursWithEssentialInfo));
+
+router.post("/contactus", catchAsync(createContactMessage))
 export default router;

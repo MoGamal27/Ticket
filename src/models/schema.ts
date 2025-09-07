@@ -346,3 +346,10 @@ export const MedicalImages = mysqlTable("medical_images", {
   imagePath: varchar("image_path", { length: 255 }).notNull(),
 });
 
+export const contactus = mysqlTable("contactus", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
+  message: text("message").notNull()
+});
