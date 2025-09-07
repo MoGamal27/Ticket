@@ -1152,3 +1152,76 @@ export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) =
 };
 
 
+
+export const getToursWithEssentialInfo = async (req: Request, res: Response) => {
+    const toursList = await db
+      .select({
+        id: tours.id,
+        title: tours.title,
+        mainImage: tours.mainImage,
+        startDate: tours.startDate,
+        endDate: tours.endDate,
+        country: countries.name,
+        city: cites.name,
+        price: {
+          adult: tourPrice.adult,
+          child: tourPrice.child,
+          infant: tourPrice.infant,
+          currency: currencies.name
+        },
+      })
+      .from(tours)
+      .leftJoin(categories, eq(tours.categoryId, categories.id))
+      .leftJoin(tourPrice, eq(tours.id, tourPrice.tourId))
+      .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
+      .leftJoin(cites, eq(cites.id, tours.city))
+      .leftJoin(countries, eq(countries.id, tours.country))
+      .where(eq(tours.status, true)); // Only get active tours
+
+    // Get schedules for all tours in one query
+    const allSchedules = await db
+      .select({
+        tourId: tourSchedules.tourId,
+        id: tourSchedules.id,
+        date: tourSchedules.date,
+        availableSeats: tourSchedules.availableSeats,
+        startDate: tourSchedules.startDate,
+        endDate: tourSchedules.endDate,
+      })
+      .from(tourSchedules)
+      .where(inArray(tourSchedules.tourId, toursList.map(t => t.id)));
+
+    // Group schedules by tourId
+    const schedulesByTourId = allSchedules.reduce((acc, schedule) => {
+      if (!acc[schedule.tourId]) {
+        acc[schedule.tourId] = [];
+      }
+      acc[schedule.tourId].push({
+        id: schedule.id,
+        date: schedule.date,
+        availableSeats: schedule.availableSeats,
+        startDate: schedule.startDate,
+        endDate: schedule.endDate
+      });
+      return acc;
+    }, {} as Record<number, any[]>);
+
+    // Combine tours with their schedules
+    const toursWithSchedules = toursList.map(tour => ({
+      id: tour.id,
+      title: tour.title,
+      mainImage: tour.mainImage,
+      startDate: tour.startDate,
+      endDate: tour.endDate,
+      country: tour.country,
+      city: tour.city,
+      price: tour.price,
+      schedules: schedulesByTourId[tour.id] || []
+    }));
+
+    SuccessResponse(res, toursWithSchedules, 200);
+  
+};
+
+
+

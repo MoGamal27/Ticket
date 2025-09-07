@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.applyPromoCode = exports.getRejectedMedicalRequests = exports.getAcceptMedicalRequests = exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
+exports.getToursWithEssentialInfo = exports.applyPromoCode = exports.getRejectedMedicalRequests = exports.getAcceptMedicalRequests = exports.getMedicalCategories = exports.createMedical = exports.getBookingWithDetails = exports.createBookingWithPayment = exports.getActivePaymentMethods = exports.getTourById = exports.getToursByCategory = exports.getFeaturedTours = exports.getImages = exports.formatDate = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -954,3 +954,68 @@ const applyPromoCode = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }));
 });
 exports.applyPromoCode = applyPromoCode;
+const getToursWithEssentialInfo = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const toursList = yield db_1.db
+        .select({
+        id: schema_1.tours.id,
+        title: schema_1.tours.title,
+        mainImage: schema_1.tours.mainImage,
+        startDate: schema_1.tours.startDate,
+        endDate: schema_1.tours.endDate,
+        country: schema_1.countries.name,
+        city: schema_1.cites.name,
+        price: {
+            adult: schema_1.tourPrice.adult,
+            child: schema_1.tourPrice.child,
+            infant: schema_1.tourPrice.infant,
+            currency: schema_1.currencies.name
+        },
+    })
+        .from(schema_1.tours)
+        .leftJoin(schema_1.categories, (0, drizzle_orm_1.eq)(schema_1.tours.categoryId, schema_1.categories.id))
+        .leftJoin(schema_1.tourPrice, (0, drizzle_orm_1.eq)(schema_1.tours.id, schema_1.tourPrice.tourId))
+        .leftJoin(schema_1.currencies, (0, drizzle_orm_1.eq)(schema_1.tourPrice.currencyId, schema_1.currencies.id))
+        .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.cites.id, schema_1.tours.city))
+        .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.countries.id, schema_1.tours.country))
+        .where((0, drizzle_orm_1.eq)(schema_1.tours.status, true)); // Only get active tours
+    // Get schedules for all tours in one query
+    const allSchedules = yield db_1.db
+        .select({
+        tourId: schema_1.tourSchedules.tourId,
+        id: schema_1.tourSchedules.id,
+        date: schema_1.tourSchedules.date,
+        availableSeats: schema_1.tourSchedules.availableSeats,
+        startDate: schema_1.tourSchedules.startDate,
+        endDate: schema_1.tourSchedules.endDate,
+    })
+        .from(schema_1.tourSchedules)
+        .where((0, drizzle_orm_1.inArray)(schema_1.tourSchedules.tourId, toursList.map(t => t.id)));
+    // Group schedules by tourId
+    const schedulesByTourId = allSchedules.reduce((acc, schedule) => {
+        if (!acc[schedule.tourId]) {
+            acc[schedule.tourId] = [];
+        }
+        acc[schedule.tourId].push({
+            id: schedule.id,
+            date: schedule.date,
+            availableSeats: schedule.availableSeats,
+            startDate: schedule.startDate,
+            endDate: schedule.endDate
+        });
+        return acc;
+    }, {});
+    // Combine tours with their schedules
+    const toursWithSchedules = toursList.map(tour => ({
+        id: tour.id,
+        title: tour.title,
+        mainImage: tour.mainImage,
+        startDate: tour.startDate,
+        endDate: tour.endDate,
+        country: tour.country,
+        city: tour.city,
+        price: tour.price,
+        schedules: schedulesByTourId[tour.id] || []
+    }));
+    (0, response_1.SuccessResponse)(res, toursWithSchedules, 200);
+});
+exports.getToursWithEssentialInfo = getToursWithEssentialInfo;

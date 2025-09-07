@@ -10,7 +10,8 @@ import {
   getMedicalCategories,
   getAcceptMedicalRequests,
   getRejectedMedicalRequests,
-  applyPromoCode
+  applyPromoCode,
+  getToursWithEssentialInfo
 } from "../../controllers/users/landPage";
 import { catchAsync } from "../../utils/catchAsync";
 import { AuthenticatedRequest } from "../../types/custom";
@@ -48,5 +49,5 @@ router.get("/images", catchAsync(getImages));
 router.get("/featured-tours", catchAsync(getFeaturedTours));
 router.get("/category-tours/:category", catchAsync(getToursByCategory));
 router.get("/category-tours/category/:id", catchAsync(getTourById));
-
+router.get("/tours-with-essential-info", catchAsync(getToursWithEssentialInfo));
 export default router;
