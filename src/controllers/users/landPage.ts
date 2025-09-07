@@ -1155,7 +1155,7 @@ export const applyPromoCode = async (req: AuthenticatedRequest, res: Response) =
 
 
 export const getToursWithEssentialInfo = async (req: Request, res: Response) => {
-
+ 
     const currentDate = new Date();
     
     const toursList = await db
@@ -1180,7 +1180,12 @@ export const getToursWithEssentialInfo = async (req: Request, res: Response) => 
       .leftJoin(currencies, eq(tourPrice.currencyId, currencies.id))
       .leftJoin(cites, eq(cites.id, tours.city))
       .leftJoin(countries, eq(countries.id, tours.country))
-      .where(eq(tours.status, true)); // Only get active tours
+      .where(
+        and(
+          eq(tours.status, true), // Only get active tours
+          gt(tours.endDate, currentDate) // Only tours that haven't ended yet
+        )
+      );
 
     // Get schedules for all tours in one query
     const allSchedules = await db
@@ -1223,10 +1228,11 @@ export const getToursWithEssentialInfo = async (req: Request, res: Response) => 
       country: tour.country,
       city: tour.city,
       price: tour.price,
-      schedules: schedulesByTourId[tour.id] || [] 
+      schedules: schedulesByTourId[tour.id] || [] // Will be empty array if no future schedules
     }));
 
     SuccessResponse(res, toursWithSchedules, 200);
+
 };
 
 

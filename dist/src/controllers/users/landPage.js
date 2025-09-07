@@ -978,7 +978,9 @@ const getToursWithEssentialInfo = (req, res) => __awaiter(void 0, void 0, void 0
         .leftJoin(schema_1.currencies, (0, drizzle_orm_1.eq)(schema_1.tourPrice.currencyId, schema_1.currencies.id))
         .leftJoin(schema_1.cites, (0, drizzle_orm_1.eq)(schema_1.cites.id, schema_1.tours.city))
         .leftJoin(schema_1.countries, (0, drizzle_orm_1.eq)(schema_1.countries.id, schema_1.tours.country))
-        .where((0, drizzle_orm_1.eq)(schema_1.tours.status, true)); // Only get active tours
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.tours.status, true), // Only get active tours
+    (0, drizzle_orm_1.gt)(schema_1.tours.endDate, currentDate) // Only tours that haven't ended yet
+    ));
     // Get schedules for all tours in one query
     const allSchedules = yield db_1.db
         .select({
@@ -1018,7 +1020,7 @@ const getToursWithEssentialInfo = (req, res) => __awaiter(void 0, void 0, void 0
         country: tour.country,
         city: tour.city,
         price: tour.price,
-        schedules: schedulesByTourId[tour.id] || []
+        schedules: schedulesByTourId[tour.id] || [] // Will be empty array if no future schedules
     }));
     (0, response_1.SuccessResponse)(res, toursWithSchedules, 200);
 });
