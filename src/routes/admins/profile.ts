@@ -7,7 +7,7 @@ import { authenticated } from "../../middlewares/authenticated";
 import { authorizePermissions } from "../../middlewares/authorized";
 import { hasPrivilege } from "../../middlewares/hasPrivilege";
 const router = Router();
-
+router.use(authenticated);
 router
   .route("/")
   .get(hasPrivilege("Profile", "View"),catchAsync(getProfile))
