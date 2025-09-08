@@ -26,5 +26,5 @@ router.get("/pending-payments", hasPrivilege("Pending Payment", "View"),catchAsy
 router
   .route("/pending-payments/:id")
   .get(validate(idParams), catchAsync(getPaymentById))
-  .patch(hasPrivilege("Pending Payment", "Status"), validate(changeStatusSchema), catchAsync(changeStatus));
+  .patch(hasPrivilege("All Payments", "Status"), validate(changeStatusSchema), catchAsync(changeStatus));
 export default router;

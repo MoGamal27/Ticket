@@ -17,5 +17,5 @@ router.get("/pending-payments", (0, hasPrivilege_1.hasPrivilege)("Pending Paymen
 router
     .route("/pending-payments/:id")
     .get((0, validation_1.validate)(users_1.idParams), (0, catchAsync_1.catchAsync)(payments_1.getPaymentById))
-    .patch((0, hasPrivilege_1.hasPrivilege)("Pending Payment", "Status"), (0, validation_1.validate)(payments_2.changeStatusSchema), (0, catchAsync_1.catchAsync)(payments_1.changeStatus));
+    .patch((0, hasPrivilege_1.hasPrivilege)("All Payments", "Status"), (0, validation_1.validate)(payments_2.changeStatusSchema), (0, catchAsync_1.catchAsync)(payments_1.changeStatus));
 exports.default = router;
