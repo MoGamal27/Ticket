@@ -46,7 +46,7 @@ const createUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         return res.status(409).json({
             success: false,
             error: {
-                code: 409,
+                code: 400,
                 message: "Email already exists"
             }
         });

@@ -48,7 +48,7 @@ export const createUser = async (req: Request, res: Response) => {
       return res.status(409).json({
         success: false,
         error: {
-          code: 409,
+          code: 400,
           message: "Email already exists"
         }
       });
