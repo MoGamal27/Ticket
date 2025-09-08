@@ -24,12 +24,49 @@ export const getAllUsers = async (req: Request, res: Response) => {
 };
 
 export const createUser = async (req: Request, res: Response) => {
-  const data = req.body;
-  if (data.password) {
-    data.password = await bcrypt.hash(data.password, 10);
-  }
-  await db.insert(users).values(data);
-  SuccessResponse(res, { message: "User Created Successfully" }, 201);
+    const data = req.body;
+    
+    // Validate required fields
+    if (!data.email || !data.password) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 400,
+          message: "Email and password are required"
+        }
+      });
+    }
+
+    // Hash password
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+
+    // Check if email already exists
+    const [existingUser] = await db.select().from(users).where(eq(users.email, data.email));
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 409,
+          message: "Email already exists"
+        }
+      });
+    }
+
+    const userData = {
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      phoneNumber: data.phoneNumber, 
+      isVerified: true
+    };
+
+    // Insert user
+    await db.insert(users).values(userData);
+    
+    SuccessResponse(res, { message: "User Created Successfully" }, 201);
+    
 };
 
 export const getUser = async (req: Request, res: Response) => {

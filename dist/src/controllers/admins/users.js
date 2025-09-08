@@ -26,10 +26,40 @@ const getAllUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
 exports.getAllUsers = getAllUsers;
 const createUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = req.body;
+    // Validate required fields
+    if (!data.email || !data.password) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                code: 400,
+                message: "Email and password are required"
+            }
+        });
+    }
+    // Hash password
     if (data.password) {
         data.password = yield bcrypt_1.default.hash(data.password, 10);
     }
-    yield db_1.db.insert(schema_1.users).values(data);
+    // Check if email already exists
+    const [existingUser] = yield db_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.email, data.email));
+    if (existingUser) {
+        return res.status(409).json({
+            success: false,
+            error: {
+                code: 409,
+                message: "Email already exists"
+            }
+        });
+    }
+    const userData = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        phoneNumber: data.phoneNumber,
+        isVerified: true
+    };
+    // Insert user
+    yield db_1.db.insert(schema_1.users).values(userData);
     (0, response_1.SuccessResponse)(res, { message: "User Created Successfully" }, 201);
 });
 exports.createUser = createUser;
