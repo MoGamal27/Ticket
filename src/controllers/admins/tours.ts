@@ -90,6 +90,7 @@ export const getTourById = async (req: Request, res: Response) => {
       city: cites.id,
       maxUsers: tours.maxUsers,
       category: categories.id,
+      categoryName: categories.name,
       price: {
         adult: tourPrice.adult,
         child: tourPrice.child,

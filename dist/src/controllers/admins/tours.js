@@ -67,6 +67,7 @@ const getTourById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         city: schema_1.cites.id,
         maxUsers: schema_1.tours.maxUsers,
         category: schema_1.categories.id,
+        categoryName: schema_1.categories.name,
         price: {
             adult: schema_1.tourPrice.adult,
             child: schema_1.tourPrice.child,
