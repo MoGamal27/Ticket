@@ -36,7 +36,7 @@ import {
   contactus
 
 } from "../../models/schema";
-import { and, desc, eq, inArray, exists, gt } from "drizzle-orm";
+import { and, desc, eq, inArray, exists, gt, or, isNull } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
 import { NotFound, UnauthorizedError, ValidationError } from "../../Errors";
 import { saveBase64Image } from "../../utils/handleImages";
@@ -162,11 +162,13 @@ export const getToursByCategory = async (req: Request, res: Response) => {
     .leftJoin(categories, eq(categories.id, tours.categoryId))
     .where(and(
       eq(categories.name, category.toLowerCase()),
-      eq(tours.status, true)
+      eq(tours.status, true),
+        or(
+        isNull(tourSchedules.date),
+        gt(tourSchedules.date, currentDate)
+      )
     ))
-    // Filter schedules at the database level for better performance
-    .where(gt(tourSchedules.date, currentDate));
-
+  
   // Group by tour
   const groupedTours = tourData.reduce((acc, row: any) => {
     if (!acc[row.id]) {
