@@ -163,11 +163,9 @@ export const getToursByCategory = async (req: Request, res: Response) => {
     .where(and(
       eq(categories.name, category.toLowerCase()),
       eq(tours.status, true),
-        or(
-        isNull(tourSchedules.date),
-        gt(tourSchedules.date, currentDate)
+      gt(tourSchedules.date, currentDate)
       )
-    ))
+    )
   
   // Group by tour
   const groupedTours = tourData.reduce((acc, row: any) => {
