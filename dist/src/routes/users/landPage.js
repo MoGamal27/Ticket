@@ -25,6 +25,6 @@ router.get("/images", (0, catchAsync_1.catchAsync)(landPage_1.getImages));
 router.get("/featured-tours", (0, catchAsync_1.catchAsync)(landPage_1.getFeaturedTours));
 router.get("/category-tours/:category", (0, catchAsync_1.catchAsync)(landPage_1.getToursByCategory));
 router.get("/category-tours/category/:id", (0, catchAsync_1.catchAsync)(landPage_1.getTourById));
-router.get("/tours-with-essential-info", (0, catchAsync_1.catchAsync)(landPage_1.getToursWithEssentialInfo));
+router.get("/toursEssential", (0, catchAsync_1.catchAsync)(landPage_1.getToursWithEssentialInfo));
 router.post("/contactus", (0, catchAsync_1.catchAsync)(landPage_1.createContactMessage));
 exports.default = router;

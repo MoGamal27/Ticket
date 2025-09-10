@@ -53,7 +53,7 @@ router.get("/images", catchAsync(getImages));
 router.get("/featured-tours", catchAsync(getFeaturedTours));
 router.get("/category-tours/:category", catchAsync(getToursByCategory));
 router.get("/category-tours/category/:id", catchAsync(getTourById));
-router.get("/tours-with-essential-info", catchAsync(getToursWithEssentialInfo));
+router.get("/toursEssential", catchAsync(getToursWithEssentialInfo));
 
 router.post("/contactus", catchAsync(createContactMessage))
 export default router;
