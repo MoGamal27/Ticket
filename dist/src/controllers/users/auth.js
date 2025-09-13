@@ -171,6 +171,45 @@ const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         code,
     });
     yield (0, sendEmails_1.sendEmail)(data.email, "Email Verification", `Your verification code is ${code}`);
+    const adminsList = yield db_1.db
+        .select({
+        email: admins.email,
+        name: admins.name
+    })
+        .from(admins)
+        .where((0, drizzle_orm_1.eq)(admins.isSuperAdmin, true));
+    // Send email notification to all admins about new user registration
+    if (adminsList.length > 0) {
+        const adminEmails = adminsList.map(admin => admin.email);
+        const emailSubject = `New User Registration - ${data.fullName || data.email}`;
+        const emailMessage = `
+Dear Admin Team,
+
+A new user has registered on the platform and requires verification.
+
+User Details:
+- Name: ${data.fullName || 'Not provided'}
+- Email: ${data.email}
+- Phone: ${data.phoneNumber || 'Not provided'}
+- Registration Date: ${new Date().toLocaleDateString()}
+
+Please log in to the admin dashboard to manage user accounts.
+
+Best regards,
+User Registration System
+    `.trim();
+        // Send email to all admins
+        for (const adminEmail of adminEmails) {
+            try {
+                yield (0, sendEmails_1.sendEmail)(adminEmail, emailSubject, emailMessage);
+                console.log(`New user notification sent to admin: ${adminEmail}`);
+            }
+            catch (emailError) {
+                console.error(`Failed to send email to admin ${adminEmail}:`, emailError);
+                // Don't fail the whole operation if email fails
+            }
+        }
+    }
     (0, response_1.SuccessResponse)(res, { message: "User Signup Successfully. Please verify your email.", userId: result.id }, 201);
 });
 exports.signup = signup;

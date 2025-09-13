@@ -17,6 +17,7 @@ const response_1 = require("../../utils/response");
 const Errors_1 = require("../../Errors");
 const handleImages_1 = require("../../utils/handleImages");
 const uuid_1 = require("uuid");
+const sendEmails_1 = require("../../utils/sendEmails");
 // format start date to YYYY-MM-DD
 const formatDate = (date) => {
     return date.toISOString().split('T')[0];
@@ -369,11 +370,6 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
             message: `Not enough available seats. Requested: ${totalPeople}, Available: ${schedule.availableSeats}`
         });
     }
-    console.log("DEBUG - tourScheduleId:", tourIdNum);
-    console.log("DEBUG - actualTourId:", actualTourId);
-    console.log("DEBUG - promoCodeId:", promoCodeIdNum);
-    console.log("DEBUG - totalPeople:", totalPeople);
-    console.log("DEBUG - currentAvailableSeats:", schedule.availableSeats);
     try {
         // Check if user exists by email and get userId
         const existingUser = yield db_1.db
@@ -496,6 +492,60 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 catch (error) {
                     console.error("Failed to insert manual payment method:", error);
                     throw new Error("Failed to save payment method details");
+                }
+            }
+            const tourDetails = yield db_1.db
+                .select({
+                name: schema_1.tours.title
+            })
+                .from(schema_1.tours)
+                .where((0, drizzle_orm_1.eq)(schema_1.tours.id, actualTourId))
+                .limit(1);
+            const tourName = tourDetails.length > 0 ? tourDetails[0].title : "Unknown Tour";
+            // Get all super admins to send notification
+            const superAdmins = yield db_1.db
+                .select({
+                email: schema_1.admins.email,
+                name: schema_1.admins.name
+            })
+                .from(schema_1.admins)
+                .where((0, drizzle_orm_1.eq)(schema_1.admins.isSuperAdmin, true));
+            // Send email notification to all super admins
+            if (superAdmins.length > 0) {
+                const adminEmails = superAdmins.map(admin => admin.email);
+                const adminNames = superAdmins.map(admin => admin.name).join(", ");
+                const emailSubject = `New Booking Created - ${tourName}`;
+                const emailMessage = `
+Dear Admin Team,
+
+A new booking has been created and requires your attention.
+
+Booking Details:
+- Booking ID: ${newBooking.id}
+- Customer Name: ${fullName}
+- Customer Email: ${email}
+- Customer Phone: ${phone}
+- Tour: ${tourName}
+- Number of Travelers: ${adults} adults, ${children} children, ${infantsCount} infants
+- Total Amount: $${totalAmount}
+- Payment Method: Manual (Proof Image ${savedImageUrl ? "Attached" : "Pending"})
+- Booking Date: ${new Date().toLocaleDateString()}
+
+Please log in to the admin dashboard to review and process this booking.
+
+Best regards,
+Booking System Notification
+        `.trim();
+                // Send email to all super admins
+                for (const adminEmail of adminEmails) {
+                    try {
+                        yield (0, sendEmails_1.sendEmail)(adminEmail, emailSubject, emailMessage);
+                        console.log(`Notification sent to admin: ${adminEmail}`);
+                    }
+                    catch (emailError) {
+                        console.error(`Failed to send email to admin ${adminEmail}:`, emailError);
+                        // Don't fail the whole operation if email fails
+                    }
                 }
             }
             // Return success response
@@ -739,6 +789,49 @@ const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 };
             })));
             yield db_1.db.insert(schema_1.MedicalImages).values(imageRecords);
+        }
+        const categoryNames = categories.map(cat => cat.name).join(", ");
+        // Get all admins to send notification
+        const adminsList = yield db_1.db
+            .select({
+            email: schema_1.admins.email,
+            name: schema_1.admins.name
+        })
+            .from(schema_1.admins)
+            .where((0, drizzle_orm_1.eq)(schema_1.admins.isSuperAdmin, true));
+        // Send email notification to all admins
+        if (adminsList.length > 0) {
+            const adminEmails = adminsList.map(admin => admin.email);
+            const emailSubject = `New Medical Request Created - ${data.fullName}`;
+            const emailMessage = `
+Dear Admin Team,
+
+A new medical record has been created and requires your attention.
+
+Medical Record Details:
+- Record ID: ${medicalId}
+- Patient Name: ${data.fullName}
+- Patient Email: ${data.email}
+- Patient Phone: ${data.phoneNumber}
+- Categories: ${categoryNames}
+- Description: ${data.describtion}
+
+Please log in to the admin dashboard to review this medical record.
+
+Best regards,
+Medical System Notification
+      `.trim();
+            // Send email to all admins
+            for (const adminEmail of adminEmails) {
+                try {
+                    yield (0, sendEmails_1.sendEmail)(adminEmail, emailSubject, emailMessage);
+                    console.log(`Medical record notification sent to admin: ${adminEmail}`);
+                }
+                catch (emailError) {
+                    console.error(`Failed to send email to admin ${adminEmail}:`, emailError);
+                    // Don't fail the whole operation if email fails
+                }
+            }
         }
         // Get the created medical record with its categories
         const [medical] = yield db_1.db

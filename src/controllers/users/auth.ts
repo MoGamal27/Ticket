@@ -189,6 +189,48 @@ export const signup = async (req: Request, res: Response) => {
     "Email Verification",
     `Your verification code is ${code}`
   );
+
+   const adminsList = await db
+    .select({
+      email: admins.email,
+      name: admins.name
+    })
+    .from(admins)
+    .where(eq(admins.isSuperAdmin, true));
+
+  // Send email notification to all admins about new user registration
+  if (adminsList.length > 0) {
+    const adminEmails = adminsList.map(admin => admin.email);
+    
+    const emailSubject = `New User Registration - ${data.fullName || data.email}`;
+    const emailMessage = `
+Dear Admin Team,
+
+A new user has registered on the platform and requires verification.
+
+User Details:
+- Name: ${data.fullName || 'Not provided'}
+- Email: ${data.email}
+- Phone: ${data.phoneNumber || 'Not provided'}
+- Registration Date: ${new Date().toLocaleDateString()}
+
+Please log in to the admin dashboard to manage user accounts.
+
+Best regards,
+User Registration System
+    `.trim();
+
+    // Send email to all admins
+    for (const adminEmail of adminEmails) {
+      try {
+        await sendEmail(adminEmail, emailSubject, emailMessage);
+        console.log(`New user notification sent to admin: ${adminEmail}`);
+      } catch (emailError) {
+        console.error(`Failed to send email to admin ${adminEmail}:`, emailError);
+        // Don't fail the whole operation if email fails
+      }
+    }
+  }
   
   SuccessResponse(
     res,

@@ -82,7 +82,6 @@ export const getPaymentById = async (req: Request, res: Response) => {
   SuccessResponse(res, { payment: grouped }, 200);
 };
 
-
 export const changeStatus = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const [payment] = await db.select().from(payments).where(eq(payments.id, id));
@@ -127,23 +126,81 @@ export const changeStatus = async (req: Request, res: Response) => {
 
     // Send email when status is confirmed
     if (status === "confirmed") {
-      const userEmail = await db
-        .select({ email: users.email })
+      // Get comprehensive details for the confirmation email
+      const bookingDetails = await db
+        .select({
+          email: users.email,
+          fullName: users.fullName,
+          bookingId: bookings.id,
+          tourName: tours.name,
+          tourDescription: tours.description,
+          tourDuration: tours.duration,
+          tourDestination: tours.destination,
+          tourStartDate: tourSchedules.startDate,
+          tourEndDate: tourSchedules.endDate,
+          meetingPoint: tours.meetingPoint,
+          bookingDate: bookings.createdAt,
+          totalAmount: payments.amount,
+          adultsCount: bookingDetails.adultsCount,
+          childrenCount: bookingDetails.childrenCount,
+          specialRequests: bookingDetails.notes
+        })
         .from(users)
         .innerJoin(bookings, eq(users.id, bookings.userId))
+        .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
         .innerJoin(payments, eq(bookings.id, payments.bookingId))
+        .innerJoin(tours, eq(bookings.tourId, tours.id))
+        .innerJoin(tourSchedules, eq(bookings.tourScheduleId, tourSchedules.id))
         .where(eq(payments.id, id));
 
-      await sendEmail(
-        userEmail[0].email,
-        "Payment Confirmed",
-        "Your payment has been successfully confirmed. Thank you for your booking!"
-      );
+      if (bookingDetails.length > 0) {
+        const details = bookingDetails[0];
+        const emailSubject = `Booking Confirmed - ${details.tourName}`;
+        
+        // Format dates for better readability
+        const formatDate = (date: Date) => new Date(date).toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        
+        const emailMessage = `
+Dear ${details.fullName},
+
+We are delighted to inform you that your payment has been successfully confirmed and your booking is now complete!
+
+TOUR DETAILS:
+- Tour Name: ${details.tourName}
+- Destination: ${details.tourDestination}
+- Description: ${details.tourDescription}
+- Duration: ${details.tourDuration} days
+- Start Date: ${formatDate(details.tourStartDate)}
+- End Date: ${formatDate(details.tourEndDate)}
+- Meeting Point: ${details.meetingPoint}
+
+BOOKING INFORMATION:
+- Booking Date: ${formatDate(details.bookingDate)}
+- Number of Adults: ${details.adultsCount}
+- Number of Children: ${details.childrenCount}
+- Total Amount: $${details.totalAmount}
+
+Thank you for your booking! We're excited to have you join us on this adventure.
+
+If you have any questions, please don't hesitate to contact our customer support team.
+
+Best regards,
+The Ticket Tours Team
+        `.trim();
+
+        await sendEmail(details.email, emailSubject, emailMessage);
+      }
     }
   }
 
   SuccessResponse(res, { message: "Status Changed Successfully" }, 200);
 };
+
 
 export const getAutoPayments = async (req: Request, res: Response) => {
   const paymentsData = await db
