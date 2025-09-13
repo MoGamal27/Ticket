@@ -111,33 +111,31 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         // Send email when status is confirmed
         if (status === "confirmed") {
             // Get comprehensive details for the confirmation email
-            const bookingDetails = yield db_1.db
+            const bookingdetails = yield db_1.db
                 .select({
                 email: schema_1.users.email,
-                fullName: schema_1.users.fullName,
+                fullName: schema_1.bookingDetails.fullName,
                 bookingId: schema_1.bookings.id,
-                tourName: schema_1.tours.name,
-                tourDescription: schema_1.tours.description,
-                tourDuration: schema_1.tours.duration,
-                tourDestination: schema_1.tours.destination,
+                tourName: schema_1.tours.title,
+                tourDescription: schema_1.tours.describtion,
                 tourStartDate: schema_1.tourSchedules.startDate,
                 tourEndDate: schema_1.tourSchedules.endDate,
                 meetingPoint: schema_1.tours.meetingPoint,
                 bookingDate: schema_1.bookings.createdAt,
                 totalAmount: schema_1.payments.amount,
-                adultsCount: bookingDetails.adultsCount,
-                childrenCount: bookingDetails.childrenCount,
-                specialRequests: bookingDetails.notes
+                adultsCount: schema_1.bookingDetails.adultsCount,
+                childrenCount: schema_1.bookingDetails.childrenCount,
+                specialRequests: schema_1.bookingDetails.notes
             })
                 .from(schema_1.users)
                 .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.bookings.userId))
-                .innerJoin(bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, bookingDetails.bookingId))
+                .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
                 .innerJoin(schema_1.payments, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
                 .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tours.id))
-                .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourScheduleId, schema_1.tourSchedules.id))
+                .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id))
                 .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
-            if (bookingDetails.length > 0) {
-                const details = bookingDetails[0];
+            if (bookingdetails.length > 0) {
+                const details = bookingdetails[0];
                 const emailSubject = `Booking Confirmed - ${details.tourName}`;
                 // Format dates for better readability
                 const formatDate = (date) => new Date(date).toLocaleDateString('en-US', {
@@ -153,15 +151,12 @@ We are delighted to inform you that your payment has been successfully confirmed
 
 TOUR DETAILS:
 - Tour Name: ${details.tourName}
-- Destination: ${details.tourDestination}
 - Description: ${details.tourDescription}
-- Duration: ${details.tourDuration} days
 - Start Date: ${formatDate(details.tourStartDate)}
 - End Date: ${formatDate(details.tourEndDate)}
 - Meeting Point: ${details.meetingPoint}
 
 BOOKING INFORMATION:
-- Booking Date: ${formatDate(details.bookingDate)}
 - Number of Adults: ${details.adultsCount}
 - Number of Children: ${details.childrenCount}
 - Total Amount: $${details.totalAmount}

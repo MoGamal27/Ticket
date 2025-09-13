@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../../models/db";
-import { emailVerifications, users } from "../../models/schema";
+import { emailVerifications, users, admins } from "../../models/schema";
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { generateToken } from "../../utils/auth";

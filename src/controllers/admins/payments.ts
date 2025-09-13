@@ -10,7 +10,8 @@ import {
   bookings,
   users,
   tours,
-  tourSchedules
+  tourSchedules, 
+  admins
 } from "../../models/schema";
 import { eq } from "drizzle-orm";
 import { SuccessResponse } from "../../utils/response";
@@ -127,15 +128,13 @@ export const changeStatus = async (req: Request, res: Response) => {
     // Send email when status is confirmed
     if (status === "confirmed") {
       // Get comprehensive details for the confirmation email
-      const bookingDetails = await db
+      const bookingdetails = await db
         .select({
           email: users.email,
-          fullName: users.fullName,
+          fullName: bookingDetails.fullName,
           bookingId: bookings.id,
-          tourName: tours.name,
-          tourDescription: tours.description,
-          tourDuration: tours.duration,
-          tourDestination: tours.destination,
+          tourName: tours.title,
+          tourDescription: tours.describtion,
           tourStartDate: tourSchedules.startDate,
           tourEndDate: tourSchedules.endDate,
           meetingPoint: tours.meetingPoint,
@@ -150,11 +149,11 @@ export const changeStatus = async (req: Request, res: Response) => {
         .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
         .innerJoin(payments, eq(bookings.id, payments.bookingId))
         .innerJoin(tours, eq(bookings.tourId, tours.id))
-        .innerJoin(tourSchedules, eq(bookings.tourScheduleId, tourSchedules.id))
+        .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))
         .where(eq(payments.id, id));
 
-      if (bookingDetails.length > 0) {
-        const details = bookingDetails[0];
+      if (bookingdetails.length > 0) {
+        const details = bookingdetails[0];
         const emailSubject = `Booking Confirmed - ${details.tourName}`;
         
         // Format dates for better readability
@@ -172,15 +171,12 @@ We are delighted to inform you that your payment has been successfully confirmed
 
 TOUR DETAILS:
 - Tour Name: ${details.tourName}
-- Destination: ${details.tourDestination}
 - Description: ${details.tourDescription}
-- Duration: ${details.tourDuration} days
 - Start Date: ${formatDate(details.tourStartDate)}
 - End Date: ${formatDate(details.tourEndDate)}
 - Meeting Point: ${details.meetingPoint}
 
 BOOKING INFORMATION:
-- Booking Date: ${formatDate(details.bookingDate)}
 - Number of Adults: ${details.adultsCount}
 - Number of Children: ${details.childrenCount}
 - Total Amount: $${details.totalAmount}

@@ -173,11 +173,11 @@ const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, sendEmails_1.sendEmail)(data.email, "Email Verification", `Your verification code is ${code}`);
     const adminsList = yield db_1.db
         .select({
-        email: admins.email,
-        name: admins.name
+        email: schema_1.admins.email,
+        name: schema_1.admins.name
     })
-        .from(admins)
-        .where((0, drizzle_orm_1.eq)(admins.isSuperAdmin, true));
+        .from(schema_1.admins)
+        .where((0, drizzle_orm_1.eq)(schema_1.admins.isSuperAdmin, true));
     // Send email notification to all admins about new user registration
     if (adminsList.length > 0) {
         const adminEmails = adminsList.map(admin => admin.email);
