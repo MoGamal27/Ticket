@@ -108,6 +108,16 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .update(schema_1.bookings)
             .set({ status: status === "confirmed" ? "confirmed" : "pending" })
             .where((0, drizzle_orm_1.eq)(schema_1.bookings.id, payment.bookingId));
+        // Send email when status is confirmed
+        if (status === "confirmed") {
+            const userEmail = yield db_1.db
+                .select({ email: schema_1.users.email })
+                .from(schema_1.users)
+                .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.bookings.userId))
+                .innerJoin(schema_1.payments, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
+                .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+            yield (0, sendEmails_1.sendEmail)(userEmail[0].email, "Payment Confirmed", "Your payment has been successfully confirmed. Thank you for your booking!");
+        }
     }
     (0, response_1.SuccessResponse)(res, { message: "Status Changed Successfully" }, 200);
 });

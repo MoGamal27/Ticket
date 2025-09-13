@@ -124,10 +124,27 @@ export const changeStatus = async (req: Request, res: Response) => {
       .update(bookings)
       .set({ status: status === "confirmed" ? "confirmed" : "pending" })
       .where(eq(bookings.id, payment.bookingId));
+
+    // Send email when status is confirmed
+    if (status === "confirmed") {
+      const userEmail = await db
+        .select({ email: users.email })
+        .from(users)
+        .innerJoin(bookings, eq(users.id, bookings.userId))
+        .innerJoin(payments, eq(bookings.id, payments.bookingId))
+        .where(eq(payments.id, id));
+
+      await sendEmail(
+        userEmail[0].email,
+        "Payment Confirmed",
+        "Your payment has been successfully confirmed. Thank you for your booking!"
+      );
+    }
   }
 
   SuccessResponse(res, { message: "Status Changed Successfully" }, 200);
 };
+
 export const getAutoPayments = async (req: Request, res: Response) => {
   const paymentsData = await db
     .select()
