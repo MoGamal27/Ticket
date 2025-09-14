@@ -96,7 +96,9 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.bookings.userId))
             .innerJoin(schema_1.payments, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
             .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
-        yield (0, sendEmails_1.sendEmail)(userEmail[0].email, "Payment Cancelled", `${rejectionReason}`);
+        if (userEmail.length > 0) {
+            yield (0, sendEmails_1.sendEmail)(userEmail[0].email, "Payment Cancelled", `${rejectionReason}`);
+        }
     }
     else {
         yield db_1.db
@@ -111,16 +113,16 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         // Send email when status is confirmed
         if (status === "confirmed") {
             // Get comprehensive details for the confirmation email
+            // FIXED JOIN CONDITIONS:
             const bookingdetails = yield db_1.db
                 .select({
                 email: schema_1.users.email,
                 fullName: schema_1.bookingDetails.fullName,
                 bookingId: schema_1.bookings.id,
-                tourName: schema_1.tours.title,
+                tourTitle: schema_1.tours.title,
                 tourDescription: schema_1.tours.describtion,
                 tourStartDate: schema_1.tourSchedules.startDate,
                 tourEndDate: schema_1.tourSchedules.endDate,
-                meetingPoint: schema_1.tours.meetingPoint,
                 bookingDate: schema_1.bookings.createdAt,
                 totalAmount: schema_1.payments.amount,
                 adultsCount: schema_1.bookingDetails.adultsCount,
@@ -131,11 +133,13 @@ const changeStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 .innerJoin(schema_1.bookings, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.bookings.userId))
                 .innerJoin(schema_1.bookingDetails, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.bookingDetails.bookingId))
                 .innerJoin(schema_1.payments, (0, drizzle_orm_1.eq)(schema_1.bookings.id, schema_1.payments.bookingId))
-                .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tours.id))
                 .innerJoin(schema_1.tourSchedules, (0, drizzle_orm_1.eq)(schema_1.bookings.tourId, schema_1.tourSchedules.id))
+                .innerJoin(schema_1.tours, (0, drizzle_orm_1.eq)(schema_1.tourSchedules.tourId, schema_1.tours.id))
                 .where((0, drizzle_orm_1.eq)(schema_1.payments.id, id));
+            console.log("Booking details query result:", bookingdetails.length, "records found");
             if (bookingdetails.length > 0) {
                 const details = bookingdetails[0];
+                console.log("Sending confirmation email to:", details.email);
                 const emailSubject = `Booking Confirmed - ${details.tourName}`;
                 // Format dates for better readability
                 const formatDate = (date) => new Date(date).toLocaleDateString('en-US', {
@@ -150,16 +154,17 @@ Dear ${details.fullName},
 We are delighted to inform you that your payment has been successfully confirmed and your booking is now complete!
 
 TOUR DETAILS:
-- Tour Name: ${details.tourName}
+- Tour Name: ${details.tourTitle}
 - Description: ${details.tourDescription}
 - Start Date: ${formatDate(details.tourStartDate)}
 - End Date: ${formatDate(details.tourEndDate)}
-- Meeting Point: ${details.meetingPoint}
 
 BOOKING INFORMATION:
+- Booking Status: Confirmed
 - Number of Adults: ${details.adultsCount}
 - Number of Children: ${details.childrenCount}
 - Total Amount: $${details.totalAmount}
+
 
 Thank you for your booking! We're excited to have you join us on this adventure.
 
@@ -168,7 +173,16 @@ If you have any questions, please don't hesitate to contact our customer support
 Best regards,
 The Ticket Tours Team
         `.trim();
-                yield (0, sendEmails_1.sendEmail)(details.email, emailSubject, emailMessage);
+                try {
+                    yield (0, sendEmails_1.sendEmail)(details.email, emailSubject, emailMessage);
+                    console.log("Confirmation email sent successfully");
+                }
+                catch (emailError) {
+                    console.error("Failed to send confirmation email:", emailError);
+                }
+            }
+            else {
+                console.error("No booking details found for payment ID:", id);
             }
         }
     }

@@ -108,11 +108,13 @@ export const changeStatus = async (req: Request, res: Response) => {
       .innerJoin(payments, eq(bookings.id, payments.bookingId))
       .where(eq(payments.id, id));
 
-    await sendEmail(
-      userEmail[0].email,
-      "Payment Cancelled",
-      `${rejectionReason}`
-    );
+    if (userEmail.length > 0) {
+      await sendEmail(
+        userEmail[0].email,
+        "Payment Cancelled",
+        `${rejectionReason}`
+      );
+    }
   } else {
     await db
       .update(payments)
@@ -128,16 +130,16 @@ export const changeStatus = async (req: Request, res: Response) => {
     // Send email when status is confirmed
     if (status === "confirmed") {
       // Get comprehensive details for the confirmation email
+      // FIXED JOIN CONDITIONS:
       const bookingdetails = await db
         .select({
           email: users.email,
           fullName: bookingDetails.fullName,
           bookingId: bookings.id,
-          tourName: tours.title,
+          tourTitle: tours.title,
           tourDescription: tours.describtion,
           tourStartDate: tourSchedules.startDate,
           tourEndDate: tourSchedules.endDate,
-          meetingPoint: tours.meetingPoint,
           bookingDate: bookings.createdAt,
           totalAmount: payments.amount,
           adultsCount: bookingDetails.adultsCount,
@@ -148,12 +150,16 @@ export const changeStatus = async (req: Request, res: Response) => {
         .innerJoin(bookings, eq(users.id, bookings.userId))
         .innerJoin(bookingDetails, eq(bookings.id, bookingDetails.bookingId))
         .innerJoin(payments, eq(bookings.id, payments.bookingId))
-        .innerJoin(tours, eq(bookings.tourId, tours.id))
         .innerJoin(tourSchedules, eq(bookings.tourId, tourSchedules.id))
+        .innerJoin(tours, eq(tourSchedules.tourId, tours.id)) 
         .where(eq(payments.id, id));
+
+      console.log("Booking details query result:", bookingdetails.length, "records found");
 
       if (bookingdetails.length > 0) {
         const details = bookingdetails[0];
+        console.log("Sending confirmation email to:", details.email);
+        
         const emailSubject = `Booking Confirmed - ${details.tourName}`;
         
         // Format dates for better readability
@@ -170,16 +176,17 @@ Dear ${details.fullName},
 We are delighted to inform you that your payment has been successfully confirmed and your booking is now complete!
 
 TOUR DETAILS:
-- Tour Name: ${details.tourName}
+- Tour Name: ${details.tourTitle}
 - Description: ${details.tourDescription}
 - Start Date: ${formatDate(details.tourStartDate)}
 - End Date: ${formatDate(details.tourEndDate)}
-- Meeting Point: ${details.meetingPoint}
 
 BOOKING INFORMATION:
+- Booking Status: Confirmed
 - Number of Adults: ${details.adultsCount}
 - Number of Children: ${details.childrenCount}
 - Total Amount: $${details.totalAmount}
+
 
 Thank you for your booking! We're excited to have you join us on this adventure.
 
@@ -189,7 +196,14 @@ Best regards,
 The Ticket Tours Team
         `.trim();
 
-        await sendEmail(details.email, emailSubject, emailMessage);
+        try {
+          await sendEmail(details.email, emailSubject, emailMessage);
+          console.log("Confirmation email sent successfully");
+        } catch (emailError) {
+          console.error("Failed to send confirmation email:", emailError);
+        }
+      } else {
+        console.error("No booking details found for payment ID:", id);
       }
     }
   }

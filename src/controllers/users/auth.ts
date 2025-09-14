@@ -227,7 +227,6 @@ User Registration System
         console.log(`New user notification sent to admin: ${adminEmail}`);
       } catch (emailError) {
         console.error(`Failed to send email to admin ${adminEmail}:`, emailError);
-        // Don't fail the whole operation if email fails
       }
     }
   }

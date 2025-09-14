@@ -206,7 +206,6 @@ User Registration System
             }
             catch (emailError) {
                 console.error(`Failed to send email to admin ${adminEmail}:`, emailError);
-                // Don't fail the whole operation if email fails
             }
         }
     }
