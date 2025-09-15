@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { db } from "../../models/db";
 import { adminPrivileges, admins, privileges } from "../../models/schema";
 import { eq } from "drizzle-orm";
@@ -23,60 +23,46 @@ export async function login(req: Request, res: Response) {
   if (!match) {
     throw new UnauthorizedError("Invalid email or password");
   }
+
   let token;
   let groupedPrivileges = {};
 
-  if (!admin.isSuperAdmin) {
-    // Only get privileges assigned to this admin through admin_privileges table
-    const result = await db
-      .select({
-        privilegeName: privileges.name,
-        privilegeAction: privileges.action,
-        privilegeId: privileges.id
-      })
-      .from(adminPrivileges)
-      .innerJoin(privileges, eq(adminPrivileges.privilegeId, privileges.id))
-      .where(eq(adminPrivileges.adminId, admin.id));
+  // Get privileges for ALL admins from admin_privileges table
+  const result = await db
+    .select({
+      privilegeName: privileges.name,
+      privilegeAction: privileges.action,
+      privilegeId: privileges.id
+    })
+    .from(adminPrivileges)
+    .innerJoin(privileges, eq(adminPrivileges.privilegeId, privileges.id))
+    .where(eq(adminPrivileges.adminId, admin.id));
 
-    const privilegeNames = result.map(
-      (r) => r.privilegeName + "_" + r.privilegeAction
-    );
+  const privilegeNames = result.map(
+    (r) => r.privilegeName + "_" + r.privilegeAction
+  );
 
-    // Group only the assigned privileges
-    groupedPrivileges = result.reduce((acc, curr) => {
-      if (!acc[curr.privilegeName]) {
-        acc[curr.privilegeName] = [];
-      }
-      acc[curr.privilegeName].push({
-        id: curr.privilegeId,
-        action: curr.privilegeAction,
-      });
-      return acc;
-    }, {} as Record<string, { id: number; action: string }[]>);
-
-    token = generateToken({
-      id: admin.id,
-      roles: privilegeNames,
+  // Group the assigned privileges
+  groupedPrivileges = result.reduce((acc, curr) => {
+    if (!acc[curr.privilegeName]) {
+      acc[curr.privilegeName] = [];
+    }
+    acc[curr.privilegeName].push({
+      id: curr.privilegeId,
+      action: curr.privilegeAction,
     });
-  } else {
-    // Super admin gets all privileges
-    const allPrivileges = await db.select().from(privileges);
-    groupedPrivileges = allPrivileges.reduce((acc, curr) => {
-      if (!acc[curr.name]) {
-        acc[curr.name] = [];
-      }
-      acc[curr.name].push({
-        id: curr.id,
-        action: curr.action,
-      });
-      return acc;
-    }, {} as Record<string, { id: number; action: string }[]>);
+    return acc;
+  }, {} as Record<string, { id: number; action: string }[]>);
 
-    token = generateToken({
-      id: admin.id,
-      roles: ["super_admin"],
-    });
+  // For super admin, add the super_admin role but don't automatically give all privileges
+  if (admin.isSuperAdmin) {
+    privilegeNames.push("super_admin");
   }
+
+  token = generateToken({
+    id: admin.id,
+    roles: privilegeNames,
+  });
 
   SuccessResponse(
     res,

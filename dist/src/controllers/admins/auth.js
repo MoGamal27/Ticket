@@ -36,52 +36,36 @@ function login(req, res) {
         }
         let token;
         let groupedPrivileges = {};
-        if (!admin.isSuperAdmin) {
-            // Only get privileges assigned to this admin through admin_privileges table
-            const result = yield db_1.db
-                .select({
-                privilegeName: schema_1.privileges.name,
-                privilegeAction: schema_1.privileges.action,
-                privilegeId: schema_1.privileges.id
-            })
-                .from(schema_1.adminPrivileges)
-                .innerJoin(schema_1.privileges, (0, drizzle_orm_1.eq)(schema_1.adminPrivileges.privilegeId, schema_1.privileges.id))
-                .where((0, drizzle_orm_1.eq)(schema_1.adminPrivileges.adminId, admin.id));
-            const privilegeNames = result.map((r) => r.privilegeName + "_" + r.privilegeAction);
-            // Group only the assigned privileges
-            groupedPrivileges = result.reduce((acc, curr) => {
-                if (!acc[curr.privilegeName]) {
-                    acc[curr.privilegeName] = [];
-                }
-                acc[curr.privilegeName].push({
-                    id: curr.privilegeId,
-                    action: curr.privilegeAction,
-                });
-                return acc;
-            }, {});
-            token = (0, auth_1.generateToken)({
-                id: admin.id,
-                roles: privilegeNames,
+        // Get privileges for ALL admins from admin_privileges table
+        const result = yield db_1.db
+            .select({
+            privilegeName: schema_1.privileges.name,
+            privilegeAction: schema_1.privileges.action,
+            privilegeId: schema_1.privileges.id
+        })
+            .from(schema_1.adminPrivileges)
+            .innerJoin(schema_1.privileges, (0, drizzle_orm_1.eq)(schema_1.adminPrivileges.privilegeId, schema_1.privileges.id))
+            .where((0, drizzle_orm_1.eq)(schema_1.adminPrivileges.adminId, admin.id));
+        const privilegeNames = result.map((r) => r.privilegeName + "_" + r.privilegeAction);
+        // Group the assigned privileges
+        groupedPrivileges = result.reduce((acc, curr) => {
+            if (!acc[curr.privilegeName]) {
+                acc[curr.privilegeName] = [];
+            }
+            acc[curr.privilegeName].push({
+                id: curr.privilegeId,
+                action: curr.privilegeAction,
             });
+            return acc;
+        }, {});
+        // For super admin, add the super_admin role but don't automatically give all privileges
+        if (admin.isSuperAdmin) {
+            privilegeNames.push("super_admin");
         }
-        else {
-            // Super admin gets all privileges
-            const allPrivileges = yield db_1.db.select().from(schema_1.privileges);
-            groupedPrivileges = allPrivileges.reduce((acc, curr) => {
-                if (!acc[curr.name]) {
-                    acc[curr.name] = [];
-                }
-                acc[curr.name].push({
-                    id: curr.id,
-                    action: curr.action,
-                });
-                return acc;
-            }, {});
-            token = (0, auth_1.generateToken)({
-                id: admin.id,
-                roles: ["super_admin"],
-            });
-        }
+        token = (0, auth_1.generateToken)({
+            id: admin.id,
+            roles: privilegeNames,
+        });
         (0, response_1.SuccessResponse)(res, {
             message: "login Successful",
             token: token,
