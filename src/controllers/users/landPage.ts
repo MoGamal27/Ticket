@@ -949,8 +949,8 @@ export const createMedical = async (req: Request, res: Response) => {
     }
 
   const categoryNames = categories
-  .map(cat => cat?.name?.trim()) // Get name and trim whitespace
-  .filter(name => name && name.length > 0) // Remove empty/null names
+  .map(cat => cat?.title?.trim()) 
+  .filter(title => title && title.length > 0) 
   .join(", ");
 
 const categoriesText = categoryNames.length > 0 

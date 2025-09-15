@@ -791,8 +791,8 @@ const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             yield db_1.db.insert(schema_1.MedicalImages).values(imageRecords);
         }
         const categoryNames = categories
-            .map(cat => { var _a; return (_a = cat === null || cat === void 0 ? void 0 : cat.name) === null || _a === void 0 ? void 0 : _a.trim(); }) // Get name and trim whitespace
-            .filter(name => name && name.length > 0) // Remove empty/null names
+            .map(cat => { var _a; return (_a = cat === null || cat === void 0 ? void 0 : cat.title) === null || _a === void 0 ? void 0 : _a.trim(); })
+            .filter(title => title && title.length > 0)
             .join(", ");
         const categoriesText = categoryNames.length > 0
             ? categoryNames
