@@ -501,7 +501,7 @@ const createBookingWithPayment = (req, res) => __awaiter(void 0, void 0, void 0,
                 .from(schema_1.tours)
                 .where((0, drizzle_orm_1.eq)(schema_1.tours.id, actualTourId))
                 .limit(1);
-            const tourName = tourDetails.length > 0 ? tourDetails[0].title : "Unknown Tour";
+            const tourName = tourDetails.length > 0 ? tourDetails[0].name : "Unknown Tour";
             // Get all super admins to send notification
             const superAdmins = yield db_1.db
                 .select({
@@ -790,7 +790,13 @@ const createMedical = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             })));
             yield db_1.db.insert(schema_1.MedicalImages).values(imageRecords);
         }
-        const categoryNames = categories.map(cat => cat.name).join(", ");
+        const categoryNames = categories
+            .map(cat => { var _a; return (_a = cat === null || cat === void 0 ? void 0 : cat.name) === null || _a === void 0 ? void 0 : _a.trim(); }) // Get name and trim whitespace
+            .filter(name => name && name.length > 0) // Remove empty/null names
+            .join(", ");
+        const categoriesText = categoryNames.length > 0
+            ? categoryNames
+            : "No categories specified";
         // Get all admins to send notification
         const adminsList = yield db_1.db
             .select({
@@ -813,7 +819,7 @@ Medical Record Details:
 - Patient Name: ${data.fullName}
 - Patient Email: ${data.email}
 - Patient Phone: ${data.phoneNumber}
-- Categories: ${categoryNames}
+- Categories: ${categoriesText}
 - Description: ${data.describtion}
 
 Please log in to the admin dashboard to review this medical record.
